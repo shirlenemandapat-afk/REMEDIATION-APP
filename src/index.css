@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@media print {
+  /* Hide non-printable elements */
+  nav,
+  header,
+  aside,
+  button,
+  .print\\:hidden,
+  [data-no-print] {
+    display: none !important;
+  }
+
+  /* Reset body and background for crisp printing */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 11pt !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ensure modal overlays don't clip content during print */
+  .fixed, .absolute {
+    position: static !important;
+  }
+
+  .inset-0, .overflow-y-auto {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /* Target printable sheets cleanly */
+  #printable-letter-container,
+  #printable-anecdotal-report,
+  #printable-narrative-report,
+  .print-container {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm;
+  }
+}
+

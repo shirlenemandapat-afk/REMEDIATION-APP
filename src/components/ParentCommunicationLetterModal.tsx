@@ -1,0 +1,275 @@
+import React from 'react';
+import { Student, TeacherProfile } from '../types';
+import { SchoolLogo } from './SchoolLogo';
+import { safePrintDocument } from '../utils/printHelper';
+import { Printer, ArrowLeft, X, Mail, FileText, CheckCircle2, ShieldCheck, Download } from 'lucide-react';
+
+interface ParentCommunicationLetterModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  student: Student | null;
+  teacher: TeacherProfile;
+}
+
+export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterModalProps> = ({
+  isOpen,
+  onClose,
+  student,
+  teacher,
+}) => {
+  if (!isOpen || !student) return null;
+
+  const currentDate = new Date().toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+  const parentDisplayName = student.parentName || 'Parent / Guardian';
+  const isRemediation = student.programType === 'Remediation';
+
+  const handlePrint = () => {
+    safePrintDocument(
+      'printable-letter-container',
+      `Parent_Notice_${student.lastName}_${student.firstName}_${student.programType}`
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white print:static">
+      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden border border-slate-200 my-6 animate-in fade-in zoom-in-95 duration-150 print:shadow-none print:border-none print:my-0 print:max-w-none">
+        {/* Action Header Bar (Hidden in Print) */}
+        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-950 p-4 text-white flex items-center justify-between print:hidden border-b-2 border-amber-400 gap-3">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-emerald-100 hover:text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-white/20 shadow-xs cursor-pointer"
+              title="Back to Students / Dashboard"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back</span>
+            </button>
+            <div className="flex items-center gap-2">
+              <Mail className="w-5 h-5 text-amber-300 hidden sm:block" />
+              <div>
+                <h3 className="font-extrabold text-sm sm:text-base leading-tight">Parent / Guardian Communication Letter</h3>
+                <p className="text-xs text-emerald-200">
+                  Official Notice for {student.firstName} {student.lastName} ({student.programType})
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrint}
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-md hover:shadow-lg border border-amber-300 cursor-pointer active:scale-95"
+              title="Print official letter or save as PDF"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Print Letter / PDF</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="text-white/70 hover:text-white p-2 rounded-lg hover:bg-white/10 transition cursor-pointer"
+              title="Close modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* PRINTABLE LETTER PAPER BODY */}
+        <div id="printable-letter-container" className="p-8 sm:p-12 text-slate-900 space-y-6 print:p-0 print:text-black bg-white">
+          {/* Official DepEd & RMCHS Letterhead */}
+          <div className="flex items-center justify-between pb-4 border-b-2 border-emerald-900">
+            <SchoolLogo size="md" showShadow={false} />
+            <div className="text-center space-y-0.5 flex-1 px-4">
+              <p className="text-[11px] font-serif uppercase tracking-widest text-slate-600">
+                Republic of the Philippines &bull; Department of Education
+              </p>
+              <p className="text-xs font-bold uppercase tracking-wider font-serif text-emerald-950">
+                {teacher.region} &bull; {teacher.division}
+              </p>
+              <p className="text-base font-extrabold text-emerald-900 uppercase tracking-wide font-serif">
+                RAMON MAGSAYSAY (CUBAO) HIGH SCHOOL
+              </p>
+              <p className="text-xs font-bold text-amber-700 uppercase tracking-wider">
+                Technology and Livelihood Education (TLE) Department
+              </p>
+              <p className="text-[10px] text-slate-500">
+                Project S.M.I.L.E. (Student Monitoring and Intervention for Learning Enhancement)
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-full border border-emerald-800 flex items-center justify-center p-1 bg-emerald-50 shrink-0">
+              <span className="text-[9px] font-extrabold text-emerald-900 text-center leading-tight">
+                PROJECT<br />S.M.I.L.E.
+              </span>
+            </div>
+          </div>
+
+          {/* Letter Date & Addressee */}
+          <div className="space-y-3 pt-2 text-xs sm:text-sm">
+            <p className="font-semibold text-slate-700">{currentDate}</p>
+
+            <div className="space-y-0.5">
+              <p className="font-bold text-slate-900">TO THE PARENT / GUARDIAN OF:</p>
+              <p className="text-base font-black text-emerald-950 font-serif">
+                {student.lastName}, {student.firstName} {student.middleInitial}
+              </p>
+              <p className="text-xs text-slate-600 font-medium">
+                Grade & Section: <strong className="text-slate-800">{student.gradeLevel} - {student.section}</strong> &bull; Subject: <strong className="text-emerald-900">{student.subject}</strong>
+              </p>
+              {student.parentName && (
+                <p className="text-xs text-slate-600">
+                  Addressee: <strong className="text-slate-800">{student.parentName}</strong>
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Salutation */}
+          <p className="text-xs sm:text-sm font-semibold text-slate-900">
+            Dear {parentDisplayName},
+          </p>
+
+          {/* Letter Content */}
+          <div className="text-xs sm:text-sm leading-relaxed text-justify space-y-3.5 text-slate-800">
+            <p>
+              Warm greetings from the Technology and Livelihood Education (TLE) Department of Ramon Magsaysay (Cubao) High School!
+            </p>
+
+            {isRemediation ? (
+              <p>
+                In our continuous dedication to ensuring the academic success and practical competency of our learners, your child, <strong>{student.firstName} {student.lastName}</strong>, has been officially enrolled in <strong>PROJECT S.M.I.L.E. (Student Monitoring and Intervention for Learning Enhancement) — Remediation Program</strong>.
+              </p>
+            ) : (
+              <p>
+                Recognizing the demonstrated aptitude and strong foundation of your child, <strong>{student.firstName} {student.lastName}</strong>, we are pleased to inform you that they have been selected to participate in <strong>PROJECT S.M.I.L.E. — Skills Enhancement Program</strong>.
+              </p>
+            )}
+
+            <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-4 space-y-2 text-xs text-slate-800">
+              <p className="font-bold text-emerald-950 uppercase tracking-wide">
+                📌 Program Details & Specifics:
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-slate-700">
+                <li>
+                  <strong>Program Classification:</strong>{' '}
+                  <span className="font-bold text-emerald-900">{student.programType}</span>
+                </li>
+                <li>
+                  <strong>Learning Area / TLE Strand:</strong> {student.subject}
+                </li>
+                <li>
+                  <strong>Target Learning Competency:</strong> {student.focusTopic}
+                </li>
+                <li>
+                  <strong>Session Schedule & Location:</strong>{' '}
+                  <span className="font-semibold text-emerald-950">
+                    {student.scheduleDetails || 'Regular Scheduled Remedial Period, TLE Laboratory / Classroom'}
+                  </span>
+                </li>
+                <li>
+                  <strong>Advising Teacher / Facilitator:</strong> {teacher.name} ({teacher.title})
+                </li>
+              </ul>
+            </div>
+
+            {isRemediation ? (
+              <p>
+                This targeted program provides personalized, scaffolded reteaching, hands-on practice, and contextualized Learning Activity Sheets (LAS) designed to address specific learning gaps and ensure your child reaches full mastery.
+              </p>
+            ) : (
+              <p>
+                This advanced enrichment track provides higher-order technical exercises, project-based tasks, and hands-on laboratory workshops to further enhance your child's technical expertise and leadership skills.
+              </p>
+            )}
+
+            <p>
+              We firmly believe that strong parent-teacher collaboration is key to maximizing our students' growth. We kindly request your encouragement and support in ensuring their prompt and active attendance in all scheduled sessions.
+            </p>
+          </div>
+
+          {/* Signatures of Teacher & School Head */}
+          <div className="pt-4 grid grid-cols-2 gap-8 text-xs">
+            <div>
+              <p className="text-slate-600 mb-8">Sincerely yours,</p>
+              <p className="font-extrabold uppercase text-slate-900 underline decoration-slate-800 underline-offset-4">
+                {teacher.name}
+              </p>
+              <p className="text-slate-600 font-medium">{teacher.title}</p>
+              <p className="text-[11px] text-slate-500 italic">Project S.M.I.L.E. Facilitator / TLE Teacher</p>
+            </div>
+
+            <div>
+              <p className="text-slate-600 mb-8">Noted by:</p>
+              <p className="font-extrabold uppercase text-slate-900 underline decoration-slate-800 underline-offset-4">
+                {teacher.headTeacherName || 'Dr. Corazon V. Santos'}
+              </p>
+              <p className="text-slate-600 font-medium">
+                {teacher.headTeacherPosition || 'Head Teacher III / TLE Department Head'}
+              </p>
+              <p className="text-[11px] text-slate-500 italic">{teacher.schoolName || 'Ramon Magsaysay (Cubao) High School'}</p>
+            </div>
+          </div>
+
+          {/* PARENT ACKNOWLEDGMENT SLIP (CUT-OUT SLIP) */}
+          <div className="pt-6 border-t-2 border-dashed border-slate-400 space-y-3">
+            <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+              <span>✂️ CUT ALONG DOTTED LINE AND RETURN TO SUBJECT TEACHER</span>
+              <span>ACKNOWLEDGMENT & PARENT CONSENT SLIP</span>
+            </div>
+
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-300 text-xs space-y-3">
+              <p className="text-slate-800 leading-relaxed">
+                I, <strong className="border-b border-slate-700 px-2 inline-block min-w-[180px]">{student.parentName || '________________________'}</strong>, parent / guardian of{' '}
+                <strong>{student.firstName} {student.lastName}</strong> of Grade <strong>{student.gradeLevel} - {student.section}</strong>, hereby acknowledge receipt of this notification regarding my child's enrollment in <strong>Project S.M.I.L.E. ({student.programType})</strong>.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div>
+                  <div className="border-b border-slate-800 pt-6"></div>
+                  <p className="text-[10px] text-center font-bold text-slate-700 mt-1 uppercase">
+                    Parent / Guardian Signature over Printed Name
+                  </p>
+                </div>
+
+                <div>
+                  <div className="border-b border-slate-800 pt-6"></div>
+                  <p className="text-[10px] text-center font-bold text-slate-700 mt-1 uppercase">
+                    Date Signed & Contact Number
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Footer Bar (Hidden in Print) */}
+        <div className="bg-slate-100 p-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 print:hidden">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-xs transition flex items-center gap-1.5 border border-slate-300 shadow-2xs cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 text-slate-500" />
+            <span>Back to Dashboard</span>
+          </button>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-slate-500 hidden sm:inline">
+              Ready for parent distribution:
+            </span>
+            <button
+              onClick={handlePrint}
+              className="px-5 py-2.5 bg-emerald-800 hover:bg-emerald-700 text-yellow-300 font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-md hover:shadow-lg border border-emerald-950 cursor-pointer"
+            >
+              <Printer className="w-4 h-4 text-amber-400" />
+              <span>Print Official Letter (Parent's Copy)</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

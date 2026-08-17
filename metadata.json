@@ -1,0 +1,6 @@
+{
+  "name": "RMCHS TLE - Student Anecdotal & Intervention Log",
+  "description": "Project S.M.I.L.E. (Student Monitoring and Intervention for Learning Enhancement) - Daily anecdotal record, remediation, and skills enhancement monitoring system for Ramon Magsaysay (Cubao) High School TLE Department.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
