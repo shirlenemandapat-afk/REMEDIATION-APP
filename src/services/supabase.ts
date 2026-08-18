@@ -9,28 +9,56 @@ export interface SupabaseConfig {
   autoSync: boolean;
 }
 
+// Check if a URL is a syntactically and structurally valid Supabase endpoint
+export function isValidSupabaseUrl(url?: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (!trimmed.startsWith('https://') && !trimmed.startsWith('http://')) return false;
+  if (trimmed.includes('eyJhbGciOi')) return false; // Accidentally pasted JWT key
+  try {
+    const parsed = new URL(trimmed);
+    return Boolean(parsed.hostname && parsed.hostname.length > 3 && parsed.hostname.includes('.'));
+  } catch {
+    return false;
+  }
+}
+
+export function isValidSupabaseKey(key?: string): boolean {
+  if (!key || typeof key !== 'string') return false;
+  const trimmed = key.trim();
+  return trimmed.length > 20 && !trimmed.startsWith('http://') && !trimmed.startsWith('https://');
+}
+
 // 1. Get Stored / Environment Credentials
 export function getSupabaseConfig(): SupabaseConfig {
-  const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
-  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  const envUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+  const envKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
   try {
     const stored = localStorage.getItem(SUPABASE_CONFIG_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      return {
-        url: parsed.url || envUrl,
-        anonKey: parsed.anonKey || envKey,
-        autoSync: parsed.autoSync !== false,
-      };
+      const url = (parsed.url || '').trim();
+      const anonKey = (parsed.anonKey || '').trim();
+
+      // If stored value is corrupted or invalid, clear it and fall back to env
+      if (url && !isValidSupabaseUrl(url)) {
+        localStorage.removeItem(SUPABASE_CONFIG_KEY);
+      } else if (url && anonKey) {
+        return {
+          url: isValidSupabaseUrl(url) ? url : envUrl,
+          anonKey: isValidSupabaseKey(anonKey) ? anonKey : envKey,
+          autoSync: parsed.autoSync !== false,
+        };
+      }
     }
   } catch (e) {
-    console.error('Error reading Supabase config from storage', e);
+    console.warn('Error reading Supabase config from storage', e);
   }
 
   return {
-    url: envUrl,
-    anonKey: envKey,
+    url: isValidSupabaseUrl(envUrl) ? envUrl : '',
+    anonKey: isValidSupabaseKey(envKey) ? envKey : '',
     autoSync: true,
   };
 }
@@ -50,14 +78,14 @@ let _supabaseClient: SupabaseClient | null = null;
 export function getSupabaseClient(): SupabaseClient | null {
   if (_supabaseClient) return _supabaseClient;
   const config = getSupabaseConfig();
-  if (config.url && config.anonKey && config.url.startsWith('http')) {
+  if (isValidSupabaseUrl(config.url) && isValidSupabaseKey(config.anonKey)) {
     try {
       _supabaseClient = createClient(config.url, config.anonKey, {
         auth: { persistSession: true },
       });
       return _supabaseClient;
     } catch (e) {
-      console.error('Failed to initialize Supabase client', e);
+      console.warn('Failed to initialize Supabase client:', e);
     }
   }
   return null;
@@ -65,7 +93,7 @@ export function getSupabaseClient(): SupabaseClient | null {
 
 export const isSupabaseConfigured = (): boolean => {
   const cfg = getSupabaseConfig();
-  return Boolean(cfg.url && cfg.anonKey && cfg.url.startsWith('http'));
+  return isValidSupabaseUrl(cfg.url) && isValidSupabaseKey(cfg.anonKey);
 };
 
 // SQL Schema for the user to easily create in Supabase SQL Editor
@@ -260,8 +288,8 @@ export const supabaseService = {
       }));
 
       return { teacher, students, sessions };
-    } catch (e) {
-      console.error('Error fetching data from Supabase', e);
+    } catch (e: any) {
+      console.warn('Unable to reach Supabase during fetch (offline/network fallback active):', e?.message || e);
       return null;
     }
   },
@@ -269,12 +297,14 @@ export const supabaseService = {
   // Push / Sync Local Database into Supabase
   async pushAll(teacher: TeacherProfile, students: Student[], sessions: SessionRecord[]): Promise<boolean> {
     const client = getSupabaseClient();
-    if (!client) return false;
+    if (!client) {
+      return false;
+    }
 
     try {
       // 1. Sync Teacher Profile
       if (teacher && teacher.email) {
-        await client.from('teacher_profiles').upsert(
+        const { error: tErr } = await client.from('teacher_profiles').upsert(
           {
             email: teacher.email,
             name: teacher.name,
@@ -294,6 +324,7 @@ export const supabaseService = {
           },
           { onConflict: 'email' }
         );
+        if (tErr) console.warn('Supabase teacher sync notice:', tErr.message || tErr);
       }
 
       // 2. Sync Students
@@ -320,7 +351,8 @@ export const supabaseService = {
           updated_at: new Date().toISOString(),
         }));
 
-        await client.from('students').upsert(studentPayloads, { onConflict: 'id' });
+        const { error: sErr } = await client.from('students').upsert(studentPayloads, { onConflict: 'id' });
+        if (sErr) console.warn('Supabase students sync notice:', sErr.message || sErr);
       }
 
       // 3. Sync Sessions
@@ -350,12 +382,13 @@ export const supabaseService = {
           updated_at: new Date().toISOString(),
         }));
 
-        await client.from('session_records').upsert(sessionPayloads, { onConflict: 'id' });
+        const { error: sessErr } = await client.from('session_records').upsert(sessionPayloads, { onConflict: 'id' });
+        if (sessErr) console.warn('Supabase sessions sync notice:', sessErr.message || sessErr);
       }
 
       return true;
-    } catch (e) {
-      console.error('Error pushing data to Supabase', e);
+    } catch (e: any) {
+      console.warn('Supabase background push skipped (offline/unreachable):', e?.message || e);
       return false;
     }
   },
@@ -365,7 +398,7 @@ export const supabaseService = {
     const client = getSupabaseClient();
     if (!client || !teacher.email) return;
     try {
-      await client.from('teacher_profiles').upsert(
+      const { error } = await client.from('teacher_profiles').upsert(
         {
           email: teacher.email,
           name: teacher.name,
@@ -385,8 +418,9 @@ export const supabaseService = {
         },
         { onConflict: 'email' }
       );
-    } catch (e) {
-      console.error('Supabase upsertTeacher error', e);
+      if (error) console.warn('Supabase upsertTeacher notice:', error.message || error);
+    } catch (e: any) {
+      console.warn('Supabase upsertTeacher skipped:', e?.message || e);
     }
   },
 
@@ -395,7 +429,7 @@ export const supabaseService = {
     const client = getSupabaseClient();
     if (!client) return;
     try {
-      await client.from('students').upsert({
+      const { error } = await client.from('students').upsert({
         id: student.id,
         last_name: student.lastName,
         first_name: student.firstName,
@@ -415,9 +449,10 @@ export const supabaseService = {
         is_archived: Boolean(student.isArchived),
         archived_at: student.archivedAt || null,
         updated_at: new Date().toISOString(),
-      });
-    } catch (e) {
-      console.error('Supabase upsertStudent error', e);
+      }, { onConflict: 'id' });
+      if (error) console.warn('Supabase upsertStudent notice:', error.message || error);
+    } catch (e: any) {
+      console.warn('Supabase upsertStudent skipped:', e?.message || e);
     }
   },
 
@@ -427,9 +462,10 @@ export const supabaseService = {
     if (!client) return;
     try {
       await client.from('session_records').delete().eq('student_id', studentId);
-      await client.from('students').delete().eq('id', studentId);
-    } catch (e) {
-      console.error('Supabase deleteStudent error', e);
+      const { error } = await client.from('students').delete().eq('id', studentId);
+      if (error) console.warn('Supabase deleteStudent notice:', error.message || error);
+    } catch (e: any) {
+      console.warn('Supabase deleteStudent skipped:', e?.message || e);
     }
   },
 
@@ -438,7 +474,7 @@ export const supabaseService = {
     const client = getSupabaseClient();
     if (!client) return;
     try {
-      await client.from('session_records').upsert({
+      const { error } = await client.from('session_records').upsert({
         id: session.id,
         student_id: session.studentId,
         student_name: session.studentName,
@@ -461,9 +497,10 @@ export const supabaseService = {
         assessment_tool: session.assessmentTool || null,
         created_at: session.createdAt,
         updated_at: new Date().toISOString(),
-      });
-    } catch (e) {
-      console.error('Supabase upsertSession error', e);
+      }, { onConflict: 'id' });
+      if (error) console.warn('Supabase upsertSession notice:', error.message || error);
+    } catch (e: any) {
+      console.warn('Supabase upsertSession skipped:', e?.message || e);
     }
   },
 
@@ -472,9 +509,10 @@ export const supabaseService = {
     const client = getSupabaseClient();
     if (!client) return;
     try {
-      await client.from('session_records').delete().eq('id', sessionId);
-    } catch (e) {
-      console.error('Supabase deleteSession error', e);
+      const { error } = await client.from('session_records').delete().eq('id', sessionId);
+      if (error) console.warn('Supabase deleteSession notice:', error.message || error);
+    } catch (e: any) {
+      console.warn('Supabase deleteSession skipped:', e?.message || e);
     }
   },
 };

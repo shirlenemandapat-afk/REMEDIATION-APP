@@ -94,27 +94,35 @@ export default function App() {
     const loggedIn = storage.isLoggedIn();
     setIsLoggedIn(loggedIn);
     if (loggedIn) {
-      setTeacher(storage.getTeacherProfile());
-      setStudents(storage.getStudents());
-      setSessions(storage.getSessions());
+      const localTeacher = storage.getTeacherProfile();
+      const localStudents = storage.getStudents();
+      const localSessions = storage.getSessions();
+      setTeacher(localTeacher);
+      setStudents(localStudents);
+      setSessions(localSessions);
 
-      // If Supabase is configured in environment, pull latest cloud data in background
+      // If Supabase is configured in environment, sync cloud data
       if (isSupabaseConfigured()) {
         const config = getSupabaseConfig();
         if (config.autoSync) {
           supabaseService.fetchAll().then((cloudData) => {
             if (cloudData) {
               if (cloudData.students && cloudData.students.length > 0) {
+                // Cloud has data -> update local state
                 setStudents(cloudData.students);
                 storage.saveStudents(cloudData.students);
-              }
-              if (cloudData.sessions && cloudData.sessions.length > 0) {
-                setSessions(cloudData.sessions);
-                storage.saveSessions(cloudData.sessions);
-              }
-              if (cloudData.teacher) {
-                setTeacher(cloudData.teacher);
-                storage.saveTeacherProfile(cloudData.teacher);
+                if (cloudData.sessions) {
+                  setSessions(cloudData.sessions);
+                  storage.saveSessions(cloudData.sessions);
+                }
+                if (cloudData.teacher) {
+                  setTeacher(cloudData.teacher);
+                  storage.saveTeacherProfile(cloudData.teacher);
+                }
+              } else if (localStudents.length > 0) {
+                // Cloud is empty -> auto-populate Supabase with existing local roster
+                console.log('Populating empty Supabase tables with local records...');
+                supabaseService.pushAll(localTeacher, localStudents, localSessions);
               }
             }
           }).catch((err) => {
@@ -132,9 +140,11 @@ export default function App() {
   };
 
   const handleLoginSuccess = (profile: TeacherProfile) => {
+    const localStudents = storage.getStudents();
+    const localSessions = storage.getSessions();
     setTeacher(profile);
-    setStudents(storage.getStudents());
-    setSessions(storage.getSessions());
+    setStudents(localStudents);
+    setSessions(localSessions);
     setIsLoggedIn(true);
 
     if (isSupabaseConfigured()) {
@@ -144,14 +154,17 @@ export default function App() {
           if (cloudData.students && cloudData.students.length > 0) {
             setStudents(cloudData.students);
             storage.saveStudents(cloudData.students);
-          }
-          if (cloudData.sessions && cloudData.sessions.length > 0) {
-            setSessions(cloudData.sessions);
-            storage.saveSessions(cloudData.sessions);
-          }
-          if (cloudData.teacher) {
-            setTeacher(cloudData.teacher);
-            storage.saveTeacherProfile(cloudData.teacher);
+            if (cloudData.sessions) {
+              setSessions(cloudData.sessions);
+              storage.saveSessions(cloudData.sessions);
+            }
+            if (cloudData.teacher) {
+              setTeacher(cloudData.teacher);
+              storage.saveTeacherProfile(cloudData.teacher);
+            }
+          } else if (localStudents.length > 0) {
+            console.log('Pushing local data to freshly connected Supabase on login...');
+            supabaseService.pushAll(profile, localStudents, localSessions);
           }
         }
       }).catch((e) => console.warn('Supabase cloud fetch on login:', e));
@@ -182,7 +195,13 @@ export default function App() {
       confirmVariant: 'warning',
       onConfirm: () => {
         storage.resetToSampleData();
+        const resetTeacher = storage.getTeacherProfile();
+        const resetStudents = storage.getStudents();
+        const resetSessions = storage.getSessions();
         refreshData();
+        if (isSupabaseConfigured()) {
+          supabaseService.pushAll(resetTeacher, resetStudents, resetSessions);
+        }
       },
     });
   };
