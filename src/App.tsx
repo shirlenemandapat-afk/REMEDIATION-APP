@@ -89,7 +89,7 @@ export default function App() {
     onConfirm: () => {},
   });
 
-  // Load initial state on boot + Supabase sync if enabled
+  // Load initial state on boot + Supabase sync if credentials exist in environment
   useEffect(() => {
     const loggedIn = storage.isLoggedIn();
     setIsLoggedIn(loggedIn);
@@ -98,17 +98,27 @@ export default function App() {
       setStudents(storage.getStudents());
       setSessions(storage.getSessions());
 
-      // If Supabase is configured, pull latest cloud data in background
+      // If Supabase is configured in environment, pull latest cloud data in background
       if (isSupabaseConfigured()) {
         const config = getSupabaseConfig();
         if (config.autoSync) {
           supabaseService.fetchAll().then((cloudData) => {
-            if (cloudData && cloudData.students.length > 0) {
-              setStudents(cloudData.students);
-              setSessions(cloudData.sessions);
-              if (cloudData.teacher) setTeacher(cloudData.teacher);
-              showToast('Cloud data synchronized from Supabase!', 'info');
+            if (cloudData) {
+              if (cloudData.students && cloudData.students.length > 0) {
+                setStudents(cloudData.students);
+                storage.saveStudents(cloudData.students);
+              }
+              if (cloudData.sessions && cloudData.sessions.length > 0) {
+                setSessions(cloudData.sessions);
+                storage.saveSessions(cloudData.sessions);
+              }
+              if (cloudData.teacher) {
+                setTeacher(cloudData.teacher);
+                storage.saveTeacherProfile(cloudData.teacher);
+              }
             }
+          }).catch((err) => {
+            console.warn('Silent cloud sync initial check:', err);
           });
         }
       }
@@ -126,6 +136,34 @@ export default function App() {
     setStudents(storage.getStudents());
     setSessions(storage.getSessions());
     setIsLoggedIn(true);
+
+    if (isSupabaseConfigured()) {
+      supabaseService.upsertTeacher(profile);
+      supabaseService.fetchAll().then((cloudData) => {
+        if (cloudData) {
+          if (cloudData.students && cloudData.students.length > 0) {
+            setStudents(cloudData.students);
+            storage.saveStudents(cloudData.students);
+          }
+          if (cloudData.sessions && cloudData.sessions.length > 0) {
+            setSessions(cloudData.sessions);
+            storage.saveSessions(cloudData.sessions);
+          }
+          if (cloudData.teacher) {
+            setTeacher(cloudData.teacher);
+            storage.saveTeacherProfile(cloudData.teacher);
+          }
+        }
+      }).catch((e) => console.warn('Supabase cloud fetch on login:', e));
+    }
+  };
+
+  const handleUpdateTeacher = (updated: TeacherProfile) => {
+    setTeacher(updated);
+    storage.saveTeacherProfile(updated);
+    if (isSupabaseConfigured()) {
+      supabaseService.upsertTeacher(updated);
+    }
   };
 
   const handleLogout = () => {
@@ -219,6 +257,10 @@ export default function App() {
       confirmVariant: 'warning',
       onConfirm: () => {
         storage.archiveStudent(student.id);
+        if (isSupabaseConfigured()) {
+          const updatedStudent = storage.getStudents().find((s) => s.id === student.id);
+          if (updatedStudent) supabaseService.upsertStudent(updatedStudent);
+        }
         refreshData();
         if (viewStudent && viewStudent.id === student.id) {
           setViewStudent(null);
@@ -230,6 +272,10 @@ export default function App() {
   // Student Unarchive
   const handleRequestUnarchiveStudent = (studentId: string) => {
     storage.unarchiveStudent(studentId);
+    if (isSupabaseConfigured()) {
+      const updatedStudent = storage.getStudents().find((s) => s.id === studentId);
+      if (updatedStudent) supabaseService.upsertStudent(updatedStudent);
+    }
     refreshData();
   };
 
@@ -303,7 +349,7 @@ export default function App() {
       {/* Institutional Top Navbar with RMCHS TLE Header */}
       <Navbar
         teacher={teacher}
-        onUpdateTeacher={setTeacher}
+        onUpdateTeacher={handleUpdateTeacher}
         onLogout={handleLogout}
         selectedSection={selectedSection}
         onSelectSection={setSelectedSection}
@@ -393,7 +439,7 @@ export default function App() {
                 type="button"
                 onClick={handleResetData}
                 className="p-2.5 bg-emerald-900/80 hover:bg-emerald-800 text-emerald-200 hover:text-white rounded-xl text-xs transition border border-emerald-700/80 cursor-pointer"
-                title="Reset Sample RMCHS Data"
+                title="Reset Database to Clean State"
               >
                 <RefreshCw className="w-4 h-4" />
               </button>

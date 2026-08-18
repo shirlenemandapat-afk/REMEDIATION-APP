@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Student, TeacherProfile } from '../types';
 import { SchoolLogo } from './SchoolLogo';
-import { safePrintDocument } from '../utils/printHelper';
-import { Printer, ArrowLeft, X, Mail, FileText, CheckCircle2, ShieldCheck, Download } from 'lucide-react';
+import { safePrintDocument, downloadPDFDocument } from '../utils/printHelper';
+import { Printer, ArrowLeft, X, Mail, FileText, CheckCircle2, ShieldCheck, Download, Loader2 } from 'lucide-react';
 
 interface ParentCommunicationLetterModalProps {
   isOpen: boolean;
@@ -17,6 +17,8 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
   student,
   teacher,
 }) => {
+  const [isDownloading, setIsDownloading] = useState(false);
+
   if (!isOpen || !student) return null;
 
   const currentDate = new Date().toLocaleDateString('en-US', {
@@ -27,12 +29,22 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
 
   const parentDisplayName = student.parentName || 'Parent / Guardian';
   const isRemediation = student.programType === 'Remediation';
+  const docFilename = `Parent_Notice_${student.lastName}_${student.firstName}_${student.programType}`;
 
   const handlePrint = () => {
-    safePrintDocument(
-      'printable-letter-container',
-      `Parent_Notice_${student.lastName}_${student.firstName}_${student.programType}`
-    );
+    safePrintDocument('printable-letter-container', docFilename);
+  };
+
+  const handleDownloadPDF = async () => {
+    setIsDownloading(true);
+    try {
+      await downloadPDFDocument('printable-letter-container', docFilename, {
+        format: 'a4',
+        orientation: 'portrait',
+      });
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   return (
@@ -62,12 +74,30 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
 
           <div className="flex items-center gap-2">
             <button
+              onClick={handleDownloadPDF}
+              disabled={isDownloading}
+              className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-yellow-300 font-extrabold rounded-xl text-xs transition flex items-center gap-1.5 shadow-md border border-emerald-500 cursor-pointer disabled:opacity-50"
+              title="Automatically download PDF file to your computer"
+            >
+              {isDownloading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-yellow-300" />
+                  <span>Generating PDF...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 text-yellow-300" />
+                  <span>Download PDF</span>
+                </>
+              )}
+            </button>
+            <button
               onClick={handlePrint}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-md hover:shadow-lg border border-amber-300 cursor-pointer active:scale-95"
+              className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold rounded-xl text-xs transition flex items-center gap-1.5 shadow-md hover:shadow-lg border border-amber-300 cursor-pointer active:scale-95"
               title="Print official letter or save as PDF"
             >
               <Printer className="w-4 h-4" />
-              <span>Print Letter / PDF</span>
+              <span className="hidden sm:inline">Print Letter</span>
             </button>
             <button
               onClick={onClose}
@@ -208,7 +238,7 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
                 {teacher.headTeacherName || 'Dr. Corazon V. Santos'}
               </p>
               <p className="text-slate-600 font-medium">
-                {teacher.headTeacherPosition || 'Head Teacher III / TLE Department Head'}
+                {teacher.headTeacherPosition || 'Head Teacher III / TLE Department'}
               </p>
               <p className="text-[11px] text-slate-500 italic">{teacher.schoolName || 'Ramon Magsaysay (Cubao) High School'}</p>
             </div>
@@ -261,11 +291,28 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
               Ready for parent distribution:
             </span>
             <button
-              onClick={handlePrint}
-              className="px-5 py-2.5 bg-emerald-800 hover:bg-emerald-700 text-yellow-300 font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-md hover:shadow-lg border border-emerald-950 cursor-pointer"
+              onClick={handleDownloadPDF}
+              disabled={isDownloading}
+              className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-yellow-300 font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-md hover:shadow-lg border border-emerald-500 cursor-pointer disabled:opacity-50"
             >
-              <Printer className="w-4 h-4 text-amber-400" />
-              <span>Print Official Letter (Parent's Copy)</span>
+              {isDownloading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-yellow-300" />
+                  <span>Downloading PDF...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 text-yellow-300" />
+                  <span>Download PDF Copy</span>
+                </>
+              )}
+            </button>
+            <button
+              onClick={handlePrint}
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-md hover:shadow-lg border border-amber-300 cursor-pointer"
+            >
+              <Printer className="w-4 h-4 text-emerald-950" />
+              <span>Print Official Notice</span>
             </button>
           </div>
         </div>

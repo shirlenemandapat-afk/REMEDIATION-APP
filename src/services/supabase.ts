@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS teacher_profiles (
   master_teacher_name TEXT,
   master_teacher_position TEXT,
   head_teacher_name TEXT DEFAULT 'Dr. Corazon V. Santos',
-  head_teacher_position TEXT DEFAULT 'Head Teacher III / TLE Department Head',
+  head_teacher_position TEXT DEFAULT 'Head Teacher III / TLE Department',
   principal_name TEXT DEFAULT 'Dr. Maria Luisa T. Ramos',
   principal_position TEXT DEFAULT 'Secondary School Principal IV',
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -357,6 +357,36 @@ export const supabaseService = {
     } catch (e) {
       console.error('Error pushing data to Supabase', e);
       return false;
+    }
+  },
+
+  // Save / update teacher profile to Supabase
+  async upsertTeacher(teacher: TeacherProfile): Promise<void> {
+    const client = getSupabaseClient();
+    if (!client || !teacher.email) return;
+    try {
+      await client.from('teacher_profiles').upsert(
+        {
+          email: teacher.email,
+          name: teacher.name,
+          title: teacher.title,
+          school_name: teacher.schoolName,
+          division: teacher.division,
+          region: teacher.region,
+          academic_year: teacher.academicYear,
+          department: teacher.department,
+          master_teacher_name: teacher.masterTeacherName,
+          master_teacher_position: teacher.masterTeacherPosition,
+          head_teacher_name: teacher.headTeacherName,
+          head_teacher_position: teacher.headTeacherPosition,
+          principal_name: teacher.principalName,
+          principal_position: teacher.principalPosition,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'email' }
+      );
+    } catch (e) {
+      console.error('Supabase upsertTeacher error', e);
     }
   },
 

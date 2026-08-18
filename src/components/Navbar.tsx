@@ -62,7 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     teacher.headTeacherName || 'Dr. Corazon V. Santos'
   );
   const [editHeadTeacherPosition, setEditHeadTeacherPosition] = useState(
-    teacher.headTeacherPosition || 'Head Teacher III / TLE Department Head'
+    teacher.headTeacherPosition || 'Head Teacher III / TLE Department'
   );
   const [editPrincipalName, setEditPrincipalName] = useState(
     teacher.principalName || 'Dr. Maria Luisa T. Ramos'
@@ -89,7 +89,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     );
     setEditHeadTeacherName(teacher.headTeacherName || 'Dr. Corazon V. Santos');
     setEditHeadTeacherPosition(
-      teacher.headTeacherPosition || 'Head Teacher III / TLE Department Head'
+      teacher.headTeacherPosition || 'Head Teacher III / TLE Department'
     );
     setEditPrincipalName(teacher.principalName || 'Dr. Maria Luisa T. Ramos');
     setEditPrincipalPosition(
@@ -106,7 +106,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const handleResetToRMCHSDefaults = () => {
     setEditHeadTeacherName('Dr. Corazon V. Santos');
-    setEditHeadTeacherPosition('Head Teacher III / TLE Department Head');
+    setEditHeadTeacherPosition('Head Teacher III / TLE Department');
     setEditPrincipalName('Dr. Maria Luisa T. Ramos');
     setEditPrincipalPosition('Secondary School Principal IV');
     setEditMasterTeacherName('Shirlene M. Mandapat');
@@ -131,7 +131,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       masterTeacherName: editMasterTeacherName.trim() || editName.trim(),
       masterTeacherPosition: editMasterTeacherPosition.trim() || 'Master Teacher I',
       headTeacherName: editHeadTeacherName.trim() || 'Dr. Corazon V. Santos',
-      headTeacherPosition: editHeadTeacherPosition.trim() || 'Head Teacher III / TLE Department Head',
+      headTeacherPosition: editHeadTeacherPosition.trim() || 'Head Teacher III / TLE Department',
       principalName: editPrincipalName.trim() || 'Dr. Maria Luisa T. Ramos',
       principalPosition: editPrincipalPosition.trim() || 'Secondary School Principal IV',
     };
@@ -354,12 +354,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </div>
                   </div>
 
-                  {/* Head Teacher / Department Head */}
+                  {/* Head Teacher / TLE Department */}
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/90 space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
                         <Award className="w-4 h-4 text-emerald-700" />
-                        Head Teacher / Department Head (Noted / Recommending Approval)
+                        Head Teacher / TLE Department (Noted / Recommending Approval)
                       </label>
                       <span className="text-[10px] text-emerald-800 font-bold bg-emerald-100 px-2 py-0.5 rounded-md">
                         Primary Approver
@@ -390,7 +390,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           required
                           value={editHeadTeacherPosition}
                           onChange={(e) => setEditHeadTeacherPosition(e.target.value)}
-                          placeholder="e.g. Head Teacher III / TLE Department Head"
+                          placeholder="e.g. Head Teacher III / TLE Department"
                           className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                         />
                       </div>

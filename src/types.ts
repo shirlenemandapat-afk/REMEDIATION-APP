@@ -282,7 +282,7 @@ export interface TeacherProfile {
   masterTeacherPosition?: string; // e.g., "Master Teacher I / TLE Subject Coordinator"
 
   headTeacherName?: string;       // e.g., "Dr. Corazon V. Santos"
-  headTeacherPosition?: string;   // e.g., "Head Teacher III / TLE Department Head"
+  headTeacherPosition?: string;   // e.g., "Head Teacher III / TLE Department"
 
   principalName?: string;         // e.g., "Dr. Maria Luisa T. Ramos"
   principalPosition?: string;     // e.g., "Secondary School Principal IV"

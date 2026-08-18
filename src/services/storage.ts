@@ -1,5 +1,5 @@
 import { TeacherProfile, Student, SessionRecord, ProgramType } from '../types';
-import { INITIAL_TEACHER, INITIAL_STUDENTS, INITIAL_SESSIONS } from '../data/mockData';
+import { INITIAL_TEACHER, INITIAL_STUDENTS, INITIAL_SESSIONS, SAMPLE_DEMO_STUDENTS, SAMPLE_DEMO_SESSIONS } from '../data/mockData';
 
 const STORAGE_KEYS = {
   TEACHER: 'remediation_app_teacher',
@@ -19,6 +19,10 @@ export const storage = {
         if (parsed.schoolName === 'Quezon City High School' || !parsed.schoolName) {
           parsed.schoolName = 'Ramon Magsaysay (Cubao) High School';
           parsed.division = 'SDO Quezon City • TLE Department';
+          modified = true;
+        }
+        if (parsed.headTeacherPosition && parsed.headTeacherPosition.includes('TLE Department Head')) {
+          parsed.headTeacherPosition = 'Head Teacher III / TLE Department';
           modified = true;
         }
         if (!parsed.headTeacherName) {
@@ -297,11 +301,23 @@ export const storage = {
     this.saveSessions(sessions);
   },
 
-  // Reset to initial demo dataset
+  // Clear roster and session logs (starts with 0 students)
+  clearRoster(): void {
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
+  },
+
+  // Reset to initial clean state (empty roster)
   resetToSampleData(): void {
     localStorage.setItem(STORAGE_KEYS.TEACHER, JSON.stringify(INITIAL_TEACHER));
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(INITIAL_STUDENTS));
     localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(INITIAL_SESSIONS));
     this.setLoggedIn(true);
+  },
+
+  // Explicitly load sample demo dataset if teacher wants to test with preview records
+  loadDemoDataset(): void {
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(SAMPLE_DEMO_STUDENTS));
+    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(SAMPLE_DEMO_SESSIONS));
   }
 };

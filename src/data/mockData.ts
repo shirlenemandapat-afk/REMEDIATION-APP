@@ -16,14 +16,14 @@ export const INITIAL_TEACHER: TeacherProfile = {
   masterTeacherPosition: 'Master Teacher I / TLE Subject Coordinator',
 
   headTeacherName: 'Dr. Corazon V. Santos',
-  headTeacherPosition: 'Head Teacher III / TLE Department Head',
+  headTeacherPosition: 'Head Teacher III / TLE Department',
 
   principalName: 'Dr. Maria Luisa T. Ramos',
   principalPosition: 'Secondary School Principal IV',
 };
 
-// Sample realistic MOV images (data SVG / clean styled graphics)
-const MOV_SAMPLE_WORKLIST = [
+// Realistic MOV sample graphics for optional demo inspection
+export const MOV_SAMPLE_WORKLIST = [
   {
     id: 'mov-1',
     name: 'Worksheet_Fractions_Check.jpg',
@@ -61,7 +61,12 @@ const MOV_SAMPLE_WORKLIST = [
   }
 ];
 
-export const INITIAL_STUDENTS: Student[] = [
+// Initial roster is completely empty so newly logged in teachers start with 0 students
+export const INITIAL_STUDENTS: Student[] = [];
+export const INITIAL_SESSIONS: SessionRecord[] = [];
+
+// Optional sample dataset if teacher explicitly clicks 'Load Sample RMCHS Data'
+export const SAMPLE_DEMO_STUDENTS: Student[] = [
   {
     id: 'stud-001',
     lastName: 'Santos',
@@ -172,7 +177,7 @@ export const INITIAL_STUDENTS: Student[] = [
   }
 ];
 
-export const INITIAL_SESSIONS: SessionRecord[] = [
+export const SAMPLE_DEMO_SESSIONS: SessionRecord[] = [
   {
     id: 'sess-101',
     studentId: 'stud-001',

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Student, SessionRecord, TeacherProfile, interpretMasteryLevel } from '../types';
 import { SchoolLogo } from './SchoolLogo';
-import { safePrintDocument } from '../utils/printHelper';
-import { Printer, Copy, Download, FileCheck2, Filter, Sparkles, Check, School, ShieldCheck, UserCheck, BookOpen, Layers } from 'lucide-react';
+import { safePrintDocument, downloadPDFDocument } from '../utils/printHelper';
+import { Printer, Copy, Download, FileCheck2, Filter, Sparkles, Check, School, ShieldCheck, UserCheck, BookOpen, Layers, Loader2 } from 'lucide-react';
 import { IndividualAnecdotalReportModal } from './IndividualAnecdotalReportModal';
 
 interface NarrativeReportGeneratorProps {
@@ -22,10 +22,11 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
   const [reportType, setReportType] = useState<'ALL' | 'Remediation' | 'Skills Enhancement'>('ALL');
   const [periodTitle, setPeriodTitle] = useState<string>(`First Quarter AY ${teacher.academicYear || '2025-2026'}`);
   const [headTeacherName, setHeadTeacherName] = useState<string>(teacher.headTeacherName || 'Dr. Corazon V. Santos');
-  const [headTeacherPosition, setHeadTeacherPosition] = useState<string>(teacher.headTeacherPosition || 'Head Teacher III / TLE Department Head');
+  const [headTeacherPosition, setHeadTeacherPosition] = useState<string>(teacher.headTeacherPosition || 'Head Teacher III / TLE Department');
   const [principalName, setPrincipalName] = useState<string>(teacher.principalName || 'Dr. Maria Luisa T. Ramos');
   const [principalPosition, setPrincipalPosition] = useState<string>(teacher.principalPosition || 'Secondary School Principal IV');
   const [copied, setCopied] = useState<boolean>(false);
+  const [isDownloadingPDF, setIsDownloadingPDF] = useState<boolean>(false);
   const [selectedStudentForAnecdotal, setSelectedStudentForAnecdotal] = useState<Student | null>(null);
 
   // Sync state if teacher profile updates in settings
@@ -155,8 +156,22 @@ IV. RECOMMENDATIONS
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const reportDocFilename = `${reportType}_Accomplishment_Report_${selectedSection}_${periodTitle.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
   const handlePrint = () => {
-    safePrintDocument('printable-narrative-report', `Accomplishment_Report_${reportType}_${periodTitle}`);
+    safePrintDocument('printable-narrative-report', reportDocFilename);
+  };
+
+  const handleDownloadPDF = async () => {
+    setIsDownloadingPDF(true);
+    try {
+      await downloadPDFDocument('printable-narrative-report', reportDocFilename, {
+        format: 'a4',
+        orientation: 'portrait',
+      });
+    } finally {
+      setIsDownloadingPDF(false);
+    }
   };
 
   const handleExportCSV = () => {
@@ -220,25 +235,43 @@ IV. RECOMMENDATIONS
 
           <div className="flex items-center gap-2 flex-wrap">
             <button
-              onClick={handlePrint}
-              className="px-3.5 py-2 bg-emerald-800 hover:bg-emerald-700 text-yellow-300 font-extrabold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm border border-emerald-900"
+              onClick={handleDownloadPDF}
+              disabled={isDownloadingPDF}
+              className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-yellow-300 font-extrabold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm border border-emerald-500 cursor-pointer disabled:opacity-50"
+              title="Automatically download official Accomplishment Report PDF"
             >
-              <Printer className="w-4 h-4 text-amber-400" />
-              Print / Save PDF
+              {isDownloadingPDF ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-yellow-300" />
+                  <span>Generating PDF...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 text-yellow-300" />
+                  <span>Download PDF Report</span>
+                </>
+              )}
+            </button>
+            <button
+              onClick={handlePrint}
+              className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm border border-amber-300 cursor-pointer"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Print Report</span>
             </button>
             <button
               onClick={handleCopyText}
-              className="px-3.5 py-2 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-900 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-200"
+              className="px-3.5 py-2 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-900 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-200 cursor-pointer"
             >
               {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-              {copied ? 'Copied!' : 'Copy Narrative Text'}
+              {copied ? 'Copied!' : 'Copy Narrative'}
             </button>
             <button
               onClick={handleExportCSV}
-              className="px-3.5 py-2 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-900 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-200"
+              className="px-3.5 py-2 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-900 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-200 cursor-pointer"
             >
               <Download className="w-4 h-4" />
-              Export CSV
+              <span>Export CSV</span>
             </button>
           </div>
         </div>

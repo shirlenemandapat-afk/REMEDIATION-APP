@@ -1,6 +1,16 @@
+import { downloadElementAsPDF, PDFExportOptions } from './pdfExport';
+
 /**
- * Reliable print helper utility for standard and iframe sandboxed environments.
+ * Reliable print and auto-PDF download helper utility for standard and iframe sandboxed environments.
  */
+
+export async function downloadPDFDocument(
+  elementId: string,
+  documentTitle: string,
+  options?: PDFExportOptions
+): Promise<boolean> {
+  return await downloadElementAsPDF(elementId, documentTitle, options);
+}
 
 export function safePrintDocument(elementId?: string, documentTitle?: string) {
   // Set page title temporarily if provided for print header
@@ -13,7 +23,7 @@ export function safePrintDocument(elementId?: string, documentTitle?: string) {
   window.focus();
 
   try {
-    // If elementId is specified, we can also ensure print styles target it cleanly
+    // If elementId is specified, ensure print styles target it cleanly
     if (elementId) {
       const element = document.getElementById(elementId);
       if (element) {
