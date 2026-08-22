@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Student, SessionRecord, TeacherProfile, interpretMasteryLevel } from '../types';
 import { SchoolLogo } from './SchoolLogo';
 import { safePrintDocument, downloadPDFDocument } from '../utils/printHelper';
-import { Printer, Copy, Download, FileCheck2, Filter, Sparkles, Check, School, ShieldCheck, UserCheck, BookOpen, Layers, Loader2 } from 'lucide-react';
+import { Printer, Copy, Download, FileCheck2, Filter, Sparkles, Check, School, ShieldCheck, UserCheck, BookOpen, Layers, Loader2, X } from 'lucide-react';
 import { IndividualAnecdotalReportModal } from './IndividualAnecdotalReportModal';
 
 interface NarrativeReportGeneratorProps {
@@ -27,7 +27,15 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
   const [principalPosition, setPrincipalPosition] = useState<string>(teacher.principalPosition || 'Secondary School Principal IV');
   const [copied, setCopied] = useState<boolean>(false);
   const [isDownloadingPDF, setIsDownloadingPDF] = useState<boolean>(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [selectedStudentForAnecdotal, setSelectedStudentForAnecdotal] = useState<Student | null>(null);
+
+  const showFeedback = (text: string, type: 'success' | 'error') => {
+    setFeedbackMessage({ text, type });
+    setTimeout(() => {
+      setFeedbackMessage(null);
+    }, 5000);
+  };
 
   // Sync state if teacher profile updates in settings
   useEffect(() => {
@@ -159,16 +167,30 @@ IV. RECOMMENDATIONS
   const reportDocFilename = `${reportType}_Accomplishment_Report_${selectedSection}_${periodTitle.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
   const handlePrint = () => {
-    safePrintDocument('printable-narrative-report', reportDocFilename);
+    try {
+      safePrintDocument('printable-narrative-report', reportDocFilename);
+    } catch (err) {
+      showFeedback('Print dialog failed to open. You can use Download PDF instead.', 'error');
+    }
   };
 
   const handleDownloadPDF = async () => {
+    if (isDownloadingPDF) return;
     setIsDownloadingPDF(true);
+    setFeedbackMessage(null);
     try {
-      await downloadPDFDocument('printable-narrative-report', reportDocFilename, {
+      const success = await downloadPDFDocument('printable-narrative-report', reportDocFilename, {
         format: 'a4',
         orientation: 'portrait',
       });
+      if (success) {
+        showFeedback('Narrative Accomplishment Report PDF successfully downloaded to your Downloads folder!', 'success');
+      } else {
+        showFeedback('PDF generation issue. You can click Print Report and choose Save as PDF.', 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      showFeedback('Could not generate PDF directly. Please use Print Report -> Save as PDF.', 'error');
     } finally {
       setIsDownloadingPDF(false);
     }
@@ -220,6 +242,25 @@ IV. RECOMMENDATIONS
 
   return (
     <div className="space-y-6">
+      {/* Feedback Alert Banner */}
+      {feedbackMessage && (
+        <div
+          className={`p-3 text-xs font-bold rounded-xl flex items-center justify-between gap-2 border print:hidden animate-in fade-in duration-150 ${
+            feedbackMessage.type === 'success'
+              ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+              : 'bg-rose-50 text-rose-900 border-rose-200'
+          }`}
+        >
+          <span>{feedbackMessage.text}</span>
+          <button
+            onClick={() => setFeedbackMessage(null)}
+            className="text-slate-500 hover:text-slate-800 p-1 cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Non-Printable Configuration Controls */}
       <div className="bg-white p-5 rounded-2xl shadow-xs border border-emerald-100 print:hidden space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">

@@ -287,8 +287,8 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden border border-slate-100 my-6 animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 overflow-y-auto p-2 sm:p-4 md:p-6 flex justify-center items-start">
+      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden border border-slate-100 my-2 sm:my-4 animate-in fade-in zoom-in-95 duration-150">
         {/* Institutional Header Banner */}
         <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-950 p-5 text-white flex items-center justify-between border-b-2 border-amber-400">
           <div className="flex items-center gap-2.5">

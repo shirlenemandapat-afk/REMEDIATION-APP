@@ -20,8 +20,16 @@ export const IndividualAnecdotalReportModal: React.FC<IndividualAnecdotalReportM
   teacher,
 }) => {
   const [isDownloading, setIsDownloading] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   if (!isOpen || !student) return null;
+
+  const showFeedback = (text: string, type: 'success' | 'error') => {
+    setFeedbackMessage({ text, type });
+    setTimeout(() => {
+      setFeedbackMessage(null);
+    }, 5000);
+  };
 
   const studentSessions = sessions
     .filter((s) => s.studentId === student.id)
@@ -51,58 +59,72 @@ export const IndividualAnecdotalReportModal: React.FC<IndividualAnecdotalReportM
   const docFilename = `Anecdotal_Report_${student.lastName}_${student.firstName}_${student.programType}`;
 
   const handlePrint = () => {
-    safePrintDocument('printable-anecdotal-report', docFilename);
+    try {
+      safePrintDocument('printable-anecdotal-report', docFilename);
+    } catch (err) {
+      showFeedback('Print dialog failed to open. You can use Download PDF instead.', 'error');
+    }
   };
 
   const handleDownloadPDF = async () => {
+    if (isDownloading) return;
     setIsDownloading(true);
+    setFeedbackMessage(null);
     try {
-      await downloadPDFDocument('printable-anecdotal-report', docFilename, {
+      const success = await downloadPDFDocument('printable-anecdotal-report', docFilename, {
         format: 'a4',
         orientation: 'portrait',
       });
+      if (success) {
+        showFeedback('Anecdotal Report PDF successfully downloaded to your Downloads folder!', 'success');
+      } else {
+        showFeedback('PDF generation issue. You can click Print Report and choose Save as PDF.', 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      showFeedback('Could not generate PDF directly. Please use Print Report -> Save as PDF.', 'error');
     } finally {
       setIsDownloading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white print:static">
-      <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl overflow-hidden border border-slate-200 my-6 animate-in fade-in zoom-in-95 duration-150 print:shadow-none print:border-none print:my-0 print:max-w-none">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 overflow-y-auto p-2 sm:p-4 md:p-6 flex justify-center items-start print:p-0 print:bg-white print:static">
+      <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl border border-slate-200 my-2 sm:my-4 flex flex-col print:shadow-none print:border-none print:my-0 print:max-w-none">
         {/* Action Header (Hidden in Print) */}
-        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-950 p-4 text-white flex items-center justify-between print:hidden border-b-2 border-amber-400 gap-3">
-          <div className="flex items-center gap-3">
+        <div className="sticky top-0 z-30 bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-950 p-3.5 sm:p-4 text-white flex items-center justify-between rounded-t-2xl print:hidden border-b-2 border-amber-400 gap-2 sm:gap-3 shadow-md">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               onClick={onClose}
-              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-emerald-100 hover:text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-white/20 shadow-xs cursor-pointer"
+              className="px-2.5 sm:px-3 py-1.5 bg-white/10 hover:bg-white/20 text-emerald-100 hover:text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-white/20 shadow-xs cursor-pointer shrink-0"
               title="Back to Students / Dashboard"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Back</span>
+              <span className="hidden sm:inline">Back</span>
             </button>
-            <div className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-amber-300 hidden sm:block" />
-              <div>
-                <h3 className="font-extrabold text-sm sm:text-base leading-tight">
-                  Individual Student Anecdotal Progress Report (Parent's Copy)
+            <div className="flex items-center gap-2 min-w-0">
+              <FileText className="w-5 h-5 text-amber-300 shrink-0 hidden md:block" />
+              <div className="truncate">
+                <h3 className="font-extrabold text-xs sm:text-sm md:text-base leading-tight truncate">
+                  Individual Student Anecdotal Progress Report
                 </h3>
-                <p className="text-xs text-emerald-200">
-                  Official Report for {student.firstName} {student.lastName} ({student.programType})
+                <p className="text-[11px] text-emerald-200 truncate">
+                  {student.firstName} {student.lastName} ({student.programType}) &bull; {student.gradeLevel}-{student.section}
                 </p>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               onClick={handleDownloadPDF}
               disabled={isDownloading}
-              className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-yellow-300 font-extrabold rounded-xl text-xs transition flex items-center gap-1.5 shadow-md border border-emerald-500 cursor-pointer disabled:opacity-50"
+              className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-emerald-700 hover:bg-emerald-600 text-yellow-300 font-extrabold rounded-xl text-xs transition flex items-center gap-1.5 shadow-md border border-emerald-500 cursor-pointer disabled:opacity-50"
               title="Automatically download PDF copy to your computer"
             >
               {isDownloading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin text-yellow-300" />
-                  <span>Generating PDF...</span>
+                  <span>Saving...</span>
                 </>
               ) : (
                 <>
@@ -113,20 +135,39 @@ export const IndividualAnecdotalReportModal: React.FC<IndividualAnecdotalReportM
             </button>
             <button
               onClick={handlePrint}
-              className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold rounded-xl text-xs transition flex items-center gap-1.5 shadow-md hover:shadow-lg border border-amber-300 cursor-pointer active:scale-95"
+              className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold rounded-xl text-xs transition flex items-center gap-1.5 shadow-md hover:shadow-lg border border-amber-300 cursor-pointer active:scale-95"
             >
               <Printer className="w-4 h-4" />
               <span className="hidden sm:inline">Print Report</span>
             </button>
             <button
               onClick={onClose}
-              className="text-white/70 hover:text-white p-2 rounded-lg hover:bg-white/10 transition cursor-pointer"
+              className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer ml-1"
               title="Close modal"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
+
+        {/* Feedback Alert */}
+        {feedbackMessage && (
+          <div
+            className={`p-3 text-xs font-bold flex items-center gap-2 border-b print:hidden animate-in fade-in duration-150 ${
+              feedbackMessage.type === 'success'
+                ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                : 'bg-rose-50 text-rose-900 border-rose-200'
+            }`}
+          >
+            <span className="flex-1">{feedbackMessage.text}</span>
+            <button
+              onClick={() => setFeedbackMessage(null)}
+              className="text-slate-500 hover:text-slate-800 p-1 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* PRINTABLE DOCUMENT BODY */}
         <div id="printable-anecdotal-report" className="p-8 sm:p-12 text-slate-900 space-y-6 print:p-0 print:text-black bg-white">

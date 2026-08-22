@@ -1,17 +1,16 @@
 @import "tailwindcss";
 
 @media print {
-  /* Hide non-printable elements */
+  /* Hide all non-printable elements, navbars, sidebars, buttons, modals outside printable containers */
   nav,
   header,
   aside,
   button,
-  .print\\:hidden,
   [data-no-print] {
     display: none !important;
   }
 
-  /* Reset body and background for crisp printing */
+  /* Reset body and background for crisp DepEd white-paper printing */
   html, body {
     background: #ffffff !important;
     color: #000000 !important;
@@ -25,7 +24,7 @@
     print-color-adjust: exact !important;
   }
 
-  /* Ensure modal overlays don't clip content during print */
+  /* Ensure modal overlays don't clip content or create dark overlays during print */
   .fixed, .absolute {
     position: static !important;
   }
@@ -44,7 +43,7 @@
     display: block !important;
     width: 100% !important;
     margin: 0 auto !important;
-    padding: 0 !important;
+    padding: 10mm 15mm !important;
     border: none !important;
     box-shadow: none !important;
     background: #ffffff !important;
@@ -52,7 +51,16 @@
 
   @page {
     size: A4 portrait;
-    margin: 12mm 15mm;
+    margin: 10mm 12mm;
+  }
+
+  .page-break-before {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  .page-break-inside-avoid {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }
-

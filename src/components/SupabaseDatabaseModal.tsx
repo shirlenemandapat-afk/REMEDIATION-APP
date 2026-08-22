@@ -156,8 +156,8 @@ export const SupabaseDatabaseModal: React.FC<SupabaseDatabaseModalProps> = ({
   const isConnected = isSupabaseConfigured();
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-3xl w-full overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-xs flex items-start justify-center p-2 sm:p-4 md:p-6">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-3xl w-full overflow-hidden flex flex-col my-2 sm:my-4 max-h-[90vh]">
         {/* Header */}
         <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-950 px-6 py-5 text-white flex items-center justify-between border-b border-emerald-800">
           <div className="flex items-center gap-3">

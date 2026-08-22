@@ -2,7 +2,19 @@ import React, { useState } from 'react';
 import { Student, TeacherProfile } from '../types';
 import { SchoolLogo } from './SchoolLogo';
 import { safePrintDocument, downloadPDFDocument } from '../utils/printHelper';
-import { Printer, ArrowLeft, X, Mail, FileText, CheckCircle2, ShieldCheck, Download, Loader2 } from 'lucide-react';
+import {
+  Printer,
+  ArrowLeft,
+  X,
+  Mail,
+  CheckCircle2,
+  Download,
+  Loader2,
+  Calendar,
+  Edit2,
+  Check,
+  AlertCircle,
+} from 'lucide-react';
 
 interface ParentCommunicationLetterModalProps {
   isOpen: boolean;
@@ -18,71 +30,123 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
   teacher,
 }) => {
   const [isDownloading, setIsDownloading] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  
+  // Customizable Letter Date state (defaults to today's date in YYYY-MM-DD)
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [letterDateRaw, setLetterDateRaw] = useState<string>(todayStr);
+  const [isEditingDate, setIsEditingDate] = useState<boolean>(false);
 
   if (!isOpen || !student) return null;
 
-  const currentDate = new Date().toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  // Format letter date for official DepEd presentation
+  const formattedDate = (() => {
+    try {
+      const parts = letterDateRaw.split('-');
+      if (parts.length === 3) {
+        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        return d.toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+        });
+      }
+      return new Date().toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } catch {
+      return new Date().toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    }
+  })();
 
   const parentDisplayName = student.parentName || 'Parent / Guardian';
   const isRemediation = student.programType === 'Remediation';
   const docFilename = `Parent_Notice_${student.lastName}_${student.firstName}_${student.programType}`;
 
+  const showFeedback = (text: string, type: 'success' | 'error') => {
+    setFeedbackMessage({ text, type });
+    setTimeout(() => {
+      setFeedbackMessage(null);
+    }, 5000);
+  };
+
   const handlePrint = () => {
-    safePrintDocument('printable-letter-container', docFilename);
+    try {
+      safePrintDocument('printable-letter-container', docFilename);
+    } catch (e: any) {
+      showFeedback('Print dialog failed to open. You can use Download PDF instead.', 'error');
+    }
   };
 
   const handleDownloadPDF = async () => {
+    if (isDownloading) return;
     setIsDownloading(true);
+    setFeedbackMessage(null);
+
     try {
-      await downloadPDFDocument('printable-letter-container', docFilename, {
+      const success = await downloadPDFDocument('printable-letter-container', docFilename, {
         format: 'a4',
         orientation: 'portrait',
       });
+
+      if (success) {
+        showFeedback('Letter PDF generated and downloaded to your Downloads folder!', 'success');
+      } else {
+        showFeedback('PDF generation was cancelled or encountered an issue. You can click "Print Letter" and choose "Save as PDF".', 'error');
+      }
+    } catch (err: any) {
+      console.error('PDF generation error:', err);
+      showFeedback('Could not generate PDF. Please try "Print Letter" -> "Save as PDF".', 'error');
     } finally {
       setIsDownloading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white print:static">
-      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden border border-slate-200 my-6 animate-in fade-in zoom-in-95 duration-150 print:shadow-none print:border-none print:my-0 print:max-w-none">
-        {/* Action Header Bar (Hidden in Print) */}
-        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-950 p-4 text-white flex items-center justify-between print:hidden border-b-2 border-amber-400 gap-3">
-          <div className="flex items-center gap-3">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 overflow-y-auto p-2 sm:p-4 md:p-6 flex justify-center items-start print:p-0 print:bg-white print:static">
+      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-200 my-2 sm:my-4 flex flex-col print:shadow-none print:border-none print:my-0 print:max-w-none">
+        
+        {/* Sticky Action Header Bar (Hidden in Print) */}
+        <div className="sticky top-0 z-30 bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-950 p-3.5 sm:p-4 text-white flex items-center justify-between rounded-t-2xl border-b-2 border-amber-400 gap-2 sm:gap-3 shadow-md print:hidden">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               onClick={onClose}
-              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-emerald-100 hover:text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-white/20 shadow-xs cursor-pointer"
+              className="px-2.5 sm:px-3 py-1.5 bg-white/10 hover:bg-white/20 text-emerald-100 hover:text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-white/20 shadow-xs cursor-pointer shrink-0"
               title="Back to Students / Dashboard"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Back</span>
+              <span className="hidden sm:inline">Back</span>
             </button>
-            <div className="flex items-center gap-2">
-              <Mail className="w-5 h-5 text-amber-300 hidden sm:block" />
-              <div>
-                <h3 className="font-extrabold text-sm sm:text-base leading-tight">Parent / Guardian Communication Letter</h3>
-                <p className="text-xs text-emerald-200">
-                  Official Notice for {student.firstName} {student.lastName} ({student.programType})
+            <div className="flex items-center gap-2 min-w-0">
+              <Mail className="w-5 h-5 text-amber-300 shrink-0 hidden md:block" />
+              <div className="truncate">
+                <h3 className="font-extrabold text-xs sm:text-sm md:text-base leading-tight truncate">
+                  Parent / Guardian Letter
+                </h3>
+                <p className="text-[11px] text-emerald-200 truncate">
+                  {student.firstName} {student.lastName} &bull; {student.gradeLevel}-{student.section}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               onClick={handleDownloadPDF}
               disabled={isDownloading}
-              className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-yellow-300 font-extrabold rounded-xl text-xs transition flex items-center gap-1.5 shadow-md border border-emerald-500 cursor-pointer disabled:opacity-50"
-              title="Automatically download PDF file to your computer"
+              className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-emerald-700 hover:bg-emerald-600 text-yellow-300 font-extrabold rounded-xl text-xs transition flex items-center gap-1.5 shadow-md border border-emerald-500 cursor-pointer disabled:opacity-50"
+              title="Save PDF file directly to your download folder"
             >
               {isDownloading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin text-yellow-300" />
-                  <span>Generating PDF...</span>
+                  <span>Saving...</span>
                 </>
               ) : (
                 <>
@@ -91,17 +155,19 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
                 </>
               )}
             </button>
+
             <button
               onClick={handlePrint}
-              className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold rounded-xl text-xs transition flex items-center gap-1.5 shadow-md hover:shadow-lg border border-amber-300 cursor-pointer active:scale-95"
-              title="Print official letter or save as PDF"
+              className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold rounded-xl text-xs transition flex items-center gap-1.5 shadow-md hover:shadow-lg border border-amber-300 cursor-pointer active:scale-95"
+              title="Print official letter or save as PDF via browser dialog"
             >
               <Printer className="w-4 h-4" />
               <span className="hidden sm:inline">Print Letter</span>
             </button>
+
             <button
               onClick={onClose}
-              className="text-white/70 hover:text-white p-2 rounded-lg hover:bg-white/10 transition cursor-pointer"
+              className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer ml-1"
               title="Close modal"
             >
               <X className="w-5 h-5" />
@@ -109,8 +175,73 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
           </div>
         </div>
 
+        {/* Feedback Alert Banner */}
+        {feedbackMessage && (
+          <div
+            className={`p-3 text-xs font-bold flex items-center gap-2 border-b print:hidden animate-in fade-in duration-150 ${
+              feedbackMessage.type === 'success'
+                ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                : 'bg-rose-50 text-rose-900 border-rose-200'
+            }`}
+          >
+            {feedbackMessage.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span className="flex-1">{feedbackMessage.text}</span>
+            <button
+              onClick={() => setFeedbackMessage(null)}
+              className="text-slate-500 hover:text-slate-800 p-1 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Date Config Bar (Hidden in Print) */}
+        <div className="bg-amber-50/80 px-6 py-2.5 border-b border-amber-200 flex flex-wrap items-center justify-between gap-2 text-xs print:hidden">
+          <div className="flex items-center gap-2 text-amber-950 font-semibold">
+            <Calendar className="w-4 h-4 text-amber-700 shrink-0" />
+            <span>Official Letter Date:</span>
+            <strong className="text-emerald-950 font-bold bg-white px-2.5 py-0.5 rounded-md border border-amber-300 shadow-2xs">
+              {formattedDate}
+            </strong>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isEditingDate ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  value={letterDateRaw}
+                  onChange={(e) => setLetterDateRaw(e.target.value)}
+                  className="px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                />
+                <button
+                  onClick={() => setIsEditingDate(false)}
+                  className="px-2.5 py-1 bg-emerald-800 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-2xs cursor-pointer"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Done</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsEditingDate(true)}
+                className="px-2.5 py-1 bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+                title="Change the date displayed on the letter"
+              >
+                <Edit2 className="w-3 h-3 text-amber-700" />
+                <span>Change Date</span>
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* PRINTABLE LETTER PAPER BODY */}
-        <div id="printable-letter-container" className="p-8 sm:p-12 text-slate-900 space-y-6 print:p-0 print:text-black bg-white">
+        <div id="printable-letter-container" className="p-6 sm:p-10 md:p-12 text-slate-900 space-y-6 print:p-0 print:text-black bg-white">
+          
           {/* Official DepEd & RMCHS Letterhead */}
           <div className="flex items-center justify-between pb-4 border-b-2 border-emerald-900">
             <SchoolLogo size="md" showShadow={false} />
@@ -140,7 +271,14 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
 
           {/* Letter Date & Addressee */}
           <div className="space-y-3 pt-2 text-xs sm:text-sm">
-            <p className="font-semibold text-slate-700">{currentDate}</p>
+            <div className="flex items-center justify-between">
+              <p className="font-extrabold text-slate-900 text-sm tracking-wide">
+                {formattedDate}
+              </p>
+              <span className="text-[10px] font-bold text-emerald-900 uppercase bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded print:hidden">
+                Official Notice
+              </span>
+            </div>
 
             <div className="space-y-0.5">
               <p className="font-bold text-slate-900">TO THE PARENT / GUARDIAN OF:</p>
@@ -277,7 +415,7 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
         </div>
 
         {/* Action Footer Bar (Hidden in Print) */}
-        <div className="bg-slate-100 p-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <div className="bg-slate-100 p-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 print:hidden rounded-b-2xl">
           <button
             onClick={onClose}
             className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-xs transition flex items-center gap-1.5 border border-slate-300 shadow-2xs cursor-pointer"
@@ -298,7 +436,7 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
               {isDownloading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin text-yellow-300" />
-                  <span>Downloading PDF...</span>
+                  <span>Saving PDF...</span>
                 </>
               ) : (
                 <>

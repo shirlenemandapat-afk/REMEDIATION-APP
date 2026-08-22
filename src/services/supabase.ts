@@ -170,14 +170,19 @@ CREATE TABLE IF NOT EXISTS session_records (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Enable Row Level Security (RLS) or public access according to your project policy
+-- Enable Row Level Security (RLS)
 ALTER TABLE teacher_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE session_records ENABLE ROW LEVEL SECURITY;
 
--- Allow read/write for anon API key
+-- Allow read/write for anon API key (Idempotent: drop old policies first if they exist)
+DROP POLICY IF EXISTS "Allow public read-write for teacher_profiles" ON teacher_profiles;
 CREATE POLICY "Allow public read-write for teacher_profiles" ON teacher_profiles FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public read-write for students" ON students;
 CREATE POLICY "Allow public read-write for students" ON students FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public read-write for session_records" ON session_records;
 CREATE POLICY "Allow public read-write for session_records" ON session_records FOR ALL USING (true) WITH CHECK (true);
 `;
 
