@@ -15,6 +15,7 @@ import { StudentDetailModal } from './components/StudentDetailModal';
 import { MOVViewerModal } from './components/MOVViewerModal';
 import { ParentCommunicationLetterModal } from './components/ParentCommunicationLetterModal';
 import { IndividualAnecdotalReportModal } from './components/IndividualAnecdotalReportModal';
+import { SupabaseDatabaseModal } from './components/SupabaseDatabaseModal';
 import { ConfirmModal, ConfirmActionType } from './components/ConfirmModal';
 import { SchoolLogo } from './components/SchoolLogo';
 import { RMCHSHeaderBanner } from './components/RMCHSHeaderBanner';
@@ -69,6 +70,7 @@ export default function App() {
   const [viewMovUrl, setViewMovUrl] = useState<{ url: string; title: string } | null>(null);
   const [parentLetterStudent, setParentLetterStudent] = useState<Student | null>(null);
   const [anecdotalReportStudent, setAnecdotalReportStudent] = useState<Student | null>(null);
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
 
   // Toast Notification State
   const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'info' | 'warning' } | null>(null);
@@ -373,6 +375,7 @@ export default function App() {
         selectedSection={selectedSection}
         onSelectSection={setSelectedSection}
         sectionsList={sectionsList}
+        onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
       />
 
       {/* Main Dashboard Container */}
@@ -727,6 +730,19 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Supabase Cloud Database Sync & Table Setup Modal */}
+      <SupabaseDatabaseModal
+        isOpen={isSupabaseModalOpen}
+        onClose={() => setIsSupabaseModalOpen(false)}
+        teacher={teacher}
+        students={students}
+        sessions={sessions}
+        onSyncComplete={() => {
+          refreshData();
+          showToast('Supabase database sync complete!', 'success');
+        }}
+      />
 
       {/* In-App Action Confirmation Modal */}
       <ConfirmModal

@@ -106,17 +106,17 @@ export const SupabaseDatabaseModal: React.FC<SupabaseDatabaseModalProps> = ({
   const handlePushToCloud = async () => {
     setSyncing(true);
     setStatusMessage(null);
-    const success = await supabaseService.pushAll(teacher, students, sessions);
+    const res = await supabaseService.pushAll(teacher, students, sessions);
     setSyncing(false);
-    if (success) {
+    if (res.success) {
       setStatusMessage({
-        text: `Successfully synced ${students.length} students, ${sessions.length} session logs, and Teacher Profile to Supabase!`,
+        text: `Successfully pushed ${students.length} students, ${sessions.length} session logs, and Teacher Profile to Supabase! Refresh your Supabase table view to see the rows.`,
         type: 'success',
       });
       onSyncComplete();
     } else {
       setStatusMessage({
-        text: 'Failed to push data to Supabase. Please ensure you have run the SQL setup script in your Supabase SQL Editor.',
+        text: res.error || 'Failed to push data to Supabase. Please ensure you have run the SQL setup script in your Supabase SQL Editor.',
         type: 'error',
       });
     }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { TeacherProfile } from '../types';
 import { storage } from '../services/storage';
+import { isSupabaseConfigured } from '../services/supabase';
 import { SchoolLogo } from './SchoolLogo';
 import {
   LogOut,
@@ -21,6 +22,8 @@ import {
   Sparkles,
   Info,
   RotateCcw,
+  Database,
+  Cloud,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -30,6 +33,7 @@ interface NavbarProps {
   selectedSection: string;
   onSelectSection: (section: string) => void;
   sectionsList: string[];
+  onOpenSupabaseModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -39,6 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   selectedSection,
   onSelectSection,
   sectionsList,
+  onOpenSupabaseModal,
 }) => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'signatories' | 'teacher' | 'school'>('signatories');
@@ -227,6 +232,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ))}
               </select>
             </div>
+
+            {/* Cloud Database (Supabase) Sync Button */}
+            {onOpenSupabaseModal && (
+              <button
+                onClick={onOpenSupabaseModal}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-900/90 hover:bg-emerald-800 text-white text-xs font-semibold border border-emerald-700/80 transition shadow-xs hover:border-amber-400/60 cursor-pointer"
+                title="Supabase Cloud Database Settings, Table Schema, & Backup"
+              >
+                <Database className="w-3.5 h-3.5 text-amber-300" />
+                <span className="hidden sm:inline text-[11px] font-bold">Cloud DB</span>
+                {isSupabaseConfigured() ? (
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Cloud Sync Active" />
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-amber-400" title="Local Storage Mode" />
+                )}
+              </button>
+            )}
 
             {/* Teacher Profile & Signatories Button */}
             <button

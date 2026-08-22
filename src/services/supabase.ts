@@ -187,20 +187,25 @@ export const supabaseService = {
   async testConnection(url: string, anonKey: string): Promise<{ success: boolean; message: string }> {
     try {
       const client = createClient(url, anonKey);
-      const { error } = await client.from('teacher_profiles').select('email').limit(1);
-      if (error && error.code !== 'PGRST116') {
-        // Table might not exist yet, check general connection
-        if (error.message.includes('relation "teacher_profiles" does not exist')) {
+      const { data: tData, error: tErr } = await client.from('teacher_profiles').select('email').limit(1);
+      if (tErr) {
+        if (tErr.message && tErr.message.includes('relation "teacher_profiles" does not exist')) {
           return {
-            success: true,
-            message: 'Connected to Supabase successfully! (Tables need to be created using the SQL script provided below)',
+            success: false,
+            message: 'Connected to Supabase project, but the tables have not been created yet! Please copy the SQL script from Step 2 and run it in your Supabase SQL Editor.',
           };
         }
-        return { success: false, message: error.message };
+        if (tErr.code === '42501' || tErr.message.includes('permission denied') || tErr.message.includes('row-level security')) {
+          return {
+            success: false,
+            message: `RLS Security issue: ${tErr.message}. Make sure to run the SQL Script in Step 2 to enable public read/write policies.`,
+          };
+        }
+        return { success: false, message: `Database response: ${tErr.message}` };
       }
-      return { success: true, message: 'Connected successfully to Supabase database!' };
+      return { success: true, message: 'Connected successfully to your Supabase database! Tables are ready.' };
     } catch (e: any) {
-      return { success: false, message: e.message || 'Connection test failed.' };
+      return { success: false, message: e.message || 'Connection test failed. Please check your URL and Anon Key.' };
     }
   },
 
@@ -295,10 +300,10 @@ export const supabaseService = {
   },
 
   // Push / Sync Local Database into Supabase
-  async pushAll(teacher: TeacherProfile, students: Student[], sessions: SessionRecord[]): Promise<boolean> {
+  async pushAll(teacher: TeacherProfile, students: Student[], sessions: SessionRecord[]): Promise<{ success: boolean; error?: string }> {
     const client = getSupabaseClient();
     if (!client) {
-      return false;
+      return { success: false, error: 'Supabase client is not connected. Please enter and save your URL and Anon Key.' };
     }
 
     try {
@@ -324,7 +329,10 @@ export const supabaseService = {
           },
           { onConflict: 'email' }
         );
-        if (tErr) console.warn('Supabase teacher sync notice:', tErr.message || tErr);
+        if (tErr) {
+          console.warn('Supabase teacher sync notice:', tErr.message || tErr);
+          return { success: false, error: `Teacher profile upload failed: ${tErr.message}` };
+        }
       }
 
       // 2. Sync Students
@@ -352,7 +360,10 @@ export const supabaseService = {
         }));
 
         const { error: sErr } = await client.from('students').upsert(studentPayloads, { onConflict: 'id' });
-        if (sErr) console.warn('Supabase students sync notice:', sErr.message || sErr);
+        if (sErr) {
+          console.warn('Supabase students sync notice:', sErr.message || sErr);
+          return { success: false, error: `Students roster upload failed: ${sErr.message}` };
+        }
       }
 
       // 3. Sync Sessions
@@ -383,13 +394,16 @@ export const supabaseService = {
         }));
 
         const { error: sessErr } = await client.from('session_records').upsert(sessionPayloads, { onConflict: 'id' });
-        if (sessErr) console.warn('Supabase sessions sync notice:', sessErr.message || sessErr);
+        if (sessErr) {
+          console.warn('Supabase sessions sync notice:', sessErr.message || sessErr);
+          return { success: false, error: `Session logs upload failed: ${sessErr.message}` };
+        }
       }
 
-      return true;
+      return { success: true };
     } catch (e: any) {
       console.warn('Supabase background push skipped (offline/unreachable):', e?.message || e);
-      return false;
+      return { success: false, error: e?.message || 'Network error during sync' };
     }
   },
 
