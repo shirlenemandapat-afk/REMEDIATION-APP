@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import officialLogoImg from '../assets/images/rmchs_tle_official_logo.png';
+import webpLogoImg from '../assets/images/rmchs_tle_logo.webp';
 
 interface SchoolLogoProps {
   className?: string;
@@ -12,8 +13,17 @@ export const SchoolLogo: React.FC<SchoolLogoProps> = ({
   size = 'md',
   showShadow = true,
 }) => {
-  const [imgError, setImgError] = useState(false);
-  const [fallbackSrc, setFallbackSrc] = useState<string | null>(null);
+  const [currentSrcIndex, setCurrentSrcIndex] = useState(0);
+
+  const fallbackList = [
+    officialLogoImg,
+    webpLogoImg,
+    '/rmchs_tle_official_logo.png',
+    '/rmchs_logo_512.png',
+    '/rmchs_tle_logo.webp',
+    './rmchs_tle_official_logo.png',
+    './rmchs_logo_512.png',
+  ];
 
   const sizeMap = {
     xs: 'w-10 h-10',
@@ -27,16 +37,12 @@ export const SchoolLogo: React.FC<SchoolLogoProps> = ({
   const dim = sizeMap[size] || sizeMap.md;
 
   const handleError = () => {
-    if (!fallbackSrc) {
-      // Try public root absolute path as first fallback
-      setFallbackSrc('/rmchs_tle_official_logo.png');
-    } else if (fallbackSrc === '/rmchs_tle_official_logo.png') {
-      // Try secondary public path
-      setFallbackSrc('/rmchs_logo_512.png');
-    } else {
-      setImgError(true);
+    if (currentSrcIndex < fallbackList.length - 1) {
+      setCurrentSrcIndex((prev) => prev + 1);
     }
   };
+
+  const isAllFailed = currentSrcIndex >= fallbackList.length - 1;
 
   return (
     <div
@@ -45,18 +51,16 @@ export const SchoolLogo: React.FC<SchoolLogoProps> = ({
       } ${className}`}
       title="Ramon Magsaysay (Cubao) High School - TLE Department Official Logo"
     >
-      {!imgError ? (
-        <img
-          src={fallbackSrc || officialLogoImg}
-          alt="Ramon Magsaysay (Cubao) High School - TLE Department Official Logo"
-          className="w-full h-full object-contain aspect-square select-none"
-          referrerPolicy="no-referrer"
-          loading="eager"
-          onError={handleError}
-        />
-      ) : (
-        /* Crisp Vector Fallback Emblem in case of extreme browser image blocking */
-        <div className="w-full h-full rounded-full bg-gradient-to-br from-emerald-800 to-emerald-950 border-2 border-amber-400 flex flex-col items-center justify-center text-center p-1 text-white shadow-inner">
+      <img
+        src={fallbackList[currentSrcIndex]}
+        alt="Ramon Magsaysay (Cubao) High School - TLE Department Official Logo"
+        className="w-full h-full object-contain aspect-square select-none block"
+        loading="eager"
+        decoding="async"
+        onError={handleError}
+      />
+      {isAllFailed && (
+        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-800 to-emerald-950 border-2 border-amber-400 flex flex-col items-center justify-center text-center p-1 text-white shadow-inner pointer-events-none">
           <span className="text-[9px] font-black text-amber-300 tracking-tighter uppercase leading-none">
             RMCHS
           </span>
@@ -68,3 +72,4 @@ export const SchoolLogo: React.FC<SchoolLogoProps> = ({
     </div>
   );
 };
+

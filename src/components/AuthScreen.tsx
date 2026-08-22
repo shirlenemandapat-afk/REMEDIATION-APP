@@ -1,79 +1,93 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { storage } from '../services/storage';
 import { TeacherProfile } from '../types';
 import { SchoolLogo } from './SchoolLogo';
-import { ShieldCheck, KeyRound, Mail, UserCheck, Sparkles, School, Flame, Award } from 'lucide-react';
+import { ShieldCheck, KeyRound, Mail, UserCheck, School, CheckCircle2, UserPlus, LogIn, AlertCircle } from 'lucide-react';
 
 interface AuthScreenProps {
   onLoginSuccess: (profile: TeacherProfile) => void;
 }
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
-  const currentProfile = storage.getTeacherProfile();
+  const initialEmail = storage.getLastLoginEmail();
+  const isInitialRegistered = storage.isAccountRegistered(initialEmail);
+
+  const [authMode, setAuthMode] = useState<'signin' | 'register'>(
+    isInitialRegistered ? 'signin' : 'signin'
+  );
   
-  const [isFirstTime, setIsFirstTime] = useState<boolean>(!currentProfile.isPasswordSet);
-  const [email, setEmail] = useState<string>(currentProfile.email || 'shirlene.mandapat@depedqc.ph');
+  const [email, setEmail] = useState<string>(initialEmail);
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
-  const [name, setName] = useState<string>(currentProfile.name || 'Shirlene M. Mandapat');
-  const [title, setTitle] = useState<string>(currentProfile.title || 'Master Teacher I / TLE Head');
-  const [schoolName, setSchoolName] = useState<string>(currentProfile.schoolName || 'Ramon Magsaysay (Cubao) High School');
+  const [name, setName] = useState<string>('Shirlene M. Mandapat');
+  const [title, setTitle] = useState<string>('Master Teacher I / TLE Head');
+  const [schoolName, setSchoolName] = useState<string>('Ramon Magsaysay (Cubao) High School');
   const [error, setError] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
+
+  // Check if current typed email is already registered
+  const registeredAccount = storage.findAccountByEmail(email);
+  const isCurrentEmailRegistered = !!(registeredAccount && registeredAccount.isPasswordSet);
+
+  // Sync profile details if registered account exists
+  useEffect(() => {
+    if (registeredAccount) {
+      if (registeredAccount.name) setName(registeredAccount.name);
+      if (registeredAccount.title) setTitle(registeredAccount.title);
+      if (registeredAccount.schoolName) setSchoolName(registeredAccount.schoolName);
+    }
+  }, [email]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
 
-    if (!email || !email.includes('@')) {
-      setError('Please enter a valid school email address.');
+    const cleanEmail = email.trim();
+
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setError('Please enter a valid school email address (e.g., teacher@depedqc.ph).');
       return;
     }
 
-    if (isFirstTime) {
-      // First time password setup flow
+    if (authMode === 'register') {
+      // Register or Reset Password flow
       if (!password || password.length < 4) {
         setError('Please set a password with at least 4 characters.');
         return;
       }
       if (password !== confirmPassword) {
-        setError('Passwords do not match. Please verify.');
+        setError('Passwords do not match. Please re-enter both fields.');
         return;
       }
 
-      const updatedProfile = storage.setPassword(email, password);
-      updatedProfile.name = name || 'Teacher';
-      updatedProfile.title = title || 'Master Teacher I';
-      updatedProfile.schoolName = schoolName || 'Ramon Magsaysay (Cubao) High School';
-      updatedProfile.division = 'SDO Quezon City • TLE Department';
-      storage.saveTeacherProfile(updatedProfile);
+      const updatedProfile = storage.setPassword(cleanEmail, password, {
+        name: name.trim() || 'Teacher',
+        title: title.trim() || 'Master Teacher I',
+        schoolName: schoolName.trim() || 'Ramon Magsaysay (Cubao) High School',
+      });
 
-      setSuccessMsg('Account and password set successfully! Welcome to your RMCHS TLE dashboard.');
+      setSuccessMsg(`Account for ${cleanEmail} saved successfully! Loading your RMCHS TLE dashboard...`);
       setTimeout(() => {
         onLoginSuccess(updatedProfile);
       }, 500);
     } else {
-      // Returning teacher login flow
+      // Sign in flow for registered account
       if (!password) {
         setError('Please enter your password.');
         return;
       }
 
-      const isValid = storage.verifyPassword(email, password);
-      if (isValid) {
-        const profile = storage.getTeacherProfile();
-        onLoginSuccess(profile);
+      const result = storage.verifyPassword(cleanEmail, password);
+      if (result.success && result.profile) {
+        setSuccessMsg(`Welcome back, ${result.profile.name}!`);
+        setTimeout(() => {
+          onLoginSuccess(result.profile!);
+        }, 400);
       } else {
-        setError('Incorrect password or email. If you are logging in for the first time, switch to "First Time Setup" below.');
+        setError(result.message || 'Incorrect password or email. If you haven\'t created an account yet, switch to "Register New Teacher" tab.');
       }
     }
-  };
-
-  const handleDemoLogin = () => {
-    storage.resetToSampleData();
-    const profile = storage.getTeacherProfile();
-    onLoginSuccess(profile);
   };
 
   return (
@@ -106,37 +120,84 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
           </p>
         </div>
 
+        {/* Auth Mode Switcher Tabs */}
+        <div className="grid grid-cols-2 p-1.5 bg-slate-100 border-b border-slate-200">
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMode('signin');
+              setError('');
+              setPassword('');
+              setConfirmPassword('');
+            }}
+            className={`py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+              authMode === 'signin'
+                ? 'bg-white text-emerald-950 shadow-xs border border-slate-200/80'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <LogIn className="w-3.5 h-3.5 text-emerald-700" />
+            Sign In
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMode('register');
+              setError('');
+              setPassword('');
+              setConfirmPassword('');
+            }}
+            className={`py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+              authMode === 'register'
+                ? 'bg-white text-emerald-950 shadow-xs border border-slate-200/80'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <UserPlus className="w-3.5 h-3.5 text-amber-600" />
+            Register / Setup
+          </button>
+        </div>
+
         {/* Content Form */}
-        <div className="p-6 sm:p-8 space-y-5 bg-white">
+        <div className="p-6 sm:p-8 space-y-4 bg-white">
           <div className="text-center">
             <h2 className="text-base sm:text-lg font-extrabold text-slate-800">
-              {isFirstTime ? 'Set Up Your Teacher Account' : 'Teacher Portal Sign In'}
+              {authMode === 'signin' ? 'Teacher Portal Sign In' : 'Register Teacher Account'}
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              {isFirstTime
-                ? 'Enter your email and set a secure password for your first time logging in.'
-                : 'Sign in to access your student roster and intervention records.'}
+              {authMode === 'signin'
+                ? 'Enter your registered DepEd email and password to access your roster.'
+                : 'Set up your credentials and DepEd details for personal classroom records.'}
             </p>
           </div>
 
           {error && (
-            <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold leading-relaxed">
-              {error}
+            <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold leading-relaxed flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-500 mt-0.5" />
+              <div>{error}</div>
             </div>
           )}
 
           {successMsg && (
-            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-semibold leading-relaxed">
-              {successMsg}
+            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-semibold leading-relaxed flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+              <div>{successMsg}</div>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email Field */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                DepEd Teacher Email <span className="text-red-500">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  DepEd Teacher Email <span className="text-red-500">*</span>
+                </label>
+                {isCurrentEmailRegistered && (
+                  <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Registered
+                  </span>
+                )}
+              </div>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -144,14 +205,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. teacher.name@depedqc.ph"
+                  placeholder="e.g. shirlene.mandapat@depedqc.ph"
                   className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition"
                 />
               </div>
             </div>
 
-            {/* Extra Teacher Info on First Time Setup */}
-            {isFirstTime && (
+            {/* Extra Teacher Info on Register Mode */}
+            {authMode === 'register' && (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
@@ -177,7 +238,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                       type="text"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder="e.g. Master Teacher I"
+                      placeholder="e.g. Master Teacher I / TLE Head"
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
                     />
                   </div>
@@ -203,10 +264,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
             {/* Password Field */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                {isFirstTime ? 'Create New Password' : 'Password'}{' '}
-                <span className="text-red-500">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  {authMode === 'register' ? 'Create Password (min 4 chars)' : 'Password'}{' '}
+                  <span className="text-red-500">*</span>
+                </label>
+              </div>
               <div className="relative">
                 <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -214,14 +277,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder={isFirstTime ? 'Set password (min 4 characters)' : 'Enter password'}
+                  placeholder={authMode === 'register' ? 'Create a secure password' : 'Enter your password'}
                   className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition"
                 />
               </div>
             </div>
 
-            {/* Confirm Password Field for first time */}
-            {isFirstTime && (
+            {/* Confirm Password Field for register */}
+            {authMode === 'register' && (
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Confirm Password <span className="text-red-500">*</span>
@@ -233,7 +296,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Re-enter password"
+                    placeholder="Re-type your password"
                     className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition"
                   />
                 </div>
@@ -242,40 +305,38 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
             <button
               type="submit"
-              className="w-full py-3 px-4 bg-gradient-to-r from-emerald-800 to-emerald-700 hover:from-emerald-700 hover:to-emerald-600 text-yellow-300 font-extrabold text-sm rounded-xl shadow-lg transition-all transform active:scale-[0.99] flex items-center justify-center gap-2 mt-2 border border-amber-400/40"
+              className="w-full py-3 px-4 bg-gradient-to-r from-emerald-800 to-emerald-700 hover:from-emerald-700 hover:to-emerald-600 text-yellow-300 font-extrabold text-sm rounded-xl shadow-lg transition-all transform active:scale-[0.99] flex items-center justify-center gap-2 mt-2 border border-amber-400/40 cursor-pointer"
             >
               <ShieldCheck className="w-4 h-4 text-amber-300" />
-              {isFirstTime ? 'Save Account & Sign In' : 'SIGN IN TO PORTAL'}
+              {authMode === 'register' ? 'SAVE ACCOUNT & SIGN IN' : 'SIGN IN TO PORTAL'}
             </button>
           </form>
 
-          {/* Toggle between first time & returning */}
-          <div className="pt-2 text-center border-t border-slate-100 space-y-3">
-            <button
-              type="button"
-              onClick={() => {
-                setIsFirstTime(!isFirstTime);
-                setError('');
-                setPassword('');
-                setConfirmPassword('');
-              }}
-              className="text-xs font-bold text-emerald-700 hover:text-emerald-900 hover:underline"
-            >
-              {isFirstTime
-                ? 'Already set up your password? Click here to Sign In'
-                : 'First time logging in? Click here to set your password'}
-            </button>
-
-            <div>
+          {/* Switch mode helper */}
+          <div className="pt-2 text-center border-t border-slate-100">
+            {authMode === 'signin' ? (
               <button
                 type="button"
-                onClick={handleDemoLogin}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold transition border border-amber-300/80 shadow-xs"
+                onClick={() => {
+                  setAuthMode('register');
+                  setError('');
+                }}
+                className="text-xs font-bold text-emerald-700 hover:text-emerald-900 hover:underline cursor-pointer"
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                Quick Demo Login (RMCHS Master Teacher)
+                Need to register a new email or reset password? Click here
               </button>
-            </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('signin');
+                  setError('');
+                }}
+                className="text-xs font-bold text-emerald-700 hover:text-emerald-900 hover:underline cursor-pointer"
+              >
+                Already registered? Click here to Sign In
+              </button>
+            )}
           </div>
         </div>
       </div>

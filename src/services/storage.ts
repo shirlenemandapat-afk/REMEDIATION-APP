@@ -6,12 +6,89 @@ const STORAGE_KEYS = {
   AUTH_SESSION: 'remediation_app_session',
   STUDENTS: 'remediation_app_students',
   SESSIONS: 'remediation_app_sessions',
+  REGISTERED_ACCOUNTS: 'remediation_app_registered_accounts_v2',
+  ACTIVE_USER_EMAIL: 'remediation_app_active_email',
+  LAST_LOGIN_EMAIL: 'remediation_app_last_login_email',
 };
 
 export const storage = {
+  // --- MULTI-ACCOUNT MANAGEMENT ---
+  getRegisteredAccounts(): Record<string, TeacherProfile> {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.REGISTERED_ACCOUNTS);
+      if (data) {
+        return JSON.parse(data);
+      }
+    } catch (e) {
+      console.error('Error reading registered accounts', e);
+    }
+    
+    // Auto-migrate any existing single teacher profile into registered accounts
+    const accounts: Record<string, TeacherProfile> = {};
+    try {
+      const singleTeacherData = localStorage.getItem(STORAGE_KEYS.TEACHER);
+      if (singleTeacherData) {
+        const parsed: TeacherProfile = JSON.parse(singleTeacherData);
+        if (parsed.email && parsed.isPasswordSet && parsed.passwordHash) {
+          const norm = parsed.email.trim().toLowerCase();
+          accounts[norm] = { ...parsed };
+        }
+      }
+    } catch {
+      // ignore migration error
+    }
+
+    // Also register default master teacher
+    const defaultNorm = INITIAL_TEACHER.email.trim().toLowerCase();
+    if (!accounts[defaultNorm]) {
+      accounts[defaultNorm] = {
+        ...INITIAL_TEACHER,
+        passwordHash: INITIAL_TEACHER.passwordHash || 'teacher123',
+        isPasswordSet: true,
+      };
+    }
+
+    localStorage.setItem(STORAGE_KEYS.REGISTERED_ACCOUNTS, JSON.stringify(accounts));
+    return accounts;
+  },
+
+  saveRegisteredAccounts(accounts: Record<string, TeacherProfile>): void {
+    try {
+      localStorage.setItem(STORAGE_KEYS.REGISTERED_ACCOUNTS, JSON.stringify(accounts));
+    } catch (e) {
+      console.error('Error saving registered accounts', e);
+    }
+  },
+
+  findAccountByEmail(email: string): TeacherProfile | null {
+    if (!email) return null;
+    const accounts = this.getRegisteredAccounts();
+    const norm = email.trim().toLowerCase();
+    return accounts[norm] || null;
+  },
+
+  isAccountRegistered(email: string): boolean {
+    if (!email) return false;
+    const account = this.findAccountByEmail(email);
+    return !!(account && account.isPasswordSet && account.passwordHash);
+  },
+
+  getLastLoginEmail(): string {
+    return localStorage.getItem(STORAGE_KEYS.LAST_LOGIN_EMAIL) || INITIAL_TEACHER.email;
+  },
+
   // --- TEACHER & AUTH ---
   getTeacherProfile(): TeacherProfile {
     try {
+      // If we have an active user email, load their specific registered profile
+      const activeEmail = localStorage.getItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
+      if (activeEmail) {
+        const registered = this.findAccountByEmail(activeEmail);
+        if (registered) {
+          return registered;
+        }
+      }
+
       const data = localStorage.getItem(STORAGE_KEYS.TEACHER);
       if (data) {
         const parsed = JSON.parse(data);
@@ -54,7 +131,23 @@ export const storage = {
   },
 
   saveTeacherProfile(profile: TeacherProfile): void {
-    localStorage.setItem(STORAGE_KEYS.TEACHER, JSON.stringify(profile));
+    try {
+      localStorage.setItem(STORAGE_KEYS.TEACHER, JSON.stringify(profile));
+      
+      // Also sync to registered accounts map if email is present
+      if (profile.email) {
+        const norm = profile.email.trim().toLowerCase();
+        const accounts = this.getRegisteredAccounts();
+        accounts[norm] = {
+          ...(accounts[norm] || {}),
+          ...profile,
+          email: profile.email.trim(),
+        };
+        this.saveRegisteredAccounts(accounts);
+      }
+    } catch (e) {
+      console.error('Error saving teacher profile', e);
+    }
   },
 
   isLoggedIn(): boolean {
@@ -69,28 +162,116 @@ export const storage = {
     }
   },
 
-  // Setup password for teacher on first login or reset
-  setPassword(email: string, password: string): TeacherProfile {
-    const profile = this.getTeacherProfile();
-    profile.email = email;
-    profile.passwordHash = password; // In production this would be hashed
-    profile.isPasswordSet = true;
-    this.saveTeacherProfile(profile);
+  // Setup/Register password for teacher on first login or profile update
+  setPassword(email: string, password: string, additionalDetails?: Partial<TeacherProfile>): TeacherProfile {
+    const norm = email.trim().toLowerCase();
+    const existing = this.findAccountByEmail(norm);
+    
+    const newProfile: TeacherProfile = {
+      ...INITIAL_TEACHER,
+      ...(existing || {}),
+      ...(additionalDetails || {}),
+      email: email.trim(),
+      passwordHash: password,
+      isPasswordSet: true,
+      name: additionalDetails?.name || existing?.name || INITIAL_TEACHER.name,
+      title: additionalDetails?.title || existing?.title || INITIAL_TEACHER.title,
+      schoolName: additionalDetails?.schoolName || existing?.schoolName || 'Ramon Magsaysay (Cubao) High School',
+      division: 'SDO Quezon City • TLE Department',
+      region: 'National Capital Region (NCR)',
+      academicYear: additionalDetails?.academicYear || existing?.academicYear || '2025-2026',
+      department: 'Technology and Livelihood Education (TLE)',
+      masterTeacherName: additionalDetails?.masterTeacherName || existing?.masterTeacherName || INITIAL_TEACHER.masterTeacherName,
+      masterTeacherPosition: additionalDetails?.masterTeacherPosition || existing?.masterTeacherPosition || INITIAL_TEACHER.masterTeacherPosition,
+      headTeacherName: additionalDetails?.headTeacherName || existing?.headTeacherName || INITIAL_TEACHER.headTeacherName,
+      headTeacherPosition: additionalDetails?.headTeacherPosition || existing?.headTeacherPosition || INITIAL_TEACHER.headTeacherPosition,
+      principalName: additionalDetails?.principalName || existing?.principalName || INITIAL_TEACHER.principalName,
+      principalPosition: additionalDetails?.principalPosition || existing?.principalPosition || INITIAL_TEACHER.principalPosition,
+    };
+
+    // Save into persistent registered accounts dictionary
+    const accounts = this.getRegisteredAccounts();
+    accounts[norm] = newProfile;
+    this.saveRegisteredAccounts(accounts);
+
+    // Save as current active profile and session
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, norm);
+    localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, email.trim());
+    this.saveTeacherProfile(newProfile);
     this.setLoggedIn(true);
-    return profile;
+
+    return newProfile;
   },
 
-  verifyPassword(email: string, password: string): boolean {
-    const profile = this.getTeacherProfile();
-    if (profile.email.toLowerCase() === email.toLowerCase() && profile.passwordHash === password) {
-      this.setLoggedIn(true);
-      return true;
+  verifyPassword(email: string, password: string): { success: boolean; profile?: TeacherProfile; message?: string } {
+    if (!email || !password) {
+      return { success: false, message: 'Please provide both email and password.' };
     }
-    return false;
+
+    const norm = email.trim().toLowerCase();
+    const accounts = this.getRegisteredAccounts();
+    const account = accounts[norm];
+
+    if (account) {
+      if (account.passwordHash === password) {
+        // Successful login
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, norm);
+        localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, email.trim());
+        this.saveTeacherProfile(account);
+        this.setLoggedIn(true);
+        return { success: true, profile: account };
+      } else {
+        return { success: false, message: 'Incorrect password for this account. Please verify or reset your password.' };
+      }
+    }
+
+    // If email is not in registered dictionary, check fallback demo/sample account
+    if (norm === INITIAL_TEACHER.email.toLowerCase() && (password === INITIAL_TEACHER.passwordHash || password === 'teacher123')) {
+      const demoProf = { ...INITIAL_TEACHER, passwordHash: password, isPasswordSet: true };
+      accounts[norm] = demoProf;
+      this.saveRegisteredAccounts(accounts);
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, norm);
+      localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, email.trim());
+      this.saveTeacherProfile(demoProf);
+      this.setLoggedIn(true);
+      return { success: true, profile: demoProf };
+    }
+
+    return {
+      success: false,
+      message: `Account "${email}" is not yet registered. Please click "Register / First Time Setup" to create your password.`,
+    };
+  },
+
+  // Safe Quick Demo Login without wiping or corrupting registered teacher accounts
+  loginAsDemo(): TeacherProfile {
+    const demoProfile: TeacherProfile = {
+      ...INITIAL_TEACHER,
+      email: 'shirlene.mandapat@depedqc.ph',
+      isPasswordSet: true,
+      passwordHash: 'teacher123',
+    };
+
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, 'shirlene.mandapat@depedqc.ph');
+    this.saveTeacherProfile(demoProfile);
+    this.setLoggedIn(true);
+
+    // If students roster is completely empty, populate demo dataset for realistic preview
+    try {
+      const currentStudents = this.getStudents();
+      if (!currentStudents || currentStudents.length === 0) {
+        this.loadDemoDataset();
+      }
+    } catch {
+      // ignore
+    }
+
+    return demoProfile;
   },
 
   logout(): void {
     this.setLoggedIn(false);
+    localStorage.removeItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
   },
 
   // --- STUDENTS ---
@@ -307,12 +488,11 @@ export const storage = {
     localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
   },
 
-  // Reset to initial clean state (empty roster)
+  // Reset to initial clean state (empty roster) while protecting registered teacher accounts
   resetToSampleData(): void {
-    localStorage.setItem(STORAGE_KEYS.TEACHER, JSON.stringify(INITIAL_TEACHER));
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(INITIAL_STUDENTS));
     localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(INITIAL_SESSIONS));
-    this.setLoggedIn(true);
+    this.loginAsDemo();
   },
 
   // Explicitly load sample demo dataset if teacher wants to test with preview records
