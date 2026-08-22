@@ -93,8 +93,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
             <div className="inline-flex items-center px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-amber-400/25 text-yellow-300 border border-amber-400/40 shadow-xs">
               PROJECT S.M.I.L.E.
             </div>
-            <p className="text-[11px] text-amber-200 font-bold">
-              (Student Monitoring and Intervention for Learning Enhancement)
+            <p className="text-[11px] text-amber-200 font-semibold tracking-wide">
+              Student Monitoring and Intervention for Learning Enhancement
             </p>
           </div>
 

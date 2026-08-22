@@ -180,14 +180,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               </div>
 
-              <div className="flex items-center gap-2 mt-0.5">
-                <p className="text-xs sm:text-sm font-bold text-white tracking-tight truncate">
+              {/* TLE and SMILE title on clear separate lines */}
+              <div className="mt-0.5 space-y-0.5">
+                <p className="text-xs sm:text-sm font-bold text-white tracking-tight">
                   Technology and Livelihood Education (TLE)
                 </p>
-                <span className="text-emerald-400 hidden sm:inline text-xs">&bull;</span>
-                <span className="text-[11px] text-amber-200 hidden sm:inline font-medium truncate">
+                <p className="text-[11px] sm:text-xs text-amber-200 font-medium tracking-wide">
                   Student Monitoring and Intervention for Learning Enhancement
-                </span>
+                </p>
               </div>
 
               {/* TLE 4 Strands Quick Tags */}
@@ -232,23 +232,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ))}
               </select>
             </div>
-
-            {/* Cloud Database (Supabase) Sync Button */}
-            {onOpenSupabaseModal && (
-              <button
-                onClick={onOpenSupabaseModal}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-900/90 hover:bg-emerald-800 text-white text-xs font-semibold border border-emerald-700/80 transition shadow-xs hover:border-amber-400/60 cursor-pointer"
-                title="Supabase Cloud Database Settings, Table Schema, & Backup"
-              >
-                <Database className="w-3.5 h-3.5 text-amber-300" />
-                <span className="hidden sm:inline text-[11px] font-bold">Cloud DB</span>
-                {isSupabaseConfigured() ? (
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Cloud Sync Active" />
-                ) : (
-                  <span className="w-2 h-2 rounded-full bg-amber-400" title="Local Storage Mode" />
-                )}
-              </button>
-            )}
 
             {/* Teacher Profile & Signatories Button */}
             <button

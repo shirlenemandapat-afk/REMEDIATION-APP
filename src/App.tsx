@@ -375,7 +375,6 @@ export default function App() {
         selectedSection={selectedSection}
         onSelectSection={setSelectedSection}
         sectionsList={sectionsList}
-        onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
       />
 
       {/* Main Dashboard Container */}
@@ -399,8 +398,8 @@ export default function App() {
                 <div className="inline-flex items-center px-3.5 py-1 rounded-full text-xs font-black text-amber-300 uppercase tracking-widest bg-amber-400/25 border border-amber-400/40 shadow-xs">
                   PROJECT S.M.I.L.E.
                 </div>
-                <div className="text-xs text-amber-200/90 font-bold tracking-wide">
-                  (Student Monitoring and Intervention for Learning Enhancement)
+                <div className="text-xs text-amber-200/90 font-semibold tracking-wide">
+                  Student Monitoring and Intervention for Learning Enhancement
                 </div>
               </div>
 

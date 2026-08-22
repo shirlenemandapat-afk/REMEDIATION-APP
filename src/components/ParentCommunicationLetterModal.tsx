@@ -78,9 +78,14 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
 
   const handlePrint = () => {
     try {
-      safePrintDocument('printable-letter-container', docFilename);
+      const ok = safePrintDocument('printable-letter-container', docFilename);
+      if (ok) {
+        showFeedback('Print preview launched! If blocked by your browser, check the new tab or click "Download PDF Copy".', 'success');
+      } else {
+        showFeedback('Print dialog was blocked by browser. Please use "Download PDF Copy" to save & print.', 'error');
+      }
     } catch (e: any) {
-      showFeedback('Print dialog failed to open. You can use Download PDF instead.', 'error');
+      showFeedback('Print dialog failed to open. You can use Download PDF Copy instead.', 'error');
     }
   };
 
@@ -112,67 +117,37 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
     <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 overflow-y-auto p-2 sm:p-4 md:p-6 flex justify-center items-start print:p-0 print:bg-white print:static">
       <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-200 my-2 sm:my-4 flex flex-col print:shadow-none print:border-none print:my-0 print:max-w-none">
         
-        {/* Sticky Action Header Bar (Hidden in Print) */}
-        <div className="sticky top-0 z-30 bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-950 p-3.5 sm:p-4 text-white flex items-center justify-between rounded-t-2xl border-b-2 border-amber-400 gap-2 sm:gap-3 shadow-md print:hidden">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        {/* Clean Modal Header Bar (Hidden in Print) */}
+        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-950 p-4 text-white flex items-center justify-between rounded-t-2xl border-b-2 border-amber-400 gap-3 shadow-sm print:hidden">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={onClose}
-              className="px-2.5 sm:px-3 py-1.5 bg-white/10 hover:bg-white/20 text-emerald-100 hover:text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-white/20 shadow-xs cursor-pointer shrink-0"
+              className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-emerald-100 hover:text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-white/20 shadow-xs cursor-pointer shrink-0"
               title="Back to Students / Dashboard"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Back</span>
+              <span>Back</span>
             </button>
-            <div className="flex items-center gap-2 min-w-0">
-              <Mail className="w-5 h-5 text-amber-300 shrink-0 hidden md:block" />
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Mail className="w-5 h-5 text-amber-300 shrink-0" />
               <div className="truncate">
-                <h3 className="font-extrabold text-xs sm:text-sm md:text-base leading-tight truncate">
-                  Parent / Guardian Letter
+                <h3 className="font-extrabold text-sm sm:text-base leading-tight truncate">
+                  Parent / Guardian Official Notice
                 </h3>
                 <p className="text-[11px] text-emerald-200 truncate">
-                  {student.firstName} {student.lastName} &bull; {student.gradeLevel}-{student.section}
+                  {student.firstName} {student.lastName} &bull; {student.gradeLevel}-{student.section} &bull; {student.programType}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <button
-              onClick={handleDownloadPDF}
-              disabled={isDownloading}
-              className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-emerald-700 hover:bg-emerald-600 text-yellow-300 font-extrabold rounded-xl text-xs transition flex items-center gap-1.5 shadow-md border border-emerald-500 cursor-pointer disabled:opacity-50"
-              title="Save PDF file directly to your download folder"
-            >
-              {isDownloading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin text-yellow-300" />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4 text-yellow-300" />
-                  <span>Download PDF</span>
-                </>
-              )}
-            </button>
-
-            <button
-              onClick={handlePrint}
-              className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold rounded-xl text-xs transition flex items-center gap-1.5 shadow-md hover:shadow-lg border border-amber-300 cursor-pointer active:scale-95"
-              title="Print official letter or save as PDF via browser dialog"
-            >
-              <Printer className="w-4 h-4" />
-              <span className="hidden sm:inline">Print Letter</span>
-            </button>
-
-            <button
-              onClick={onClose}
-              className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer ml-1"
-              title="Close modal"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="text-white/70 hover:text-white p-2 rounded-xl hover:bg-white/10 transition cursor-pointer"
+            title="Close modal"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Feedback Alert Banner */}

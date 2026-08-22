@@ -183,6 +183,8 @@ export async function downloadElementAsPDF(
         quality: 0.98,
         pixelRatio: 2, // 2x scale for crisp printing
         backgroundColor: '#ffffff',
+        skipFonts: true,
+        fontEmbedCSS: '',
         filter: (node: HTMLElement) => {
           if (node.classList) {
             if (
