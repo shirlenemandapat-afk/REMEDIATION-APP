@@ -265,10 +265,92 @@ export interface SessionRecord {
   createdAt: string;
 }
 
+export type UserRole = 'admin' | 'school_head' | 'coordinator' | 'teacher' | 'student';
+
+export const LEARNING_AREAS = [
+  'ICT - Computer Programming',
+  'ICT - Computer Systems Servicing',
+  'Electronics and Electricity Servicing',
+  'Food Preservation',
+  'Garments',
+  'Health and Wellness',
+] as const;
+
+export type LearningArea = (typeof LEARNING_AREAS)[number] | string;
+
+export interface RemediationProgram {
+  id: string;
+  title: string;
+  learningArea: LearningArea;
+  targetGradeLevel: string; // e.g. "Grade 7", "Grade 8", "All Grades"
+  programObjectives: string;
+  assignedTeacherEmails: string[];
+  assignedTeacherNames: string[];
+  scheduleDescription: string; // e.g. "Every Mon & Wed, 3:30 PM - 4:30 PM"
+  startDate: string;
+  endDate: string;
+  status: 'Active' | 'Upcoming' | 'Completed';
+  maxStudents?: number;
+  createdAt: string;
+}
+
+export interface RemediationClass {
+  id: string;
+  programId?: string;
+  className: string;
+  learningArea: LearningArea;
+  assignedTeacherEmail: string;
+  assignedTeacherName: string;
+  enrolledStudentIds: string[];
+  scheduleDays: string[]; // e.g. ["Monday", "Wednesday", "Friday"]
+  startTime: string; // e.g. "15:30"
+  endTime: string; // e.g. "16:30"
+  venueType: 'Physical Room' | 'Online Link';
+  venueOrLink: string; // e.g. "TLE Lab 204" or "https://meet.google.com/xyz"
+  status: 'Active' | 'Completed' | 'Suspended';
+  createdAt: string;
+}
+
+export interface SystemAnnouncement {
+  id: string;
+  title: string;
+  content: string;
+  targetAudience: 'All Faculty' | 'Remediation Coordinators' | 'Teachers' | 'All Users' | string;
+  priority: 'Low' | 'Normal' | 'High' | 'Urgent';
+  authorName: string;
+  authorRole: string;
+  publishDate: string;
+  isPinned: boolean;
+  isScheduled?: boolean;
+  scheduledFor?: string;
+  expiresAt?: string;
+  status: 'Published' | 'Draft' | 'Scheduled';
+}
+
+export interface SystemSettings {
+  schoolName: string;
+  schoolLogoUrl?: string;
+  schoolYear?: string;
+  academicYear?: string;
+  currentQuarter?: 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'Quarter 1' | 'Quarter 2' | 'Quarter 3' | 'Quarter 4' | 'Summer Remediation' | string;
+  semester?: '1st Semester' | '2nd Semester' | string;
+  division?: string;
+  region?: string;
+  department?: string;
+  departmentName?: string;
+  passingScoreThreshold?: number;
+  activeLearningAreas?: string[];
+  allowTeacherSelfRegistration?: boolean;
+  maintenanceMode?: boolean;
+  lastBackupDate?: string;
+}
+
 export interface TeacherProfile {
   email: string;
   passwordHash?: string;
   isPasswordSet: boolean;
+  role?: UserRole;
+  accountStatus?: 'Active' | 'Inactive';
   name: string;
   title: string; // e.g., "Teacher III" / "Master Teacher I"
   schoolName: string; // e.g., "Ramon Magsaysay (Cubao) High School"
@@ -276,6 +358,11 @@ export interface TeacherProfile {
   region: string;     // e.g., "NCR"
   academicYear: string; // e.g., "2025-2026"
   department?: string; // e.g., "Technology and Livelihood Education (TLE)"
+  assignedSubjects?: string[]; // e.g. ["ICT - Computer Programming", "Food Preservation"]
+  registeredAt?: string;
+  lastLoginAt?: string;
+  phoneNumber?: string;
+  reportsSubmissionStatus?: 'Submitted' | 'Pending' | 'Needs Revision' | 'Draft';
 
   // Official Report Signatories & Approving Authorities
   masterTeacherName?: string;
@@ -286,6 +373,15 @@ export interface TeacherProfile {
 
   principalName?: string;         // e.g., "Dr. Maria Luisa T. Ramos"
   principalPosition?: string;     // e.g., "Secondary School Principal IV"
+}
+
+export interface AdminAuditLog {
+  id: string;
+  timestamp: string;
+  adminEmail: string;
+  action: string;
+  targetUser?: string;
+  details: string;
 }
 
 export interface NarrativeReportData {

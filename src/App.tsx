@@ -9,6 +9,7 @@ import { SessionLogList } from './components/SessionLogList';
 import { ClassProgressDashboard } from './components/ClassProgressDashboard';
 import { NarrativeReportGenerator } from './components/NarrativeReportGenerator';
 import { ArchiveManagement } from './components/ArchiveManagement';
+import { AdminDashboard } from './components/AdminDashboard';
 import { EnrollStudentModal } from './components/EnrollStudentModal';
 import { AddSessionModal } from './components/AddSessionModal';
 import { StudentDetailModal } from './components/StudentDetailModal';
@@ -26,7 +27,6 @@ import {
   FileCheck2,
   UserPlus,
   PlusCircle,
-  RefreshCw,
   Sparkles,
   Flame,
   Award,
@@ -34,6 +34,7 @@ import {
   Archive,
   CheckCircle,
   X,
+  ShieldAlert,
 } from 'lucide-react';
 
 interface ConfirmConfig {
@@ -58,8 +59,8 @@ export default function App() {
 
   // Navigation & Filtering State
   const [activeTab, setActiveTab] = useState<
-    'students' | 'sessions' | 'class-progress' | 'report' | 'archive'
-  >('students');
+    'admin-portal' | 'students' | 'sessions' | 'class-progress' | 'report' | 'archive'
+  >(() => (storage.getTeacherProfile().role === 'admin' ? 'admin-portal' : 'students'));
   const [selectedSection, setSelectedSection] = useState<string>('ALL');
 
   // Modal Controls
@@ -149,6 +150,12 @@ export default function App() {
     setSessions(localSessions);
     setIsLoggedIn(true);
 
+    if (profile.role === 'admin' || profile.email === 'admin@projectsmile') {
+      setActiveTab('admin-portal');
+    } else {
+      setActiveTab('students');
+    }
+
     if (isSupabaseConfigured()) {
       supabaseService.upsertTeacher(profile);
       supabaseService.fetchAll().then((cloudData) => {
@@ -184,28 +191,6 @@ export default function App() {
   const handleLogout = () => {
     storage.logout();
     setIsLoggedIn(false);
-  };
-
-  const handleResetData = () => {
-    setConfirmConfig({
-      isOpen: true,
-      type: 'reset_data',
-      title: 'Reset Sample Data',
-      message:
-        'Are you sure you want to reset all teacher, student, and session records back to the default Ramon Magsaysay (Cubao) High School demo dataset?',
-      confirmLabel: 'Reset Data',
-      confirmVariant: 'warning',
-      onConfirm: () => {
-        storage.resetToSampleData();
-        const resetTeacher = storage.getTeacherProfile();
-        const resetStudents = storage.getStudents();
-        const resetSessions = storage.getSessions();
-        refreshData();
-        if (isSupabaseConfigured()) {
-          supabaseService.pushAll(resetTeacher, resetStudents, resetSessions);
-        }
-      },
-    });
   };
 
   // Enrolled Students Sections list
@@ -384,165 +369,170 @@ export default function App() {
           <RMCHSHeaderBanner showSubtitle={true} />
         </div>
 
-        {/* Department Welcome & Action Banner with RMCHS Green & Gold Theme + Project S.M.I.L.E. */}
-        <div className="relative overflow-hidden bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-950 rounded-2xl p-6 text-white shadow-xl border border-emerald-800/80">
-          {/* Subtle background glow & watermark seal */}
-          <div className="absolute right-0 top-0 bottom-0 opacity-10 pointer-events-none translate-x-12 -translate-y-4 overflow-hidden flex items-center">
-            <SchoolLogo size="xl" showShadow={false} />
-          </div>
+        {/* Department Welcome & Action Banner with RMCHS Green & Gold Theme (For Classroom Teacher views) */}
+        {teacher.role !== 'admin' && teacher.email !== 'admin@projectsmile' && (
+          <div className="relative overflow-hidden bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-950 rounded-2xl p-6 text-white shadow-xl border border-emerald-800/80">
+            {/* Subtle background glow & watermark seal */}
+            <div className="absolute right-0 top-0 bottom-0 opacity-10 pointer-events-none translate-x-12 -translate-y-4 overflow-hidden flex items-center">
+              <SchoolLogo size="xl" showShadow={false} />
+            </div>
 
-          <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
-            <div className="space-y-2 max-w-2xl">
-              {/* Project S.M.I.L.E. Institutional Tag with acronym meaning placed directly under */}
-              <div className="flex flex-col items-start gap-1">
-                <div className="inline-flex items-center px-3.5 py-1 rounded-full text-xs font-black text-amber-300 uppercase tracking-widest bg-amber-400/25 border border-amber-400/40 shadow-xs">
-                  PROJECT S.M.I.L.E.
+            <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
+              <div className="space-y-2 max-w-2xl">
+                {/* Project S.M.I.L.E. Institutional Tag with acronym meaning placed directly under */}
+                <div className="flex flex-col items-start gap-1">
+                  <div className="inline-flex items-center px-3.5 py-1 rounded-full text-xs font-black text-amber-300 uppercase tracking-widest bg-amber-400/25 border border-amber-400/40 shadow-xs">
+                    PROJECT S.M.I.L.E.
+                  </div>
+                  <div className="text-xs text-amber-200/90 font-semibold tracking-wide">
+                    Student Monitoring and Intervention for Learning Enhancement
+                  </div>
                 </div>
-                <div className="text-xs text-amber-200/90 font-semibold tracking-wide">
-                  Student Monitoring and Intervention for Learning Enhancement
-                </div>
-              </div>
 
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
-                <span>Welcome,</span>
-                <span className="text-yellow-300 underline decoration-amber-400/60 decoration-2 underline-offset-4">
-                  {teacher.name}
-                </span>
-              </h1>
-
-              <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
-                Project S.M.I.L.E. provides daily anecdotal logs, remediation tracking, and skills enhancement monitoring across <strong>ICT</strong> (Information & Communications Technology), <strong>AFA</strong> (Agri-Fishery Arts), <strong>FCS / H.E.</strong> (Family & Consumer Sciences), and <strong>IA</strong> (Industrial Arts).
-              </p>
-
-              {/* Quick status pill counters */}
-              <div className="pt-2 flex items-center gap-2.5 flex-wrap text-xs font-semibold">
-                <span className="px-2.5 py-1 rounded-lg bg-emerald-900/90 border border-emerald-700/80 text-emerald-200">
-                  Active Roster: <strong className="text-white ml-1">{activeStudents.length}</strong>
-                </span>
-                {archivedStudents.length > 0 && (
-                  <span className="px-2.5 py-1 rounded-lg bg-amber-900/80 border border-amber-500/80 text-amber-200">
-                    Archived: <strong className="text-amber-300 ml-1">{archivedStudents.length}</strong>
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
+                  <span>Welcome,</span>
+                  <span className="text-yellow-300 underline decoration-amber-400/60 decoration-2 underline-offset-4">
+                    {teacher.name}
                   </span>
-                )}
-                <span className="px-2.5 py-1 rounded-lg bg-amber-950/80 border border-amber-600/60 text-amber-200">
-                  Needs Remediation: <strong className="text-amber-300 ml-1">{totalNeedsHelp}</strong>
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-green-950/80 border border-green-600/60 text-green-200">
-                  Mastered / Promoted: <strong className="text-green-300 ml-1">{totalMastered}</strong>
-                </span>
+                </h1>
+
+                <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
+                  Project S.M.I.L.E. provides daily anecdotal logs, remediation tracking, and skills enhancement monitoring across <strong>ICT</strong> (Information & Communications Technology), <strong>AFA</strong> (Agri-Fishery Arts), <strong>FCS / H.E.</strong> (Family & Consumer Sciences), and <strong>IA</strong> (Industrial Arts).
+                </p>
+
+                {/* Quick status pill counters */}
+                <div className="pt-2 flex items-center gap-2.5 flex-wrap text-xs font-semibold">
+                  <span className="px-2.5 py-1 rounded-lg bg-emerald-900/90 border border-emerald-700/80 text-emerald-200">
+                    Active Roster: <strong className="text-white ml-1">{activeStudents.length}</strong>
+                  </span>
+                  {archivedStudents.length > 0 && (
+                    <span className="px-2.5 py-1 rounded-lg bg-amber-900/80 border border-amber-500/80 text-amber-200">
+                      Archived: <strong className="text-amber-300 ml-1">{archivedStudents.length}</strong>
+                    </span>
+                  )}
+                  <span className="px-2.5 py-1 rounded-lg bg-amber-950/80 border border-amber-600/60 text-amber-200">
+                    Needs Remediation: <strong className="text-amber-300 ml-1">{totalNeedsHelp}</strong>
+                  </span>
+                  <span className="px-2.5 py-1 rounded-lg bg-green-950/80 border border-green-600/60 text-green-200">
+                    Mastered / Promoted: <strong className="text-green-300 ml-1">{totalMastered}</strong>
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsEnrollModalOpen(true)}
+                  className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-emerald-950 font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-lg shadow-amber-900/40 border border-amber-300/60 active:scale-95 cursor-pointer"
+                >
+                  <UserPlus className="w-4 h-4 text-emerald-950" />
+                  ENROLL STUDENT
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddSessionStudentId(undefined);
+                    setIsAddSessionModalOpen(true);
+                  }}
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-lg shadow-emerald-950/40 border border-emerald-400/40 active:scale-95 cursor-pointer"
+                >
+                  <PlusCircle className="w-4 h-4 text-yellow-300" />
+                  ADD SESSION LOG
+                </button>
               </div>
             </div>
-
-            {/* Quick Actions */}
-            <div className="flex items-center gap-2.5 flex-wrap shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsEnrollModalOpen(true)}
-                className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-emerald-950 font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-lg shadow-amber-900/40 border border-amber-300/60 active:scale-95 cursor-pointer"
-              >
-                <UserPlus className="w-4 h-4 text-emerald-950" />
-                ENROLL STUDENT
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setAddSessionStudentId(undefined);
-                  setIsAddSessionModalOpen(true);
-                }}
-                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-lg shadow-emerald-950/40 border border-emerald-400/40 active:scale-95 cursor-pointer"
-              >
-                <PlusCircle className="w-4 h-4 text-yellow-300" />
-                ADD SESSION LOG
-              </button>
-
-              <button
-                type="button"
-                onClick={handleResetData}
-                className="p-2.5 bg-emerald-900/80 hover:bg-emerald-800 text-emerald-200 hover:text-white rounded-xl text-xs transition border border-emerald-700/80 cursor-pointer"
-                title="Reset Database to Clean State"
-              >
-                <RefreshCw className="w-4 h-4" />
-              </button>
-            </div>
           </div>
-        </div>
+        )}
 
-        {/* Navigation Tabs Styled with Green & Gold Accents */}
-        <div className="bg-white rounded-2xl p-1.5 border border-emerald-100 shadow-sm flex items-center gap-1.5 overflow-x-auto">
-          <button
-            type="button"
-            onClick={() => setActiveTab('students')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeTab === 'students'
-                ? 'bg-emerald-800 text-yellow-300 shadow-md border border-emerald-700'
-                : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900'
-            }`}
-          >
-            <Users className="w-4 h-4 text-amber-400" />
-            STUDENT ROSTER ({activeStudents.length})
-          </button>
+        {/* Navigation Tabs Styled with Green & Gold Accents (For Classroom Teacher views) */}
+        {teacher.role !== 'admin' && teacher.email !== 'admin@projectsmile' && (
+          <div className="bg-white rounded-2xl p-1.5 border border-emerald-100 shadow-sm flex items-center gap-1.5 overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => setActiveTab('students')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                activeTab === 'students'
+                  ? 'bg-emerald-800 text-yellow-300 shadow-md border border-emerald-700'
+                  : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900'
+              }`}
+            >
+              <Users className="w-4 h-4 text-amber-400" />
+              STUDENT ROSTER ({activeStudents.length})
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('sessions')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeTab === 'sessions'
-                ? 'bg-emerald-800 text-yellow-300 shadow-md border border-emerald-700'
-                : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900'
-            }`}
-          >
-            <Calendar className="w-4 h-4 text-amber-400" />
-            DAILY ANECDOTAL LOGS ({sessions.length})
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('sessions')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                activeTab === 'sessions'
+                  ? 'bg-emerald-800 text-yellow-300 shadow-md border border-emerald-700'
+                  : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900'
+              }`}
+            >
+              <Calendar className="w-4 h-4 text-amber-400" />
+              DAILY ANECDOTAL LOGS ({sessions.length})
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('class-progress')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeTab === 'class-progress'
-                ? 'bg-emerald-800 text-yellow-300 shadow-md border border-emerald-700'
-                : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900'
-            }`}
-          >
-            <BarChart3 className="w-4 h-4 text-amber-400" />
-            CLASS PROGRESS GRAPH
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('class-progress')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                activeTab === 'class-progress'
+                  ? 'bg-emerald-800 text-yellow-300 shadow-md border border-emerald-700'
+                  : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4 text-amber-400" />
+              CLASS PROGRESS GRAPH
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('report')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeTab === 'report'
-                ? 'bg-emerald-900 text-amber-300 shadow-md border border-amber-400/50'
-                : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900'
-            }`}
-          >
-            <FileCheck2 className="w-4 h-4 text-amber-400" />
-            NARRATIVE REPORT GENERATOR
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('report')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                activeTab === 'report'
+                  ? 'bg-emerald-900 text-amber-300 shadow-md border border-amber-400/50'
+                  : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900'
+              }`}
+            >
+              <FileCheck2 className="w-4 h-4 text-amber-400" />
+              NARRATIVE REPORT GENERATOR
+            </button>
 
-          {/* Dedicated Archive Section Tab */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('archive')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeTab === 'archive'
-                ? 'bg-amber-600 text-white shadow-md border border-amber-700'
-                : 'text-amber-900 bg-amber-50/70 hover:bg-amber-100'
-            }`}
-          >
-            <FolderArchive className="w-4 h-4 text-amber-600" />
-            ARCHIVED RECORDS & SECTIONS
-            {archivedStudents.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-amber-700 text-white font-black">
-                {archivedStudents.length}
-              </span>
-            )}
-          </button>
-        </div>
+            {/* Dedicated Archive Section Tab */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('archive')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                activeTab === 'archive'
+                  ? 'bg-amber-600 text-white shadow-md border border-amber-700'
+                  : 'text-amber-900 bg-amber-50/70 hover:bg-amber-100'
+              }`}
+            >
+              <FolderArchive className="w-4 h-4 text-amber-600" />
+              ARCHIVED RECORDS & SECTIONS
+              {archivedStudents.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-amber-700 text-white font-black">
+                  {archivedStudents.length}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* Tab Content Views */}
+        {activeTab === 'admin-portal' && (
+          <AdminDashboard
+            currentAdmin={teacher}
+            students={students}
+            sessions={sessions}
+            onRefreshData={refreshData}
+            onSelectStudent={(stud) => setViewStudent(stud)}
+          />
+        )}
+
         {activeTab === 'students' && (
           <StudentList
             students={students}

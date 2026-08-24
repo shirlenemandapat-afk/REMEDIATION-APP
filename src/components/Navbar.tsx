@@ -233,17 +233,32 @@ export const Navbar: React.FC<NavbarProps> = ({
               </select>
             </div>
 
-            {/* Teacher Profile & Signatories Button */}
+            {/* Teacher / Admin Profile & Signatories Button */}
             <button
               onClick={handleOpenModal}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-900/90 hover:bg-emerald-800 text-white text-xs font-semibold border border-emerald-700/80 transition shadow-xs hover:border-amber-400/60 cursor-pointer"
-              title="Edit Teacher Profile & Official Signatories"
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-white text-xs font-semibold border transition shadow-xs cursor-pointer ${
+                teacher.role === 'admin' || teacher.email === 'admin@projectsmile'
+                  ? 'bg-purple-950/90 hover:bg-purple-900 border-purple-500/70 hover:border-amber-400'
+                  : 'bg-emerald-900/90 hover:bg-emerald-800 border-emerald-700/80 hover:border-amber-400/60'
+              }`}
+              title={teacher.role === 'admin' ? "System Administrator Profile & Console" : "Edit Teacher Profile & Official Signatories"}
             >
-              <div className="w-6 h-6 rounded-full bg-amber-500 text-emerald-950 flex items-center justify-center font-black text-xs shadow-xs">
-                {teacher.name.charAt(0)}
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-xs shadow-xs ${
+                teacher.role === 'admin' || teacher.email === 'admin@projectsmile'
+                  ? 'bg-amber-400 text-purple-950'
+                  : 'bg-amber-500 text-emerald-950'
+              }`}>
+                {teacher.name ? teacher.name.charAt(0) : 'A'}
               </div>
               <div className="text-left hidden lg:block max-w-[140px] truncate">
-                <p className="font-bold text-xs truncate leading-tight">{teacher.name}</p>
+                <div className="flex items-center gap-1">
+                  <p className="font-bold text-xs truncate leading-tight">{teacher.name}</p>
+                  {(teacher.role === 'admin' || teacher.email === 'admin@projectsmile') && (
+                    <span className="px-1.5 py-0.2 bg-amber-400 text-purple-950 text-[9px] font-black rounded uppercase">
+                      ADMIN
+                    </span>
+                  )}
+                </div>
                 <p className="text-[10px] text-amber-200 truncate leading-tight">{teacher.title}</p>
               </div>
               <Edit3 className="w-3.5 h-3.5 text-amber-300 ml-0.5" />

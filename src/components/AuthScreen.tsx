@@ -162,11 +162,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         <div className="p-6 sm:p-8 space-y-4 bg-white">
           <div className="text-center">
             <h2 className="text-base sm:text-lg font-extrabold text-slate-800">
-              {authMode === 'signin' ? 'Teacher Portal Sign In' : 'Register Teacher Account'}
+              {authMode === 'signin' ? 'DepEd Faculty & Administrator Sign In' : 'Register Teacher Account'}
             </h2>
             <p className="text-xs text-slate-500 mt-1">
               {authMode === 'signin'
-                ? 'Enter your registered DepEd email and password to access your roster.'
+                ? 'Enter your registered DepEd or Administrator credentials to access your dashboard.'
                 : 'Set up your credentials and DepEd details for personal classroom records.'}
             </p>
           </div>
