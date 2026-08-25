@@ -125,10 +125,11 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
             {onOpenParentLetter && (
               <button
                 onClick={() => onOpenParentLetter(student)}
-                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-emerald-950 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 shadow-sm border border-amber-300/60"
+                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-emerald-950 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 shadow-sm border border-amber-300/60 cursor-pointer"
+                title="Generate Guardian's Notice of Remediation"
               >
-                <Mail className="w-3.5 h-3.5 text-emerald-950" />
-                Parent Notice
+                <FileText className="w-3.5 h-3.5 text-emerald-950" />
+                Guardian Notice
               </button>
             )}
             {onOpenAnecdotalReport && (

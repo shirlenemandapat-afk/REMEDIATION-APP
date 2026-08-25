@@ -3,6 +3,7 @@ import { TeacherProfile } from '../types';
 import { storage } from '../services/storage';
 import { isSupabaseConfigured } from '../services/supabase';
 import { SchoolLogo } from './SchoolLogo';
+import { TeacherPositionSelect } from './BookingSchedulePicker';
 import {
   LogOut,
   User,
@@ -545,16 +546,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Position / Faculty Rank <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
+                    <TeacherPositionSelect
+                      label="Position / Faculty Rank"
                       required
                       value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      placeholder="e.g. Master Teacher I / TLE Teacher"
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                      onChange={(val) => setEditTitle(val)}
                     />
                   </div>
 

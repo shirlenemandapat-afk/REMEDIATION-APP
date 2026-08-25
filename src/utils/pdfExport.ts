@@ -152,9 +152,7 @@ async function generateMultiPagePDF(
 }
 
 /**
- * Robust, client-side PDF download utility.
- * Uses native browser-rendered html-to-image (fully compatible with Tailwind v4 OKLCH colors),
- * with resilient fallback to html2canvas + color sanitizer.
+ * Robust, client-side PDF download utility with multiple resilient fallbacks.
  */
 export async function downloadElementAsPDF(
   elementId: string,
@@ -169,71 +167,67 @@ export async function downloadElementAsPDF(
 
   const sanitizedFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
 
-  // Timeout safety wrapper (max 20 seconds)
-  const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error('PDF generation timed out after 20 seconds')), 20000)
-  );
-
-  const generatePDFPromise = (async (): Promise<boolean> => {
+  try {
     let pdf: jsPDF | null = null;
 
-    // Primary Engine: html-to-image (Uses native SVG foreignObject, natively supports OKLCH, Grid, Fonts)
+    // Strategy 1: html2canvas with computed styles and clean settings
     try {
-      const dataUrl = await toPng(element, {
-        quality: 0.98,
-        pixelRatio: 2, // 2x scale for crisp printing
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
         backgroundColor: '#ffffff',
-        skipFonts: true,
-        fontEmbedCSS: '',
-        filter: (node: HTMLElement) => {
-          if (node.classList) {
-            if (
-              node.classList.contains('print:hidden') ||
-              node.tagName === 'BUTTON' ||
-              node.hasAttribute('data-no-print')
-            ) {
-              return false;
-            }
-          }
-          return true;
+        logging: false,
+        imageTimeout: 5000,
+        onclone: (_clonedDoc, clonedEl) => {
+          clonedEl.style.backgroundColor = '#ffffff';
+          clonedEl.style.color = '#000000';
+          sanitizeOklchColors(clonedEl);
+          const buttons = clonedEl.querySelectorAll('button, .print\\:hidden, [data-no-print]');
+          buttons.forEach((btn) => {
+            (btn as HTMLElement).style.display = 'none';
+          });
         },
       });
 
-      const img = new Image();
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error('Failed to load captured DOM image'));
-        img.src = dataUrl;
-      });
+      const dataUrl = canvas.toDataURL('image/png', 0.95);
+      pdf = await generateMultiPagePDF(dataUrl, canvas.width, canvas.height, options);
+    } catch (h2cErr) {
+      console.warn('[PDF Export] html2canvas renderer failed, falling back to html-to-image:', h2cErr);
 
-      pdf = await generateMultiPagePDF(dataUrl, img.naturalWidth || img.width, img.naturalHeight || img.height, options);
-    } catch (primaryErr) {
-      console.warn('[PDF Export] Primary html-to-image renderer fallback initiated:', primaryErr);
-
-      // Fallback Engine: html2canvas with OKLCH sanitization
+      // Strategy 2: html-to-image
       try {
-        const canvas = await html2canvas(element, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
+        const dataUrl = await toPng(element, {
+          quality: 0.95,
+          pixelRatio: 2,
           backgroundColor: '#ffffff',
-          logging: false,
-          onclone: (_clonedDoc, clonedEl) => {
-            clonedEl.style.backgroundColor = '#ffffff';
-            clonedEl.style.color = '#000000';
-            sanitizeOklchColors(clonedEl);
-            const buttons = clonedEl.querySelectorAll('button, .print\\:hidden, [data-no-print]');
-            buttons.forEach((btn) => {
-              (btn as HTMLElement).style.display = 'none';
-            });
+          skipFonts: true,
+          cacheBust: true,
+          filter: (node: HTMLElement) => {
+            if (node.classList) {
+              if (
+                node.classList.contains('print:hidden') ||
+                node.tagName === 'BUTTON' ||
+                node.hasAttribute('data-no-print')
+              ) {
+                return false;
+              }
+            }
+            return true;
           },
         });
 
-        const dataUrl = canvas.toDataURL('image/png', 0.95);
-        pdf = await generateMultiPagePDF(dataUrl, canvas.width, canvas.height, options);
-      } catch (fallbackErr) {
-        console.error('[PDF Export] Both PDF rendering engines failed:', fallbackErr);
-        throw fallbackErr;
+        const img = new Image();
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error('Failed to load captured DOM image'));
+          img.src = dataUrl;
+        });
+
+        pdf = await generateMultiPagePDF(dataUrl, img.naturalWidth || img.width, img.naturalHeight || img.height, options);
+      } catch (toPngErr) {
+        console.error('[PDF Export] html-to-image also failed:', toPngErr);
+        throw toPngErr;
       }
     }
 
@@ -260,10 +254,6 @@ export async function downloadElementAsPDF(
     }
 
     return true;
-  })();
-
-  try {
-    return await Promise.race([generatePDFPromise, timeoutPromise]);
   } catch (error) {
     console.error('[PDF Export Error]:', error);
     return false;

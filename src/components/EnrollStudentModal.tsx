@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Student, ProgramType } from '../types';
-import { UserPlus, X, AlertCircle, FileText, Phone, User, Calendar, Clock, MapPin } from 'lucide-react';
+import { BookingDatePicker, BookingTimeInput } from './BookingSchedulePicker';
+import { UserPlus, X, AlertCircle, FileText, Phone, User, Calendar, Clock, MapPin, Check, Sparkles, Plane, Building } from 'lucide-react';
 
 interface EnrollStudentModalProps {
   isOpen: boolean;
@@ -8,25 +9,21 @@ interface EnrollStudentModalProps {
   onEnrollStudent: (student: Omit<Student, 'id' | 'enrolledDate' | 'status'>) => void;
 }
 
-const SCHEDULE_DAYS = [
-  'Every Tuesday & Thursday',
-  'Every Monday & Wednesday',
-  'Every Friday',
-  'Every Monday to Friday',
-  'Every Saturday (Catch-up / Enhancement)',
-  'Every Monday',
-  'Every Tuesday',
-  'Every Wednesday',
-  'Every Thursday',
+const SCHEDULE_PRESET_DAYS = [
+  { label: 'Tue & Thu', value: 'Every Tuesday & Thursday' },
+  { label: 'Mon & Wed', value: 'Every Monday & Wednesday' },
+  { label: 'Every Friday', value: 'Every Friday' },
+  { label: 'Daily (Mon-Fri)', value: 'Every Monday to Friday' },
+  { label: 'Saturday Catch-up', value: 'Every Saturday (Catch-up / Enhancement)' },
 ];
 
-const SCHEDULE_TIMES = [
-  '3:30 PM - 4:30 PM (After Class Remedial)',
-  '4:00 PM - 5:00 PM (After Class)',
-  '12:00 PM - 1:00 PM (Remedial Period)',
-  '7:00 AM - 8:00 AM (Zero Period)',
-  '1:00 PM - 2:00 PM (Remediation Slot)',
-  '2:00 PM - 3:00 PM (Remediation Slot)',
+const WEEKDAYS = [
+  { key: 'Mon', label: 'Monday' },
+  { key: 'Tue', label: 'Tuesday' },
+  { key: 'Wed', label: 'Wednesday' },
+  { key: 'Thu', label: 'Thursday' },
+  { key: 'Fri', label: 'Friday' },
+  { key: 'Sat', label: 'Saturday' },
 ];
 
 const SCHEDULE_VENUES = [
@@ -54,15 +51,43 @@ export const EnrollStudentModal: React.FC<EnrollStudentModalProps> = ({
   const [parentName, setParentName] = useState('');
   const [parentContact, setParentContact] = useState('');
   
-  // Proposed Session Schedule Dropdown States
-  const [scheduleDay, setScheduleDay] = useState(SCHEDULE_DAYS[0]);
-  const [scheduleTime, setScheduleTime] = useState(SCHEDULE_TIMES[0]);
+  // Booking-style schedule states
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [startDate, setStartDate] = useState<string>(todayStr);
+  const [selectedDays, setSelectedDays] = useState<string[]>(['Tuesday', 'Thursday']);
+  const [scheduleDayText, setScheduleDayText] = useState('Every Tuesday & Thursday');
+  const [startTime, setStartTime] = useState('03:30 PM');
+  const [endTime, setEndTime] = useState('04:45 PM');
   const [scheduleVenue, setScheduleVenue] = useState(SCHEDULE_VENUES[0]);
+  const [showCalendarPicker, setShowCalendarPicker] = useState(false);
   
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
 
   if (!isOpen) return null;
+
+  const toggleDay = (dayName: string) => {
+    let updated: string[];
+    if (selectedDays.includes(dayName)) {
+      if (selectedDays.length === 1) return; // keep at least 1 day
+      updated = selectedDays.filter((d) => d !== dayName);
+    } else {
+      updated = [...selectedDays, dayName];
+    }
+    setSelectedDays(updated);
+    if (updated.length === 6) {
+      setScheduleDayText('Every Monday to Saturday');
+    } else if (updated.length === 5 && !updated.includes('Saturday')) {
+      setScheduleDayText('Every Monday to Friday');
+    } else {
+      setScheduleDayText(`Every ${updated.join(' & ')}`);
+    }
+  };
+
+  const handleApplyPreset = (presetValue: string, daysArray: string[]) => {
+    setScheduleDayText(presetValue);
+    setSelectedDays(daysArray);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,7 +98,8 @@ export const EnrollStudentModal: React.FC<EnrollStudentModalProps> = ({
       return;
     }
 
-    const combinedSchedule = `${scheduleDay}, ${scheduleTime} (${scheduleVenue})`;
+    const formattedTimeSlot = `${startTime} - ${endTime}`;
+    const combinedSchedule = `${scheduleDayText}, ${formattedTimeSlot} (${scheduleVenue})`;
 
     onEnrollStudent({
       lastName: lastName.trim(),
@@ -84,7 +110,7 @@ export const EnrollStudentModal: React.FC<EnrollStudentModalProps> = ({
       subject: subject.trim(),
       programType,
       baselineScore: Number(baselineScore),
-      focusTopic: '', // Target topic is now identified per remedial session
+      focusTopic: '', // Target topic is identified per session
       parentName: parentName.trim(),
       parentContact: parentContact.trim(),
       scheduleDetails: combinedSchedule,
@@ -318,73 +344,223 @@ export const EnrollStudentModal: React.FC<EnrollStudentModalProps> = ({
               </div>
             </div>
 
-            {/* Structured Schedule Dropdowns */}
-            <div className="pt-2 border-t border-amber-200/60 space-y-2.5">
-              <span className="block text-[11px] font-bold text-amber-950 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-amber-700" />
-                Proposed Session Schedule & Venue Selection
-              </span>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-600 mb-1 flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-slate-400" />
-                    Session Day(s)
-                  </label>
-                  <select
-                    value={scheduleDay}
-                    onChange={(e) => setScheduleDay(e.target.value)}
-                    className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none font-medium cursor-pointer"
+            {/* Booking-Style Proposed Schedule & Venue Selection */}
+            <div className="pt-3 border-t border-amber-200/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-amber-950 flex items-center gap-1.5">
+                  <Plane className="w-4 h-4 text-amber-700" />
+                  Proposed Remediation Session & Schedule (Booking Style)
+                </span>
+                <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">
+                  DepEd Schedule
+                </span>
+              </div>
+
+              {/* 1. Date Selection (Booking Style Calendar / Effective Start Date) */}
+              <div className="bg-white p-3 rounded-xl border border-amber-300 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-amber-100 text-amber-900 rounded-lg">
+                      <Calendar className="w-4 h-4 text-amber-700" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                        Effective Start Date
+                      </span>
+                      <span className="text-xs font-extrabold text-emerald-950">
+                        {new Date(startDate).toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowCalendarPicker(!showCalendarPicker)}
+                    className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer"
                   >
-                    {SCHEDULE_DAYS.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
+                    <Calendar className="w-3.5 h-3.5 text-amber-700" />
+                    <span>{showCalendarPicker ? 'Hide Calendar' : 'Change Date'}</span>
+                  </button>
                 </div>
 
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-600 mb-1 flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-slate-400" />
-                    Session Time Slot
-                  </label>
-                  <select
-                    value={scheduleTime}
-                    onChange={(e) => setScheduleTime(e.target.value)}
-                    className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none font-medium cursor-pointer"
-                  >
-                    {SCHEDULE_TIMES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* Inline Booking Calendar when toggled */}
+                {showCalendarPicker && (
+                  <div className="pt-2 border-t border-slate-100 animate-in fade-in duration-150">
+                    <BookingDatePicker
+                      label="Select Program Start / Launch Date"
+                      selectedDate={startDate}
+                      onSelectDate={(d) => {
+                        setStartDate(d);
+                        setShowCalendarPicker(false);
+                      }}
+                    />
+                  </div>
+                )}
 
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-600 mb-1 flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-slate-400" />
-                    Venue / Room
-                  </label>
-                  <select
-                    value={scheduleVenue}
-                    onChange={(e) => setScheduleVenue(e.target.value)}
-                    className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none font-medium cursor-pointer"
+                {/* Quick Date Presets */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] font-bold text-slate-400">Quick Start:</span>
+                  <button
+                    type="button"
+                    onClick={() => setStartDate(todayStr)}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition cursor-pointer ${
+                      startDate === todayStr
+                        ? 'bg-emerald-700 text-white'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    }`}
                   >
-                    {SCHEDULE_VENUES.map((v) => (
-                      <option key={v} value={v}>
-                        {v}
-                      </option>
-                    ))}
-                  </select>
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      const day = d.getDay();
+                      const diff = d.getDate() + ((1 + 7 - day) % 7 || 7);
+                      const nextMon = new Date(d.setDate(diff)).toISOString().split('T')[0];
+                      setStartDate(nextMon);
+                    }}
+                    className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-[10px] font-bold transition cursor-pointer"
+                  >
+                    Next Monday
+                  </button>
                 </div>
               </div>
 
-              {/* Schedule Summary Preview Badge */}
-              <div className="bg-amber-100/70 px-3 py-2 rounded-lg border border-amber-300/80 text-[11px] text-amber-950 font-medium flex items-center gap-2">
-                <span className="font-bold text-amber-900 shrink-0">Schedule Preview:</span>
-                <span className="truncate">{scheduleDay}, {scheduleTime} ({scheduleVenue})</span>
+              {/* 2. Recurring Days (Booking System Style Day Chips) */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-slate-500" />
+                    <span>Recurring Session Days</span>
+                  </label>
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md">
+                    {scheduleDayText}
+                  </span>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="flex flex-wrap gap-1.5">
+                  {SCHEDULE_PRESET_DAYS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        if (preset.label === 'Tue & Thu') handleApplyPreset(preset.value, ['Tuesday', 'Thursday']);
+                        else if (preset.label === 'Mon & Wed') handleApplyPreset(preset.value, ['Monday', 'Wednesday']);
+                        else if (preset.label === 'Every Friday') handleApplyPreset(preset.value, ['Friday']);
+                        else if (preset.label.includes('Daily')) handleApplyPreset(preset.value, ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
+                        else if (preset.label.includes('Saturday')) handleApplyPreset(preset.value, ['Saturday']);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-extrabold transition cursor-pointer border ${
+                        scheduleDayText === preset.value
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Individual Day Chips */}
+                <div className="grid grid-cols-6 gap-1.5 pt-1">
+                  {WEEKDAYS.map((w) => {
+                    const isSelected = selectedDays.includes(w.label);
+                    return (
+                      <button
+                        key={w.key}
+                        type="button"
+                        onClick={() => toggleDay(w.label)}
+                        className={`py-1.5 px-1 rounded-lg text-xs font-extrabold text-center transition cursor-pointer border ${
+                          isSelected
+                            ? 'bg-emerald-700 text-white border-emerald-700 shadow-2xs'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                        title={`Toggle ${w.label}`}
+                      >
+                        {w.key}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 3. Time Selection (_ _:_ _ with A.M. / P.M. Dropdown for Start & End) */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/90 space-y-2">
+                <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Session Time Slot</span>
+                </label>
+
+                <div className="flex flex-wrap items-center gap-3 pt-0.5">
+                  <div>
+                    <BookingTimeInput
+                      label="Start Time"
+                      value={startTime}
+                      onChange={(val) => setStartTime(val)}
+                    />
+                  </div>
+
+                  <span className="text-slate-400 font-extrabold text-xs mt-4 select-none">to</span>
+
+                  <div>
+                    <BookingTimeInput
+                      label="End Time"
+                      value={endTime}
+                      onChange={(val) => setEndTime(val)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Venue Selection */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Assigned Laboratory / Classroom Venue</span>
+                </label>
+                <select
+                  value={scheduleVenue}
+                  onChange={(e) => setScheduleVenue(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 font-bold focus:ring-2 focus:ring-amber-500 focus:outline-none cursor-pointer"
+                >
+                  {SCHEDULE_VENUES.map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 5. Booking Boarding Pass / Itinerary Summary Card */}
+              <div className="bg-gradient-to-r from-amber-50 via-emerald-50/50 to-amber-50 p-3 rounded-xl border-2 border-dashed border-amber-400 text-xs space-y-1.5 shadow-2xs">
+                <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-amber-900">
+                  <span className="flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    Official Schedule Itinerary
+                  </span>
+                  <span>RMCHS DepEd S.M.I.L.E.</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                  <div>
+                    <span className="block text-[10px] text-slate-500 font-semibold">Session Day(s):</span>
+                    <strong className="text-emerald-950 text-xs">{scheduleDayText}</strong>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] text-slate-500 font-semibold">Time Schedule:</span>
+                    <strong className="text-amber-900 text-xs font-mono">{startTime} – {endTime}</strong>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] text-slate-500 font-semibold">Venue / Room:</span>
+                    <strong className="text-slate-800 text-xs truncate block">{scheduleVenue}</strong>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

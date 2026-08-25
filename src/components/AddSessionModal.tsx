@@ -29,6 +29,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { compressFileToDataUrl } from '../utils/fileCompressor';
+import { BookingDatePicker, BookingTimeInput } from './BookingSchedulePicker';
 
 interface AddSessionModalProps {
   isOpen: boolean;
@@ -59,6 +60,7 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
 
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [date, setDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [focusCompetency, setFocusCompetency] = useState<string>('');
 
   // Multi-selection state
@@ -376,16 +378,62 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Session Date <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                required
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-              />
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  Session Date <span className="text-red-500">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowDatePicker(!showDatePicker)}
+                  className="text-[11px] text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <Calendar className="w-3 h-3" />
+                  <span>{showDatePicker ? 'Standard Date' : 'Booking Calendar'}</span>
+                </button>
+              </div>
+
+              {showDatePicker ? (
+                <div className="p-2.5 bg-emerald-50/50 rounded-xl border border-emerald-200 space-y-2">
+                  <BookingDatePicker
+                    label="Select Session Date"
+                    selectedDate={date}
+                    onSelectDate={(d) => {
+                      setDate(d);
+                      setShowDatePicker(false);
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <input
+                    type="date"
+                    required
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-slate-500 font-semibold">Quick:</span>
+                    <button
+                      type="button"
+                      onClick={() => setDate(new Date().toISOString().split('T')[0])}
+                      className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-bold transition cursor-pointer"
+                    >
+                      Today
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const yest = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+                        setDate(yest);
+                      }}
+                      className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-bold transition cursor-pointer"
+                    >
+                      Yesterday
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

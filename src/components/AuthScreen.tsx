@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { storage } from '../services/storage';
 import { TeacherProfile } from '../types';
 import { SchoolLogo } from './SchoolLogo';
-import { ShieldCheck, KeyRound, Mail, UserCheck, School, CheckCircle2, UserPlus, LogIn, AlertCircle } from 'lucide-react';
+import { TeacherPositionSelect } from './BookingSchedulePicker';
+import { ShieldCheck, KeyRound, Mail, UserCheck, School, CheckCircle2, UserPlus, LogIn, AlertCircle, BookOpen } from 'lucide-react';
 
 interface AuthScreenProps {
   onLoginSuccess: (profile: TeacherProfile) => void;
@@ -20,8 +21,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [name, setName] = useState<string>('Shirlene M. Mandapat');
-  const [title, setTitle] = useState<string>('Master Teacher I / TLE Head');
+  const [title, setTitle] = useState<string>('Teacher I');
   const [schoolName, setSchoolName] = useState<string>('Ramon Magsaysay (Cubao) High School');
+  const [department, setDepartment] = useState<string>('Technology and Livelihood Education (TLE)');
   const [error, setError] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
 
@@ -35,6 +37,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
       if (registeredAccount.name) setName(registeredAccount.name);
       if (registeredAccount.title) setTitle(registeredAccount.title);
       if (registeredAccount.schoolName) setSchoolName(registeredAccount.schoolName);
+      if (registeredAccount.department) setDepartment(registeredAccount.department);
     }
   }, [email]);
 
@@ -65,6 +68,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         name: name.trim() || 'Teacher',
         title: title.trim() || 'Master Teacher I',
         schoolName: schoolName.trim() || 'Ramon Magsaysay (Cubao) High School',
+        department: department.trim() || 'Technology and Livelihood Education (TLE)',
       });
 
       setSuccessMsg(`Account for ${cleanEmail} saved successfully! Loading your RMCHS TLE dashboard...`);
@@ -231,32 +235,45 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Position / Title
-                    </label>
-                    <input
-                      type="text"
+                    <TeacherPositionSelect
+                      label="Position / Title"
                       value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="e.g. Master Teacher I / TLE Head"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
+                      onChange={(val) => setTitle(val)}
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    School & Department
-                  </label>
-                  <div className="relative">
-                    <School className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      value={schoolName}
-                      onChange={(e) => setSchoolName(e.target.value)}
-                      placeholder="e.g. Ramon Magsaysay (Cubao) High School"
-                      className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
-                    />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      School Name
+                    </label>
+                    <div className="relative">
+                      <School className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={schoolName}
+                        onChange={(e) => setSchoolName(e.target.value)}
+                        placeholder="e.g. Ramon Magsaysay (Cubao) High School"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Department
+                    </label>
+                    <div className="relative">
+                      <BookOpen className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={department}
+                        onChange={(e) => setDepartment(e.target.value)}
+                        placeholder="e.g. Technology and Livelihood Education (TLE)"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
+                      />
+                    </div>
                   </div>
                 </div>
               </>

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Student, TeacherProfile } from '../types';
-import { SchoolLogo } from './SchoolLogo';
-import { safePrintDocument, downloadPDFDocument } from '../utils/printHelper';
+import { safePrintDocument } from '../utils/printHelper';
+import { downloadGuardianNoticePDF, generateGuardianNoticePDF } from '../utils/guardianNoticePdf';
+import { BookingDatePicker, TeacherPositionSelect } from './BookingSchedulePicker';
 import {
   Printer,
   ArrowLeft,
   X,
-  Mail,
+  FileText,
   CheckCircle2,
   Download,
   Loader2,
@@ -14,6 +15,9 @@ import {
   Edit2,
   Check,
   AlertCircle,
+  MapPin,
+  Clock,
+  UserCheck,
 } from 'lucide-react';
 
 interface ParentCommunicationLetterModalProps {
@@ -31,15 +35,48 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
 }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  
-  // Customizable Letter Date state (defaults to today's date in YYYY-MM-DD)
+
+  // Configuration States
   const todayStr = new Date().toISOString().split('T')[0];
   const [letterDateRaw, setLetterDateRaw] = useState<string>(todayStr);
-  const [isEditingDate, setIsEditingDate] = useState<boolean>(false);
+  const [isEditingDetails, setIsEditingDetails] = useState<boolean>(false);
+  const [isFilledTemplate, setIsFilledTemplate] = useState<boolean>(true);
+
+  // Helper to decouple schedule and venue so venue is never printed redundantly
+  const parseScheduleDetails = (raw?: string) => {
+    if (!raw) {
+      return {
+        cleanSched: 'Every Tuesday & Thursday, 3:30 PM - 4:45 PM',
+        ven: 'ICT Computer Lab 1 / TLE Building',
+      };
+    }
+    const match = raw.match(/\((.*?)\)$/);
+    const ven = match ? match[1].trim() : 'ICT Computer Lab 1 / TLE Building';
+    const cleanSched = raw.replace(/\s*\(.*?\)$/, '').trim() || 'Every Tuesday & Thursday, 3:30 PM - 4:45 PM';
+    return { cleanSched, ven };
+  };
+
+  const initialParsed = parseScheduleDetails(student?.scheduleDetails);
+  const [venue, setVenue] = useState<string>(initialParsed.ven);
+  const [schedule, setSchedule] = useState<string>(initialParsed.cleanSched);
+  const [teacherInCharge, setTeacherInCharge] = useState<string>(teacher.name || 'Subject Teacher');
+  const [departmentHead, setDepartmentHead] = useState<string>(
+    teacher.headTeacherName || 'Dr. Corazon V. Santos'
+  );
+
+  React.useEffect(() => {
+    if (student) {
+      const parsed = parseScheduleDetails(student.scheduleDetails);
+      setSchedule(parsed.cleanSched);
+      setVenue(parsed.ven);
+      setTeacherInCharge(teacher.name || 'Subject Teacher');
+      setDepartmentHead(teacher.headTeacherName || 'Dr. Corazon V. Santos');
+    }
+  }, [student?.id, student?.scheduleDetails, teacher.name, teacher.headTeacherName]);
 
   if (!isOpen || !student) return null;
 
-  // Format letter date for official DepEd presentation
+  // Format letter date
   const formattedDate = (() => {
     try {
       const parts = letterDateRaw.split('-');
@@ -65,27 +102,27 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
     }
   })();
 
-  const parentDisplayName = student.parentName || 'Parent / Guardian';
-  const isRemediation = student.programType === 'Remediation';
-  const docFilename = `Parent_Notice_${student.lastName}_${student.firstName}_${student.programType}`;
+  const studentFullName = `${student.firstName} ${student.middleInitial ? student.middleInitial + ' ' : ''}${student.lastName}`.trim();
+  const parentDisplayName = student.parentName || '';
+  const docFilename = `Guardian_Notice_of_Remediation_${student.lastName}_${student.firstName}`;
 
   const showFeedback = (text: string, type: 'success' | 'error') => {
     setFeedbackMessage({ text, type });
     setTimeout(() => {
       setFeedbackMessage(null);
-    }, 5000);
+    }, 4500);
   };
 
   const handlePrint = () => {
     try {
-      const ok = safePrintDocument('printable-letter-container', docFilename);
+      const ok = safePrintDocument('printable-guardian-notice', docFilename);
       if (ok) {
-        showFeedback('Print preview launched! If blocked by your browser, check the new tab or click "Download PDF Copy".', 'success');
+        showFeedback('Print preview launched! Select your printer or "Save as PDF".', 'success');
       } else {
-        showFeedback('Print dialog was blocked by browser. Please use "Download PDF Copy" to save & print.', 'error');
+        showFeedback('Print preview blocked by browser. Please use "Save PDF File".', 'error');
       }
     } catch (e: any) {
-      showFeedback('Print dialog failed to open. You can use Download PDF Copy instead.', 'error');
+      showFeedback('Print preview failed. Use "Save PDF File" to download directly.', 'error');
     }
   };
 
@@ -95,19 +132,30 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
     setFeedbackMessage(null);
 
     try {
-      const success = await downloadPDFDocument('printable-letter-container', docFilename, {
-        format: 'a4',
-        orientation: 'portrait',
-      });
+      // Use direct vector PDF generation (100% reliable, zero rendering quirks, sharp text)
+      const success = downloadGuardianNoticePDF(
+        {
+          student,
+          teacher,
+          dateStr: formattedDate,
+          venue,
+          schedule,
+          startDate: student.enrolledDate || formattedDate,
+          teacherInCharge,
+          departmentHead,
+          isFilledTemplate,
+        },
+        `${docFilename}.pdf`
+      );
 
       if (success) {
-        showFeedback('Letter PDF generated and downloaded to your Downloads folder!', 'success');
+        showFeedback('Guardian Notice PDF successfully generated and saved to your Downloads!', 'success');
       } else {
-        showFeedback('PDF generation was cancelled or encountered an issue. You can click "Print Letter" and choose "Save as PDF".', 'error');
+        showFeedback('Could not save PDF file directly. Please use "Print Document" -> "Save as PDF".', 'error');
       }
     } catch (err: any) {
-      console.error('PDF generation error:', err);
-      showFeedback('Could not generate PDF. Please try "Print Letter" -> "Save as PDF".', 'error');
+      console.error('PDF download error:', err);
+      showFeedback('PDF generation error. Please try "Print Document" -> "Save as PDF".', 'error');
     } finally {
       setIsDownloading(false);
     }
@@ -117,7 +165,7 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
     <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 overflow-y-auto p-2 sm:p-4 md:p-6 flex justify-center items-start print:p-0 print:bg-white print:static">
       <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-200 my-2 sm:my-4 flex flex-col print:shadow-none print:border-none print:my-0 print:max-w-none">
         
-        {/* Clean Modal Header Bar (Hidden in Print) */}
+        {/* Modal Header Bar (Hidden in Print) */}
         <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-950 p-4 text-white flex items-center justify-between rounded-t-2xl border-b-2 border-amber-400 gap-3 shadow-sm print:hidden">
           <div className="flex items-center gap-3 min-w-0">
             <button
@@ -129,13 +177,13 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
               <span>Back</span>
             </button>
             <div className="flex items-center gap-2.5 min-w-0">
-              <Mail className="w-5 h-5 text-amber-300 shrink-0" />
+              <FileText className="w-5 h-5 text-amber-300 shrink-0" />
               <div className="truncate">
                 <h3 className="font-extrabold text-sm sm:text-base leading-tight truncate">
-                  Parent / Guardian Official Notice
+                  Guardian&apos;s Notice of Remediation
                 </h3>
                 <p className="text-[11px] text-emerald-200 truncate">
-                  {student.firstName} {student.lastName} &bull; {student.gradeLevel}-{student.section} &bull; {student.programType}
+                  DepEd TLE Official Notice &bull; {student.lastName}, {student.firstName} ({student.gradeLevel}-{student.section})
                 </p>
               </div>
             </div>
@@ -174,215 +222,378 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
           </div>
         )}
 
-        {/* Date Config Bar (Hidden in Print) */}
-        <div className="bg-amber-50/80 px-6 py-2.5 border-b border-amber-200 flex flex-wrap items-center justify-between gap-2 text-xs print:hidden">
-          <div className="flex items-center gap-2 text-amber-950 font-semibold">
-            <Calendar className="w-4 h-4 text-amber-700 shrink-0" />
-            <span>Official Letter Date:</span>
-            <strong className="text-emerald-950 font-bold bg-white px-2.5 py-0.5 rounded-md border border-amber-300 shadow-2xs">
-              {formattedDate}
-            </strong>
+        {/* Controls Toolbar (Hidden in Print) */}
+        <div className="bg-amber-50/90 px-4 sm:px-6 py-3 border-b border-amber-200 flex flex-wrap items-center justify-between gap-3 text-xs print:hidden">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 text-amber-950 font-semibold">
+              <Calendar className="w-4 h-4 text-amber-700 shrink-0" />
+              <span>Date:</span>
+              <strong className="text-emerald-950 font-bold bg-white px-2.5 py-0.5 rounded-md border border-amber-300 shadow-2xs">
+                {formattedDate}
+              </strong>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-amber-300">
+              <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isFilledTemplate}
+                  onChange={(e) => setIsFilledTemplate(e.target.checked)}
+                  className="rounded text-emerald-700 focus:ring-emerald-600"
+                />
+                <span>Pre-fill Student Information</span>
+              </label>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {isEditingDate ? (
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="date"
-                  value={letterDateRaw}
-                  onChange={(e) => setLetterDateRaw(e.target.value)}
-                  className="px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-600"
-                />
-                <button
-                  onClick={() => setIsEditingDate(false)}
-                  className="px-2.5 py-1 bg-emerald-800 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-2xs cursor-pointer"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Done</span>
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setIsEditingDate(true)}
-                className="px-2.5 py-1 bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
-                title="Change the date displayed on the letter"
-              >
-                <Edit2 className="w-3 h-3 text-amber-700" />
-                <span>Change Date</span>
-              </button>
-            )}
+            <button
+              onClick={() => setIsEditingDetails(!isEditingDetails)}
+              className={`px-2.5 py-1 rounded-lg font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-2xs ${
+                isEditingDetails
+                  ? 'bg-emerald-800 text-white hover:bg-emerald-700'
+                  : 'bg-white hover:bg-amber-100 text-amber-900 border border-amber-300'
+              }`}
+              title="Edit date, venue, schedule, or teachers"
+            >
+              {isEditingDetails ? <Check className="w-3.5 h-3.5" /> : <Edit2 className="w-3 h-3 text-amber-700" />}
+              <span>{isEditingDetails ? 'Done Editing' : 'Customize Notice Details'}</span>
+            </button>
           </div>
         </div>
 
-        {/* PRINTABLE LETTER PAPER BODY */}
-        <div id="printable-letter-container" className="p-6 sm:p-10 md:p-12 text-slate-900 space-y-6 print:p-0 print:text-black bg-white">
-          
-          {/* Official DepEd & RMCHS Letterhead */}
-          <div className="flex items-center justify-between pb-4 border-b-2 border-emerald-900">
-            <SchoolLogo size="md" showShadow={false} />
-            <div className="text-center space-y-0.5 flex-1 px-4">
-              <p className="text-[11px] font-serif uppercase tracking-widest text-slate-600">
-                Republic of the Philippines &bull; Department of Education
-              </p>
-              <p className="text-xs font-bold uppercase tracking-wider font-serif text-emerald-950">
-                {teacher.region} &bull; {teacher.division}
-              </p>
-              <p className="text-base font-extrabold text-emerald-900 uppercase tracking-wide font-serif">
-                RAMON MAGSAYSAY (CUBAO) HIGH SCHOOL
-              </p>
-              <p className="text-xs font-bold text-amber-700 uppercase tracking-wider">
-                Technology and Livelihood Education (TLE) Department
-              </p>
-              <p className="text-[10px] text-slate-500">
-                Project S.M.I.L.E. (Student Monitoring and Intervention for Learning Enhancement)
-              </p>
+        {/* Customization Drawer (Hidden in Print) */}
+        {isEditingDetails && (
+          <div className="bg-slate-50 p-4 border-b border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs print:hidden animate-in fade-in duration-150">
+            <div>
+              <label className="font-bold text-slate-700 flex items-center gap-1 mb-1">
+                <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                <span>Letter Date:</span>
+              </label>
+              <input
+                type="date"
+                value={letterDateRaw}
+                onChange={(e) => setLetterDateRaw(e.target.value)}
+                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:ring-1 focus:ring-emerald-600"
+              />
             </div>
-            <div className="w-12 h-12 rounded-full border border-emerald-800 flex items-center justify-center p-1 bg-emerald-50 shrink-0">
-              <span className="text-[9px] font-extrabold text-emerald-900 text-center leading-tight">
-                PROJECT<br />S.M.I.L.E.
-              </span>
+
+            <div>
+              <label className="font-bold text-slate-700 flex items-center gap-1 mb-1">
+                <MapPin className="w-3.5 h-3.5 text-slate-500" />
+                <span>Venue:</span>
+              </label>
+              <input
+                type="text"
+                value={venue}
+                onChange={(e) => setVenue(e.target.value)}
+                placeholder="e.g. ICT Computer Lab 1"
+                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:ring-1 focus:ring-emerald-600"
+              />
+            </div>
+
+            <div>
+              <label className="font-bold text-slate-700 flex items-center gap-1 mb-1">
+                <Clock className="w-3.5 h-3.5 text-slate-500" />
+                <span>Schedule:</span>
+              </label>
+              <input
+                type="text"
+                value={schedule}
+                onChange={(e) => setSchedule(e.target.value)}
+                placeholder="e.g. Every Tuesday & Thursday, 3:30 PM - 4:45 PM"
+                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:ring-1 focus:ring-emerald-600"
+              />
+            </div>
+
+            <div>
+              <label className="font-bold text-slate-700 flex items-center gap-1 mb-1">
+                <UserCheck className="w-3.5 h-3.5 text-slate-500" />
+                <span>Teacher-in-Charge / TLE Department Head:</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  value={teacherInCharge}
+                  onChange={(e) => setTeacherInCharge(e.target.value)}
+                  placeholder="Teacher Name"
+                  className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800"
+                />
+                <input
+                  type="text"
+                  value={departmentHead}
+                  onChange={(e) => setDepartmentHead(e.target.value)}
+                  placeholder="Department Head"
+                  className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800"
+                />
+              </div>
             </div>
           </div>
+        )}
 
-          {/* Letter Date & Addressee */}
-          <div className="space-y-3 pt-2 text-xs sm:text-sm">
-            <div className="flex items-center justify-between">
-              <p className="font-extrabold text-slate-900 text-sm tracking-wide">
-                {formattedDate}
-              </p>
-              <span className="text-[10px] font-bold text-emerald-900 uppercase bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded print:hidden">
-                Official Notice
-              </span>
+        {/* PRINTABLE OFFICIAL NOTICE CONTAINER (MATCHES EXACT UPLOADED IMAGE) */}
+        <div
+          id="printable-guardian-notice"
+          className="p-8 sm:p-12 md:p-14 text-black bg-white space-y-5 font-serif text-[13px] sm:text-[14px] leading-relaxed print:p-0 print:m-0"
+        >
+          {/* Header */}
+          <div className="text-center space-y-0.5">
+            <h1 className="font-bold text-base sm:text-lg text-black tracking-normal">
+              {teacher.schoolName || 'Ramon Magsaysay (Cubao) High School'}
+            </h1>
+            <p className="text-xs sm:text-[13px] text-black">
+              {teacher.division ? `Department of Education – ${teacher.division}` : 'Department of Education – Schools Division of Quezon City'}
+            </p>
+            <h2 className="font-bold text-sm sm:text-base text-black">
+              {teacher.department || 'Technology and Livelihood Education Department'}
+            </h2>
+          </div>
+
+          {/* Date & Addressee */}
+          <div className="pt-4 space-y-3">
+            <div>
+              <p className="font-bold inline">Date: </p>
+              {isFilledTemplate ? (
+                <span className="underline font-normal inline-block min-w-[200px]">{formattedDate}</span>
+              ) : (
+                <span className="inline-block border-b border-black w-48">&nbsp;</span>
+              )}
             </div>
 
-            <div className="space-y-0.5">
-              <p className="font-bold text-slate-900">TO THE PARENT / GUARDIAN OF:</p>
-              <p className="text-base font-black text-emerald-950 font-serif">
-                {student.lastName}, {student.firstName} {student.middleInitial}
-              </p>
-              <p className="text-xs text-slate-600 font-medium">
-                Grade & Section: <strong className="text-slate-800">{student.gradeLevel} - {student.section}</strong> &bull; Subject: <strong className="text-emerald-900">{student.subject}</strong>
-              </p>
-              {student.parentName && (
-                <p className="text-xs text-slate-600">
-                  Addressee: <strong className="text-slate-800">{student.parentName}</strong>
-                </p>
+            <div>
+              <p className="font-bold inline">To: </p>
+              <span className="font-normal">Mr./Ms. </span>
+              {isFilledTemplate && parentDisplayName ? (
+                <span className="underline font-normal inline-block min-w-[240px]">{parentDisplayName}</span>
+              ) : (
+                <span className="inline-block border-b border-black w-64">&nbsp;</span>
               )}
+              <p className="text-[11px] sm:text-xs italic text-slate-700 mt-0.5">
+                (Name of Parent/Guardian)
+              </p>
+            </div>
+
+            <div className="pt-1">
+              <p className="font-bold text-[14px] sm:text-[15px]">
+                Subject: Participation in Remediation Program
+              </p>
             </div>
           </div>
 
           {/* Salutation */}
-          <p className="text-xs sm:text-sm font-semibold text-slate-900">
-            Dear {parentDisplayName},
-          </p>
+          <div className="space-y-2 pt-1">
+            <p>Dear Parent/Guardian,</p>
+            <p>Warm greetings!</p>
+          </div>
 
-          {/* Letter Content */}
-          <div className="text-xs sm:text-sm leading-relaxed text-justify space-y-3.5 text-slate-800">
-            <p>
-              Warm greetings from the Technology and Livelihood Education (TLE) Department of Ramon Magsaysay (Cubao) High School!
-            </p>
-
-            {isRemediation ? (
+          {/* Body Paragraphs */}
+          <div className="space-y-3.5 text-justify">
+            {isFilledTemplate ? (
               <p>
-                In our continuous dedication to ensuring the academic success and practical competency of our learners, your child, <strong>{student.firstName} {student.lastName}</strong>, has been officially enrolled in <strong>PROJECT S.M.I.L.E. (Student Monitoring and Intervention for Learning Enhancement) — Remediation Program</strong>.
+                We would like to inform you that your child{' '}
+                <strong className="underline font-bold">{studentFullName}</strong>, from{' '}
+                <strong>Grade</strong> <span className="underline font-bold px-1">{student.gradeLevel.replace('Grade ', '')}</span>{' '}
+                <strong>- Section</strong> <span className="underline font-bold px-1">{student.section}</span>, has been recommended to undergo a{' '}
+                <strong>Remediation Program</strong> in{' '}
+                <strong className="underline font-bold">{student.subject}</strong> based on his/her academic performance and assessment results for this quarter.
               </p>
             ) : (
               <p>
-                Recognizing the demonstrated aptitude and strong foundation of your child, <strong>{student.firstName} {student.lastName}</strong>, we are pleased to inform you that they have been selected to participate in <strong>PROJECT S.M.I.L.E. — Skills Enhancement Program</strong>.
+                We would like to inform you that your child{' '}
+                <span className="inline-block border-b border-black w-64">&nbsp;</span>, from{' '}
+                <strong>Grade</strong> <span className="inline-block border-b border-black w-16">&nbsp;</span>{' '}
+                <strong>- Section</strong> <span className="inline-block border-b border-black w-48">&nbsp;</span>, has been recommended to undergo a{' '}
+                <strong>Remediation Program</strong> in{' '}
+                <span className="inline-block border-b border-black w-56">&nbsp;</span> based on his/her academic performance and assessment results for this quarter.
               </p>
             )}
 
-            <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-4 space-y-2 text-xs text-slate-800">
-              <p className="font-bold text-emerald-950 uppercase tracking-wide">
-                📌 Program Details & Specifics:
-              </p>
-              <ul className="list-disc list-inside space-y-1 text-slate-700">
-                <li>
-                  <strong>Program Classification:</strong>{' '}
-                  <span className="font-bold text-emerald-900">{student.programType}</span>
+            <p>
+              The purpose of this program is to provide additional academic support to help your child strengthen their understanding of the subject and improve learning outcomes.
+            </p>
+
+            {/* Program Details Bullet List */}
+            <div className="pt-1 space-y-1.5">
+              <p className="font-bold">Program Details</p>
+              <ul className="space-y-1 pl-4">
+                <li className="flex items-start">
+                  <span className="mr-2">&bull;</span>
+                  <div className="flex-1">
+                    <strong className="font-bold">Subject Area: </strong>
+                    {isFilledTemplate ? (
+                      <span className="underline">{student.subject}</span>
+                    ) : (
+                      <span className="inline-block border-b border-black w-72 sm:w-96">&nbsp;</span>
+                    )}
+                  </div>
                 </li>
-                <li>
-                  <strong>Learning Area / TLE Strand:</strong> {student.subject}
+                <li className="flex items-start">
+                  <span className="mr-2">&bull;</span>
+                  <div className="flex-1">
+                    <strong className="font-bold">Schedule: </strong>
+                    {isFilledTemplate ? (
+                      <span className="underline">{schedule}</span>
+                    ) : (
+                      <span className="inline-block border-b border-black w-72 sm:w-96">&nbsp;</span>
+                    )}
+                  </div>
                 </li>
-                <li>
-                  <strong>Target Learning Competency:</strong> {student.focusTopic}
+                <li className="flex items-start">
+                  <span className="mr-2">&bull;</span>
+                  <div className="flex-1">
+                    <strong className="font-bold">Venue: </strong>
+                    {isFilledTemplate ? (
+                      <span className="underline">{venue}</span>
+                    ) : (
+                      <span className="inline-block border-b border-black w-72 sm:w-96">&nbsp;</span>
+                    )}
+                  </div>
                 </li>
-                <li>
-                  <strong>Session Schedule & Location:</strong>{' '}
-                  <span className="font-semibold text-emerald-950">
-                    {student.scheduleDetails || 'Regular Scheduled Remedial Period, TLE Laboratory / Classroom'}
-                  </span>
+                <li className="flex items-start">
+                  <span className="mr-2">&bull;</span>
+                  <div className="flex-1">
+                    <strong className="font-bold">Start Date: </strong>
+                    {isFilledTemplate ? (
+                      <span className="underline">{student.enrolledDate || formattedDate}</span>
+                    ) : (
+                      <span className="inline-block border-b border-black w-72 sm:w-96">&nbsp;</span>
+                    )}
+                  </div>
                 </li>
-                <li>
-                  <strong>Advising Teacher / Facilitator:</strong> {teacher.name} ({teacher.title})
+                <li className="flex items-start">
+                  <span className="mr-2">&bull;</span>
+                  <div className="flex-1">
+                    <strong className="font-bold">Teacher-in-Charge: </strong>
+                    {isFilledTemplate ? (
+                      <span className="underline">{teacherInCharge}</span>
+                    ) : (
+                      <span className="inline-block border-b border-black w-72 sm:w-96">&nbsp;</span>
+                    )}
+                  </div>
                 </li>
               </ul>
             </div>
 
-            {isRemediation ? (
-              <p>
-                This targeted program provides personalized, scaffolded reteaching, hands-on practice, and contextualized Learning Activity Sheets (LAS) designed to address specific learning gaps and ensure your child reaches full mastery.
-              </p>
-            ) : (
-              <p>
-                This advanced enrichment track provides higher-order technical exercises, project-based tasks, and hands-on laboratory workshops to further enhance your child's technical expertise and leadership skills.
-              </p>
-            )}
+            <p>
+              We are requesting your support and permission to allow your child to attend these sessions regularly. Please complete the reply slip below and return it to the teacher as soon as possible.
+            </p>
 
             <p>
-              We firmly believe that strong parent-teacher collaboration is key to maximizing our students' growth. We kindly request your encouragement and support in ensuring their prompt and active attendance in all scheduled sessions.
+              Should you have any questions, feel free to reach out to us through the school or your child&apos;s subject teacher.
             </p>
+
+            <p>Thank you very much for your continued support.</p>
           </div>
 
-          {/* Signatures of Teacher & School Head */}
-          <div className="pt-4 grid grid-cols-2 gap-8 text-xs">
+          {/* Signatures */}
+          <div className="pt-4 space-y-6">
             <div>
-              <p className="text-slate-600 mb-8">Sincerely yours,</p>
-              <p className="font-extrabold uppercase text-slate-900 underline decoration-slate-800 underline-offset-4">
-                {teacher.name}
-              </p>
-              <p className="text-slate-600 font-medium">{teacher.title}</p>
-              <p className="text-[11px] text-slate-500 italic">Project S.M.I.L.E. Facilitator / TLE Teacher</p>
+              <p>Sincerely,</p>
+              <div className="mt-8">
+                {isFilledTemplate && teacherInCharge ? (
+                  <p className="font-bold uppercase tracking-wide">{teacherInCharge}</p>
+                ) : null}
+                <div className="border-b border-black w-64 my-1"></div>
+                <p className="font-bold">Subject Teacher</p>
+              </div>
             </div>
 
             <div>
-              <p className="text-slate-600 mb-8">Noted by:</p>
-              <p className="font-extrabold uppercase text-slate-900 underline decoration-slate-800 underline-offset-4">
-                {teacher.headTeacherName || 'Dr. Corazon V. Santos'}
-              </p>
-              <p className="text-slate-600 font-medium">
-                {teacher.headTeacherPosition || 'Head Teacher III / TLE Department'}
-              </p>
-              <p className="text-[11px] text-slate-500 italic">{teacher.schoolName || 'Ramon Magsaysay (Cubao) High School'}</p>
+              <p className="font-bold">Noted by:</p>
+              <div className="mt-8">
+                {isFilledTemplate && departmentHead ? (
+                  <p className="font-bold uppercase tracking-wide">{departmentHead}</p>
+                ) : null}
+                <div className="border-b border-black w-64 my-1"></div>
+                <p className="font-bold">TLE Department Head</p>
+              </div>
             </div>
           </div>
 
-          {/* PARENT ACKNOWLEDGMENT SLIP (CUT-OUT SLIP) */}
-          <div className="pt-6 border-t-2 border-dashed border-slate-400 space-y-3">
-            <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-              <span>✂️ CUT ALONG DOTTED LINE AND RETURN TO SUBJECT TEACHER</span>
-              <span>ACKNOWLEDGMENT & PARENT CONSENT SLIP</span>
+          {/* Dashed Separator Line */}
+          <div className="pt-6 border-t-2 border-dashed border-black"></div>
+
+          {/* REPLY SLIP */}
+          <div className="space-y-3 pt-1">
+            <div>
+              <p className="font-bold text-[14px] sm:text-[15px] tracking-wide">REPLY SLIP</p>
+              <p className="text-xs italic text-slate-700">(To be returned to the subject teacher)</p>
             </div>
 
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-300 text-xs space-y-3">
-              <p className="text-slate-800 leading-relaxed">
-                I, <strong className="border-b border-slate-700 px-2 inline-block min-w-[180px]">{student.parentName || '________________________'}</strong>, parent / guardian of{' '}
-                <strong>{student.firstName} {student.lastName}</strong> of Grade <strong>{student.gradeLevel} - {student.section}</strong>, hereby acknowledge receipt of this notification regarding my child's enrollment in <strong>Project S.M.I.L.E. ({student.programType})</strong>.
-              </p>
+            <p>I have received and read the letter regarding the remediation program for my child:</p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <div className="space-y-2 pt-1">
+              <div>
+                <strong className="font-bold">Name of Student: </strong>
+                {isFilledTemplate ? (
+                  <span className="underline font-bold inline-block min-w-[280px]">{studentFullName}</span>
+                ) : (
+                  <span className="inline-block border-b border-black w-72 sm:w-96">&nbsp;</span>
+                )}
+              </div>
+
+              <div>
+                <strong className="font-bold">Grade & Section: </strong>
+                {isFilledTemplate ? (
+                  <span className="underline font-bold inline-block min-w-[180px]">{student.gradeLevel} - {student.section}</span>
+                ) : (
+                  <span className="inline-block border-b border-black w-64">&nbsp;</span>
+                )}
+              </div>
+            </div>
+
+            {/* Checkboxes */}
+            <div className="space-y-2 pt-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-black text-black focus:ring-0"
+                />
+                <span>
+                  <strong>I allow</strong> my child to attend and participate in the remediation program.
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-black text-black focus:ring-0"
+                />
+                <span>
+                  <strong>I do not allow</strong> my child to attend the remediation program.
+                </span>
+              </label>
+            </div>
+
+            {/* Reason */}
+            <div className="pt-1 space-y-2">
+              <div>
+                <strong className="font-bold">Reason (if not allowed): </strong>
+                <span className="inline-block border-b border-black w-48 sm:w-80">&nbsp;</span>
+              </div>
+              <div className="border-b border-black w-full">&nbsp;</div>
+            </div>
+
+            {/* Parent Sign-off */}
+            <div className="pt-3 space-y-2">
+              <div>
+                <strong className="font-bold">Name of Parent/Guardian: </strong>
+                {isFilledTemplate && parentDisplayName ? (
+                  <span className="underline font-medium inline-block min-w-[200px]">{parentDisplayName}</span>
+                ) : (
+                  <span className="inline-block border-b border-black w-64">&nbsp;</span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-6">
                 <div>
-                  <div className="border-b border-slate-800 pt-6"></div>
-                  <p className="text-[10px] text-center font-bold text-slate-700 mt-1 uppercase">
-                    Parent / Guardian Signature over Printed Name
-                  </p>
+                  <strong className="font-bold">Signature: </strong>
+                  <span className="inline-block border-b border-black w-44">&nbsp;</span>
                 </div>
 
                 <div>
-                  <div className="border-b border-slate-800 pt-6"></div>
-                  <p className="text-[10px] text-center font-bold text-slate-700 mt-1 uppercase">
-                    Date Signed & Contact Number
-                  </p>
+                  <strong className="font-bold">Date: </strong>
+                  <span className="inline-block border-b border-black w-36">&nbsp;</span>
                 </div>
               </div>
             </div>
@@ -400,32 +611,32 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
           </button>
 
           <div className="flex items-center gap-2">
-            <span className="text-[11px] text-slate-500 hidden sm:inline">
-              Ready for parent distribution:
-            </span>
             <button
               onClick={handleDownloadPDF}
               disabled={isDownloading}
-              className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-yellow-300 font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-md hover:shadow-lg border border-emerald-500 cursor-pointer disabled:opacity-50"
+              className="px-4 py-2.5 bg-emerald-800 hover:bg-emerald-700 text-amber-300 font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-md hover:shadow-lg border border-emerald-600 cursor-pointer disabled:opacity-50"
+              title="Save official Guardian Notice as a downloadable PDF file"
             >
               {isDownloading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin text-yellow-300" />
-                  <span>Saving PDF...</span>
+                  <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+                  <span>Generating PDF File...</span>
                 </>
               ) : (
                 <>
-                  <Download className="w-4 h-4 text-yellow-300" />
-                  <span>Download PDF Copy</span>
+                  <Download className="w-4 h-4 text-amber-300" />
+                  <span>Save PDF File</span>
                 </>
               )}
             </button>
+
             <button
               onClick={handlePrint}
               className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-md hover:shadow-lg border border-amber-300 cursor-pointer"
+              title="Print document or open browser print dialog"
             >
               <Printer className="w-4 h-4 text-emerald-950" />
-              <span>Print Official Notice</span>
+              <span>Print Document</span>
             </button>
           </div>
         </div>

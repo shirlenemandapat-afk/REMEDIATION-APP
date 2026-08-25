@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { TeacherProfile, UserRole, LEARNING_AREAS } from '../../types';
 import { storage } from '../../services/storage';
+import { TeacherPositionSelect } from '../BookingSchedulePicker';
 import {
   Users,
   UserPlus,
@@ -564,13 +565,10 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Title / Designation</label>
-                  <input
-                    type="text"
+                  <TeacherPositionSelect
+                    label="Position / Title"
                     value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    placeholder="e.g. Teacher I - ICT"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    onChange={(val) => setNewTitle(val)}
                   />
                 </div>
 
@@ -710,12 +708,10 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Title / Designation</label>
-                <input
-                  type="text"
+                <TeacherPositionSelect
+                  label="Position / Title"
                   value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  onChange={(val) => setEditTitle(val)}
                 />
               </div>
 

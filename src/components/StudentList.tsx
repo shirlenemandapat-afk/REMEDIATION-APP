@@ -255,10 +255,10 @@ export const StudentList: React.FC<StudentListProps> = ({
                         type="button"
                         onClick={() => onOpenParentLetter(student)}
                         className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1 border border-amber-200 cursor-pointer"
-                        title="Generate Parent Communication Letter"
+                        title="Generate Guardian's Notice of Remediation"
                       >
-                        <Mail className="w-3 h-3 text-amber-700" />
-                        Parent Notice
+                        <FileText className="w-3 h-3 text-amber-700" />
+                        Guardian Notice
                       </button>
                     )}
                     {onOpenAnecdotalReport && (
