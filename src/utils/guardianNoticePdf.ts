@@ -345,27 +345,19 @@ export function generateGuardianNoticePDF(data: GuardianNoticeData): jsPDF {
   doc.setLineWidth(0.4);
   doc.setDrawColor(15, 23, 42);
   doc.line(marginX, currentY, marginX + contentWidth, currentY);
-  currentY += 3;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(30, 58, 138); // blue-900
-  doc.text('BAGONG PILIPINAS \u2022 RMCHS (1957)', marginX, currentY);
+  currentY += 3.2;
 
   doc.setFont('times', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(15, 23, 42);
-  doc.text('731 Epifanio de los Santos Avenue, Quezon City', marginX + 65, currentY);
+  doc.text('731 Epifanio de los Santos Avenue, Quezon City', marginX, currentY);
   currentY += 3;
 
-  doc.setFont('times', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text('(8) 519-36-60', marginX + 65, currentY);
+  doc.text('(8) 519-36-60', marginX, currentY);
   currentY += 3;
 
   doc.setTextColor(30, 64, 175); // blue-700
-  doc.text('hs.ramonmagsaysaycubao@depedqc.ph', marginX + 65, currentY);
+  doc.text('hs.ramonmagsaysaycubao@depedqc.ph', marginX, currentY);
 
   return doc;
 }
