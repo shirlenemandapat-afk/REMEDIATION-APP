@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Student, SessionRecord, TeacherProfile, interpretMasteryLevel } from '../types';
 import { SchoolLogo } from './SchoolLogo';
+import { DepEdDocHeader, DepEdDocFooter } from './DepEdDocHeaderFooter';
 import { safePrintDocument, downloadPDFDocument } from '../utils/printHelper';
 import { Printer, ArrowLeft, X, FileText, CheckCircle2, User, BookOpen, Award, Sparkles, TrendingUp, Download, Loader2 } from 'lucide-react';
 
@@ -172,28 +173,7 @@ export const IndividualAnecdotalReportModal: React.FC<IndividualAnecdotalReportM
         {/* PRINTABLE DOCUMENT BODY */}
         <div id="printable-anecdotal-report" className="p-8 sm:p-12 text-slate-900 space-y-6 print:p-0 print:text-black bg-white">
           {/* Institutional Letterhead Banner */}
-          <div className="flex items-center justify-between pb-4 border-b-2 border-emerald-900">
-            <SchoolLogo size="md" showShadow={false} />
-            <div className="text-center space-y-0.5 flex-1 px-4">
-              <p className="text-[11px] font-serif uppercase tracking-widest text-slate-600">
-                Republic of the Philippines &bull; Department of Education
-              </p>
-              <p className="text-xs font-bold uppercase tracking-wider font-serif text-emerald-950">
-                {teacher.region} &bull; {teacher.division}
-              </p>
-              <p className="text-base font-extrabold text-emerald-900 uppercase tracking-wide font-serif">
-                RAMON MAGSAYSAY (CUBAO) HIGH SCHOOL
-              </p>
-              <p className="text-xs font-bold text-amber-700 uppercase tracking-wider">
-                Technology and Livelihood Education (TLE) Department
-              </p>
-            </div>
-            <div className="w-14 h-14 rounded-full border border-emerald-800 flex items-center justify-center p-1 bg-emerald-50 shrink-0">
-              <span className="text-[9px] font-black text-emerald-900 text-center leading-tight">
-                PROJECT<br />S.M.I.L.E.
-              </span>
-            </div>
-          </div>
+          <DepEdDocHeader department="Technology and Livelihood Education (TLE) Department" />
 
           {/* Document Title Header */}
           <div className="text-center py-2 border-b border-amber-300">
@@ -449,6 +429,8 @@ export const IndividualAnecdotalReportModal: React.FC<IndividualAnecdotalReportM
               </div>
             </div>
           </div>
+
+          <DepEdDocFooter />
         </div>
 
         {/* Action Footer Bar (Hidden in Print) */}
