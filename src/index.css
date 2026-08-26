@@ -36,6 +36,7 @@
   }
 
   /* Target printable sheets cleanly */
+  #printable-guardian-notice,
   #printable-letter-container,
   #printable-anecdotal-report,
   #printable-narrative-report,
@@ -43,10 +44,12 @@
     display: block !important;
     width: 100% !important;
     margin: 0 auto !important;
-    padding: 10mm 15mm !important;
+    padding: 8mm 12mm !important;
     border: none !important;
     box-shadow: none !important;
     background: #ffffff !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   @page {

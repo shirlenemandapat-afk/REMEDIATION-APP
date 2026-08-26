@@ -331,32 +331,32 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
           </div>
         )}
 
-        {/* PRINTABLE OFFICIAL NOTICE CONTAINER (MATCHES EXACT UPLOADED IMAGE) */}
+        {/* PRINTABLE OFFICIAL NOTICE CONTAINER (STRICT 1-PAGE COMPRESSED LAYOUT) */}
         <div
           id="printable-guardian-notice"
-          className="p-8 sm:p-12 md:p-14 text-black bg-white space-y-5 font-serif text-[13px] sm:text-[14px] leading-relaxed print:p-0 print:m-0"
+          className="p-6 sm:p-8 md:p-10 text-black bg-white space-y-3 sm:space-y-3.5 font-serif text-xs sm:text-[13px] leading-snug sm:leading-normal print:p-0 print:m-0 print:space-y-2.5 print:text-[11px] print:leading-tight"
         >
           {/* Header */}
-          <div className="text-center space-y-0.5">
-            <h1 className="font-bold text-base sm:text-lg text-black tracking-normal">
+          <div className="text-center space-y-0.5 pb-1">
+            <h1 className="font-bold text-sm sm:text-base print:text-sm text-black tracking-normal uppercase">
               {teacher.schoolName || 'Ramon Magsaysay (Cubao) High School'}
             </h1>
-            <p className="text-xs sm:text-[13px] text-black">
+            <p className="text-[11px] sm:text-xs print:text-[10px] text-black">
               {teacher.division ? `Department of Education – ${teacher.division}` : 'Department of Education – Schools Division of Quezon City'}
             </p>
-            <h2 className="font-bold text-sm sm:text-base text-black">
+            <h2 className="font-bold text-xs sm:text-sm print:text-xs text-black">
               {teacher.department || 'Technology and Livelihood Education Department'}
             </h2>
           </div>
 
           {/* Date & Addressee */}
-          <div className="pt-4 space-y-3">
+          <div className="space-y-1.5 pt-1">
             <div>
               <p className="font-bold inline">Date: </p>
               {isFilledTemplate ? (
-                <span className="underline font-normal inline-block min-w-[200px]">{formattedDate}</span>
+                <span className="underline font-normal inline-block min-w-[180px]">{formattedDate}</span>
               ) : (
-                <span className="inline-block border-b border-black w-48">&nbsp;</span>
+                <span className="inline-block border-b border-black w-44">&nbsp;</span>
               )}
             </div>
 
@@ -364,30 +364,30 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
               <p className="font-bold inline">To: </p>
               <span className="font-normal">Mr./Ms. </span>
               {isFilledTemplate && parentDisplayName ? (
-                <span className="underline font-normal inline-block min-w-[240px]">{parentDisplayName}</span>
+                <span className="underline font-normal inline-block min-w-[220px]">{parentDisplayName}</span>
               ) : (
-                <span className="inline-block border-b border-black w-64">&nbsp;</span>
+                <span className="inline-block border-b border-black w-56">&nbsp;</span>
               )}
-              <p className="text-[11px] sm:text-xs italic text-slate-700 mt-0.5">
+              <span className="text-[10px] sm:text-[11px] italic text-slate-700 ml-2">
                 (Name of Parent/Guardian)
-              </p>
+              </span>
             </div>
 
-            <div className="pt-1">
-              <p className="font-bold text-[14px] sm:text-[15px]">
+            <div className="pt-0.5">
+              <p className="font-bold text-xs sm:text-[13px] print:text-xs">
                 Subject: Participation in Remediation Program
               </p>
             </div>
           </div>
 
           {/* Salutation */}
-          <div className="space-y-2 pt-1">
+          <div className="space-y-0.5 pt-0.5">
             <p>Dear Parent/Guardian,</p>
             <p>Warm greetings!</p>
           </div>
 
           {/* Body Paragraphs */}
-          <div className="space-y-3.5 text-justify">
+          <div className="space-y-2 text-justify">
             {isFilledTemplate ? (
               <p>
                 We would like to inform you that your child{' '}
@@ -400,11 +400,11 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
             ) : (
               <p>
                 We would like to inform you that your child{' '}
-                <span className="inline-block border-b border-black w-64">&nbsp;</span>, from{' '}
-                <strong>Grade</strong> <span className="inline-block border-b border-black w-16">&nbsp;</span>{' '}
-                <strong>- Section</strong> <span className="inline-block border-b border-black w-48">&nbsp;</span>, has been recommended to undergo a{' '}
+                <span className="inline-block border-b border-black w-48">&nbsp;</span>, from{' '}
+                <strong>Grade</strong> <span className="inline-block border-b border-black w-12">&nbsp;</span>{' '}
+                <strong>- Section</strong> <span className="inline-block border-b border-black w-36">&nbsp;</span>, has been recommended to undergo a{' '}
                 <strong>Remediation Program</strong> in{' '}
-                <span className="inline-block border-b border-black w-56">&nbsp;</span> based on his/her academic performance and assessment results for this quarter.
+                <span className="inline-block border-b border-black w-44">&nbsp;</span> based on his/her academic performance and assessment results for this quarter.
               </p>
             )}
 
@@ -413,9 +413,9 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
             </p>
 
             {/* Program Details Bullet List */}
-            <div className="pt-1 space-y-1.5">
+            <div className="pt-0.5 space-y-1">
               <p className="font-bold">Program Details</p>
-              <ul className="space-y-1 pl-4">
+              <ul className="space-y-0.5 pl-4">
                 <li className="flex items-start">
                   <span className="mr-2">&bull;</span>
                   <div className="flex-1">
@@ -423,7 +423,7 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
                     {isFilledTemplate ? (
                       <span className="underline">{student.subject}</span>
                     ) : (
-                      <span className="inline-block border-b border-black w-72 sm:w-96">&nbsp;</span>
+                      <span className="inline-block border-b border-black w-64 sm:w-80">&nbsp;</span>
                     )}
                   </div>
                 </li>
@@ -434,7 +434,7 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
                     {isFilledTemplate ? (
                       <span className="underline">{schedule}</span>
                     ) : (
-                      <span className="inline-block border-b border-black w-72 sm:w-96">&nbsp;</span>
+                      <span className="inline-block border-b border-black w-64 sm:w-80">&nbsp;</span>
                     )}
                   </div>
                 </li>
@@ -445,7 +445,7 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
                     {isFilledTemplate ? (
                       <span className="underline">{venue}</span>
                     ) : (
-                      <span className="inline-block border-b border-black w-72 sm:w-96">&nbsp;</span>
+                      <span className="inline-block border-b border-black w-64 sm:w-80">&nbsp;</span>
                     )}
                   </div>
                 </li>
@@ -456,7 +456,7 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
                     {isFilledTemplate ? (
                       <span className="underline">{student.enrolledDate || formattedDate}</span>
                     ) : (
-                      <span className="inline-block border-b border-black w-72 sm:w-96">&nbsp;</span>
+                      <span className="inline-block border-b border-black w-64 sm:w-80">&nbsp;</span>
                     )}
                   </div>
                 </li>
@@ -467,7 +467,7 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
                     {isFilledTemplate ? (
                       <span className="underline">{teacherInCharge}</span>
                     ) : (
-                      <span className="inline-block border-b border-black w-72 sm:w-96">&nbsp;</span>
+                      <span className="inline-block border-b border-black w-64 sm:w-80">&nbsp;</span>
                     )}
                   </div>
                 </li>
@@ -479,75 +479,76 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
             </p>
 
             <p>
-              Should you have any questions, feel free to reach out to us through the school or your child&apos;s subject teacher.
+              Should you have any questions, feel free to reach out to us through the school or your child&apos;s subject teacher. Thank you very much for your continued support.
             </p>
-
-            <p>Thank you very much for your continued support.</p>
           </div>
 
-          {/* Signatures */}
-          <div className="pt-4 space-y-6">
+          {/* Signatures (SIDE BY SIDE 2-COLUMN LAYOUT) */}
+          <div className="grid grid-cols-2 gap-6 pt-2 pb-1">
             <div>
               <p>Sincerely,</p>
-              <div className="mt-8">
+              <div className="mt-5">
                 {isFilledTemplate && teacherInCharge ? (
-                  <p className="font-bold uppercase tracking-wide">{teacherInCharge}</p>
+                  <p className="font-bold uppercase tracking-wide text-xs">{teacherInCharge}</p>
                 ) : null}
-                <div className="border-b border-black w-64 my-1"></div>
-                <p className="font-bold">Subject Teacher</p>
+                <div className="border-b border-black w-48 sm:w-56 my-0.5"></div>
+                <p className="font-bold text-xs">Subject Teacher</p>
               </div>
             </div>
 
             <div>
               <p className="font-bold">Noted by:</p>
-              <div className="mt-8">
+              <div className="mt-5">
                 {isFilledTemplate && departmentHead ? (
-                  <p className="font-bold uppercase tracking-wide">{departmentHead}</p>
+                  <p className="font-bold uppercase tracking-wide text-xs">{departmentHead}</p>
                 ) : null}
-                <div className="border-b border-black w-64 my-1"></div>
-                <p className="font-bold">TLE Department Head</p>
+                <div className="border-b border-black w-48 sm:w-56 my-0.5"></div>
+                <p className="font-bold text-xs">TLE Department Head</p>
               </div>
             </div>
           </div>
 
           {/* Dashed Separator Line */}
-          <div className="pt-6 border-t-2 border-dashed border-black"></div>
+          <div className="my-2 border-t-2 border-dashed border-slate-700"></div>
 
           {/* REPLY SLIP */}
-          <div className="space-y-3 pt-1">
-            <div>
-              <p className="font-bold text-[14px] sm:text-[15px] tracking-wide">REPLY SLIP</p>
-              <p className="text-xs italic text-slate-700">(To be returned to the subject teacher)</p>
+          <div className="space-y-2 pt-0.5">
+            <div className="flex items-baseline gap-2">
+              <p className="font-bold text-xs sm:text-sm tracking-wide">REPLY SLIP</p>
+              <p className="text-[11px] italic text-slate-700">(To be returned to the subject teacher)</p>
             </div>
 
-            <p>I have received and read the letter regarding the remediation program for my child:</p>
+            <p className="text-[11px] sm:text-xs">
+              I have received and read the letter regarding the remediation program for my child:
+            </p>
 
-            <div className="space-y-2 pt-1">
+            {/* Student & Grade Section in 2 columns */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
               <div>
                 <strong className="font-bold">Name of Student: </strong>
                 {isFilledTemplate ? (
-                  <span className="underline font-bold inline-block min-w-[280px]">{studentFullName}</span>
+                  <span className="underline font-bold inline-block min-w-[180px]">{studentFullName}</span>
                 ) : (
-                  <span className="inline-block border-b border-black w-72 sm:w-96">&nbsp;</span>
+                  <span className="inline-block border-b border-black w-48">&nbsp;</span>
                 )}
               </div>
 
               <div>
                 <strong className="font-bold">Grade & Section: </strong>
                 {isFilledTemplate ? (
-                  <span className="underline font-bold inline-block min-w-[180px]">{student.gradeLevel} - {student.section}</span>
+                  <span className="underline font-bold inline-block min-w-[140px]">{student.gradeLevel} - {student.section}</span>
                 ) : (
-                  <span className="inline-block border-b border-black w-64">&nbsp;</span>
+                  <span className="inline-block border-b border-black w-40">&nbsp;</span>
                 )}
               </div>
             </div>
 
             {/* Checkboxes */}
-            <div className="space-y-2 pt-1">
+            <div className="space-y-1 text-xs">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 rounded border-black text-black focus:ring-0"
+                  className="w-3.5 h-3.5 rounded border-black text-black focus:ring-0"
                 />
                 <span>
                   <strong>I allow</strong> my child to attend and participate in the remediation program.
@@ -557,7 +558,7 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 rounded border-black text-black focus:ring-0"
+                  className="w-3.5 h-3.5 rounded border-black text-black focus:ring-0"
                 />
                 <span>
                   <strong>I do not allow</strong> my child to attend the remediation program.
@@ -566,35 +567,30 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
             </div>
 
             {/* Reason */}
-            <div className="pt-1 space-y-2">
-              <div>
-                <strong className="font-bold">Reason (if not allowed): </strong>
-                <span className="inline-block border-b border-black w-48 sm:w-80">&nbsp;</span>
-              </div>
-              <div className="border-b border-black w-full">&nbsp;</div>
+            <div className="text-xs">
+              <strong className="font-bold">Reason (if not allowed): </strong>
+              <span className="inline-block border-b border-black w-56 sm:w-96">&nbsp;</span>
             </div>
 
-            {/* Parent Sign-off */}
-            <div className="pt-3 space-y-2">
+            {/* Parent Sign-off (3 columns) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs">
               <div>
-                <strong className="font-bold">Name of Parent/Guardian: </strong>
+                <strong className="font-bold">Parent/Guardian Name: </strong>
                 {isFilledTemplate && parentDisplayName ? (
-                  <span className="underline font-medium inline-block min-w-[200px]">{parentDisplayName}</span>
+                  <span className="underline font-medium inline-block min-w-[120px]">{parentDisplayName}</span>
                 ) : (
-                  <span className="inline-block border-b border-black w-64">&nbsp;</span>
+                  <span className="inline-block border-b border-black w-36">&nbsp;</span>
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-6">
-                <div>
-                  <strong className="font-bold">Signature: </strong>
-                  <span className="inline-block border-b border-black w-44">&nbsp;</span>
-                </div>
+              <div>
+                <strong className="font-bold">Signature: </strong>
+                <span className="inline-block border-b border-black w-28">&nbsp;</span>
+              </div>
 
-                <div>
-                  <strong className="font-bold">Date: </strong>
-                  <span className="inline-block border-b border-black w-36">&nbsp;</span>
-                </div>
+              <div>
+                <strong className="font-bold">Date: </strong>
+                <span className="inline-block border-b border-black w-24">&nbsp;</span>
               </div>
             </div>
           </div>
