@@ -45,56 +45,58 @@ export function generateGuardianNoticePDF(data: GuardianNoticeData): jsPDF {
   const isEnhancement = student.programType === 'Skills Enhancement';
   const programTitle = isEnhancement ? 'Skills Enhancement Program' : 'Remediation Program';
 
-  // Create A4 Portrait PDF
+  // Create 8.5 x 13 inches (Folio / Long Bond Paper) Portrait PDF with 1-inch margins
+  // 8.5 in = 215.9 mm, 13 in = 330.2 mm, 1 in margin = 25.4 mm
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
-    format: 'a4',
+    format: [215.9, 330.2],
     compress: true,
   });
 
-  const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
-  const marginX = 16; // 16mm left/right margin
-  const contentWidth = pageWidth - marginX * 2; // 178mm
-  let currentY = 12;
+  const pageWidth = 215.9; // 8.5 inches in mm
+  const pageHeight = 330.2; // 13.0 inches in mm
+  const marginX = 25.4; // 1.0 inch (25.4mm) left & right margin
+  const contentWidth = pageWidth - marginX * 2; // 165.1 mm (6.5 inches)
+  let currentY = 25.4; // 1.0 inch (25.4mm) top margin
 
-  // 1. Official DepEd Header
+  // 1. Official DepEd Header (Centered)
   doc.setFont('times', 'normal');
-  doc.setFontSize(9);
+  doc.setFontSize(10.5);
   doc.setTextColor(30, 41, 59);
   doc.text('Republic of the Philippines', pageWidth / 2, currentY, { align: 'center' });
-  currentY += 4.2;
+  currentY += 5.2;
 
   doc.setFont('times', 'bold');
-  doc.setFontSize(13);
+  doc.setFontSize(15);
   doc.setTextColor(15, 23, 42); // slate-900
   doc.text('Department of Education', pageWidth / 2, currentY, { align: 'center' });
-  currentY += 4;
+  currentY += 5.2;
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
+  doc.setFontSize(9.8);
   doc.setTextColor(51, 65, 85);
   doc.text('NATIONAL CAPITAL REGION', pageWidth / 2, currentY, { align: 'center' });
-  currentY += 3.6;
+  currentY += 4.5;
 
   doc.text('SCHOOLS DIVISION OF QUEZON CITY', pageWidth / 2, currentY, { align: 'center' });
-  currentY += 3.8;
+  currentY += 4.8;
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10.5);
+  doc.setFontSize(12.5);
   doc.setTextColor(15, 23, 42);
   doc.text('RAMON MAGSAYSAY (CUBAO) HIGH SCHOOL', pageWidth / 2, currentY, { align: 'center' });
-  currentY += 3.2;
+  currentY += 4.5;
 
   // Header bottom dividing line
-  doc.setLineWidth(0.5);
+  doc.setLineWidth(0.6);
   doc.setDrawColor(15, 23, 42);
   doc.line(marginX, currentY, marginX + contentWidth, currentY);
-  currentY += 5;
+  currentY += 6.5;
 
   // 2. Date
   doc.setFont('times', 'bold');
-  doc.setFontSize(9.5);
+  doc.setFontSize(11);
   doc.setTextColor(0, 0, 0);
   doc.text('Date: ', marginX, currentY);
   const dateLabelWidth = doc.getTextWidth('Date: ');
@@ -102,10 +104,10 @@ export function generateGuardianNoticePDF(data: GuardianNoticeData): jsPDF {
   if (isFilledTemplate && dateStr) {
     doc.text(dateStr, marginX + dateLabelWidth, currentY);
   }
-  doc.line(marginX + dateLabelWidth, currentY + 0.6, marginX + dateLabelWidth + 45, currentY + 0.6);
-  currentY += 4.8;
+  doc.line(marginX + dateLabelWidth, currentY + 0.6, marginX + dateLabelWidth + 60, currentY + 0.6);
+  currentY += 6.2;
 
-  // 3. To: Mr./Ms. (No "(Name of Parent/Guardian)")
+  // 3. To: Mr./Ms.
   doc.setFont('times', 'bold');
   doc.text('To: ', marginX, currentY);
   const toWidth = doc.getTextWidth('To: ');
@@ -117,24 +119,24 @@ export function generateGuardianNoticePDF(data: GuardianNoticeData): jsPDF {
   if (isFilledTemplate && parentName) {
     doc.text(parentName, marginX + mrMsWidth, currentY);
   }
-  doc.line(marginX + mrMsWidth, currentY + 0.6, marginX + mrMsWidth + 70, currentY + 0.6);
-  currentY += 5.2;
+  doc.line(marginX + mrMsWidth, currentY + 0.6, marginX + mrMsWidth + 85, currentY + 0.6);
+  currentY += 6.8;
 
   // 4. Subject: Participation in Remediation/Enhancement Program
   doc.setFont('times', 'bold');
-  doc.setFontSize(9.5);
+  doc.setFontSize(11.5);
   doc.text(`Subject: Participation in ${programTitle}`, marginX, currentY);
-  currentY += 4.8;
+  currentY += 6.5;
 
   // 5. Dear Parent/Guardian,
   doc.setFont('times', 'normal');
-  doc.setFontSize(9.2);
+  doc.setFontSize(10.8);
   doc.text('Dear Parent/Guardian,', marginX, currentY);
-  currentY += 3.8;
+  currentY += 5.2;
 
   // 6. Warm greetings!
   doc.text('Warm greetings!', marginX, currentY);
-  currentY += 4.2;
+  currentY += 6.0;
 
   // 7. Paragraph 1
   const studentFullName = `${student.firstName} ${student.middleInitial ? student.middleInitial + ' ' : ''}${student.lastName}`.trim();
@@ -148,19 +150,19 @@ export function generateGuardianNoticePDF(data: GuardianNoticeData): jsPDF {
 
   const p1Lines = doc.splitTextToSize(p1Text, contentWidth);
   doc.text(p1Lines, marginX, currentY, { maxWidth: contentWidth, align: 'justify' });
-  currentY += p1Lines.length * 3.8 + 1.8;
+  currentY += p1Lines.length * 5.0 + 2.5;
 
   // 8. Paragraph 2
   const p2Text = 'The purpose of this program is to provide additional academic support to help your child strengthen their understanding of the subject and improve learning outcomes.';
   const p2Lines = doc.splitTextToSize(p2Text, contentWidth);
   doc.text(p2Lines, marginX, currentY, { maxWidth: contentWidth, align: 'justify' });
-  currentY += p2Lines.length * 3.8 + 2;
+  currentY += p2Lines.length * 5.0 + 3.0;
 
   // 9. Program Details Bullet Points
   doc.setFont('times', 'bold');
-  doc.setFontSize(9.2);
+  doc.setFontSize(11);
   doc.text('Program Details', marginX, currentY);
-  currentY += 3.8;
+  currentY += 5.2;
 
   const detailsList = [
     { label: 'Subject Area', value: isFilledTemplate ? subjectArea : '' },
@@ -172,7 +174,7 @@ export function generateGuardianNoticePDF(data: GuardianNoticeData): jsPDF {
 
   detailsList.forEach((item) => {
     doc.setFont('times', 'bold');
-    doc.setFontSize(8.8);
+    doc.setFontSize(10.5);
     const bulletPrefix = `\u2022  ${item.label}: `;
     doc.text(bulletPrefix, marginX + 3, currentY);
     const prefixWidth = doc.getTextWidth(bulletPrefix);
@@ -182,91 +184,91 @@ export function generateGuardianNoticePDF(data: GuardianNoticeData): jsPDF {
       doc.text(item.value, marginX + 3 + prefixWidth, currentY);
     }
     doc.line(marginX + 3 + prefixWidth, currentY + 0.6, marginX + contentWidth, currentY + 0.6);
-    currentY += 3.8;
+    currentY += 5.2;
   });
 
-  currentY += 1.5;
+  currentY += 2.0;
 
   // 10. Paragraph 3 (requesting support & return slip to TLE teacher)
   const p3Text = 'We are requesting your support and permission to allow your child to attend these sessions regularly. Please complete the reply slip below and return it to the TLE teacher as soon as possible.';
   const p3Lines = doc.splitTextToSize(p3Text, contentWidth);
   doc.text(p3Lines, marginX, currentY, { maxWidth: contentWidth, align: 'justify' });
-  currentY += p3Lines.length * 3.8 + 1.6;
+  currentY += p3Lines.length * 5.0 + 2.5;
 
   // 11. Paragraph 4 + Thank you
   const p4Text = "Should you have any questions, feel free to reach out to us through the school or your child's TLE teacher. Thank you very much for your continued support.";
   const p4Lines = doc.splitTextToSize(p4Text, contentWidth);
   doc.text(p4Lines, marginX, currentY, { maxWidth: contentWidth, align: 'justify' });
-  currentY += p4Lines.length * 3.8 + 2.5;
+  currentY += p4Lines.length * 5.0 + 3.5;
 
   // 12. Signatures (SIDE BY SIDE 2-COLUMN LAYOUT)
   const col1X = marginX;
-  const col2X = marginX + contentWidth / 2 + 8;
-  const sigLineWidth = 64;
+  const col2X = marginX + contentWidth / 2 + 10;
+  const sigLineWidth = 72;
 
   doc.setFont('times', 'normal');
-  doc.setFontSize(9);
+  doc.setFontSize(10.5);
   doc.text('Sincerely,', col1X, currentY);
 
   doc.setFont('times', 'bold');
   doc.text('Noted by:', col2X, currentY);
-  currentY += 7.5;
+  currentY += 10.5;
 
   // TLE Teacher Signature Line (Col 1)
   if (isFilledTemplate && teacherInCharge) {
     doc.setFont('times', 'bold');
-    doc.setFontSize(9);
-    doc.text(teacherInCharge, col1X, currentY - 1);
+    doc.setFontSize(10.5);
+    doc.text(teacherInCharge, col1X, currentY - 1.2);
   }
   doc.line(col1X, currentY, col1X + sigLineWidth, currentY);
   doc.setFont('times', 'bold');
-  doc.setFontSize(8.5);
-  doc.text(teacherTitle, col1X, currentY + 3.2);
+  doc.setFontSize(9.8);
+  doc.text(teacherTitle, col1X, currentY + 4.2);
 
   // Head Teacher VI, TLE Department Signature Line (Col 2)
   if (isFilledTemplate && departmentHead) {
     doc.setFont('times', 'bold');
-    doc.setFontSize(9);
-    doc.text(departmentHead, col2X, currentY - 1);
+    doc.setFontSize(10.5);
+    doc.text(departmentHead, col2X, currentY - 1.2);
   }
   doc.line(col2X, currentY, col2X + sigLineWidth, currentY);
   doc.setFont('times', 'bold');
-  doc.setFontSize(8.5);
-  doc.text(headTeacherTitle, col2X, currentY + 3.2);
+  doc.setFontSize(9.8);
+  doc.text(headTeacherTitle, col2X, currentY + 4.2);
 
-  currentY += 7;
+  currentY += 9.0;
 
   // 13. Dashed Separator Line
-  doc.setLineDashPattern([2, 1.5], 0);
-  doc.setDrawColor(70, 70, 70);
+  doc.setLineDashPattern([3, 2], 0);
+  doc.setDrawColor(60, 60, 60);
   doc.line(marginX, currentY, marginX + contentWidth, currentY);
   doc.setLineDashPattern([], 0); // reset to solid
   doc.setDrawColor(0, 0, 0);
-  currentY += 3.8;
+  currentY += 5.5;
 
   // 14. REPLY SLIP HEADER (To be returned to the TLE teacher)
   doc.setFont('times', 'bold');
-  doc.setFontSize(9.8);
+  doc.setFontSize(11.5);
   doc.text('REPLY SLIP', marginX, currentY);
   
   doc.setFont('times', 'italic');
-  doc.setFontSize(8);
+  doc.setFontSize(9.2);
   doc.setTextColor(80, 80, 80);
-  doc.text('(To be returned to the TLE teacher)', marginX + 26, currentY);
+  doc.text('(To be returned to the TLE teacher)', marginX + 30, currentY);
   doc.setTextColor(0, 0, 0);
-  currentY += 3.6;
+  currentY += 5.0;
 
   doc.setFont('times', 'normal');
-  doc.setFontSize(8.8);
+  doc.setFontSize(10.2);
   doc.text(`I have received and read the letter regarding the ${programTitle.toLowerCase()} for my child:`, marginX, currentY);
-  currentY += 3.8;
+  currentY += 5.5;
 
   // 15. Student Name and Grade & Section (SIDE BY SIDE)
-  const halfContentWidth = (contentWidth - 6) / 2;
+  const halfContentWidth = (contentWidth - 8) / 2;
   
   // Left: Name of Student
   doc.setFont('times', 'bold');
-  doc.setFontSize(8.8);
+  doc.setFontSize(10.2);
   doc.text('Name of Student: ', marginX, currentY);
   const studLabelW = doc.getTextWidth('Name of Student: ');
   doc.setFont('times', 'normal');
@@ -276,7 +278,7 @@ export function generateGuardianNoticePDF(data: GuardianNoticeData): jsPDF {
   doc.line(marginX + studLabelW, currentY + 0.6, marginX + halfContentWidth, currentY + 0.6);
 
   // Right: Grade & Section
-  const rightColX = marginX + halfContentWidth + 6;
+  const rightColX = marginX + halfContentWidth + 8;
   doc.setFont('times', 'bold');
   doc.text('Grade & Section: ', rightColX, currentY);
   const grLabelW = doc.getTextWidth('Grade & Section: ');
@@ -285,41 +287,41 @@ export function generateGuardianNoticePDF(data: GuardianNoticeData): jsPDF {
     doc.text(`${gradeLevel} - ${section}`, rightColX + grLabelW, currentY);
   }
   doc.line(rightColX + grLabelW, currentY + 0.6, marginX + contentWidth, currentY + 0.6);
-  currentY += 4.5;
+  currentY += 6.2;
 
   // 16. Checkboxes (Allow / Do not allow)
-  doc.rect(marginX + 1, currentY - 2.5, 3, 3); // checkbox 1
+  doc.rect(marginX + 1, currentY - 3.2, 3.8, 3.8); // checkbox 1
   doc.setFont('times', 'bold');
-  doc.setFontSize(8.8);
-  doc.text('I allow', marginX + 5.5, currentY);
+  doc.setFontSize(10.2);
+  doc.text('I allow', marginX + 6.5, currentY);
   doc.setFont('times', 'normal');
-  doc.text(` my child to attend and participate in the ${programTitle.toLowerCase()}.`, marginX + 5.5 + doc.getTextWidth('I allow'), currentY);
-  currentY += 3.8;
+  doc.text(` my child to attend and participate in the ${programTitle.toLowerCase()}.`, marginX + 6.5 + doc.getTextWidth('I allow'), currentY);
+  currentY += 5.4;
 
-  doc.rect(marginX + 1, currentY - 2.5, 3, 3); // checkbox 2
+  doc.rect(marginX + 1, currentY - 3.2, 3.8, 3.8); // checkbox 2
   doc.setFont('times', 'bold');
-  doc.text('I do not allow', marginX + 5.5, currentY);
+  doc.text('I do not allow', marginX + 6.5, currentY);
   doc.setFont('times', 'normal');
-  doc.text(` my child to attend the ${programTitle.toLowerCase()}.`, marginX + 5.5 + doc.getTextWidth('I do not allow'), currentY);
-  currentY += 4;
+  doc.text(` my child to attend the ${programTitle.toLowerCase()}.`, marginX + 6.5 + doc.getTextWidth('I do not allow'), currentY);
+  currentY += 5.8;
 
   // 17. Reason (if not allowed)
   doc.setFont('times', 'bold');
-  doc.setFontSize(8.5);
+  doc.setFontSize(10);
   doc.text('Reason (if not allowed): ', marginX, currentY);
   const reasonLabelW = doc.getTextWidth('Reason (if not allowed): ');
   doc.line(marginX + reasonLabelW, currentY + 0.6, marginX + contentWidth, currentY + 0.6);
-  currentY += 4.8;
+  currentY += 6.5;
 
   // 18. Parent Sign-off (3-COLUMN ROW: Parent Name, Signature, Date)
-  const colW1 = 70;
-  const colW2 = 48;
-  const col3X = marginX + colW1 + colW2 + 4;
-  const col2XSig = marginX + colW1 + 2;
+  const colW1 = 76;
+  const colW2 = 46;
+  const col3X = marginX + colW1 + colW2 + 6;
+  const col2XSig = marginX + colW1 + 3;
 
   // Col 1: Name of Parent/Guardian
   doc.setFont('times', 'bold');
-  doc.setFontSize(8.5);
+  doc.setFontSize(9.8);
   doc.text('Parent/Guardian Name: ', marginX, currentY);
   const parentLabelW = doc.getTextWidth('Parent/Guardian Name: ');
   doc.setFont('times', 'normal');
@@ -332,32 +334,30 @@ export function generateGuardianNoticePDF(data: GuardianNoticeData): jsPDF {
   doc.setFont('times', 'bold');
   doc.text('Signature: ', col2XSig, currentY);
   const sigLabelW = doc.getTextWidth('Signature: ');
-  doc.line(col2XSig + sigLabelW, currentY + 0.6, col2XSig + colW2 - 2, currentY + 0.6);
+  doc.line(col2XSig + sigLabelW, currentY + 0.6, col2XSig + colW2, currentY + 0.6);
 
   // Col 3: Date
   doc.setFont('times', 'bold');
   doc.text('Date: ', col3X, currentY);
   const replyDateW = doc.getTextWidth('Date: ');
   doc.line(col3X + replyDateW, currentY + 0.6, marginX + contentWidth, currentY + 0.6);
-  currentY += 5;
 
-  // 19. Official DepEd Footer (Bottom of page)
-  doc.setLineWidth(0.4);
+  // 19. Official DepEd Footer (Bottom of page - positioned cleanly above 1-inch bottom margin at 304.8mm)
+  const footerStartY = Math.max(currentY + 8, 287);
+  doc.setLineWidth(0.5);
   doc.setDrawColor(15, 23, 42);
-  doc.line(marginX, currentY, marginX + contentWidth, currentY);
-  currentY += 3.2;
+  doc.line(marginX, footerStartY, marginX + contentWidth, footerStartY);
 
   doc.setFont('times', 'normal');
-  doc.setFontSize(7.5);
+  doc.setFontSize(8.8);
   doc.setTextColor(15, 23, 42);
-  doc.text('731 Epifanio de los Santos Avenue, Quezon City', marginX, currentY);
-  currentY += 3;
-
-  doc.text('(8) 519-36-60', marginX, currentY);
-  currentY += 3;
+  doc.text('731 Epifanio de los Santos Avenue, Quezon City', marginX, footerStartY + 4.2);
+  doc.text('(8) 519-36-60', marginX, footerStartY + 8.0);
 
   doc.setTextColor(30, 64, 175); // blue-700
-  doc.text('hs.ramonmagsaysaycubao@depedqc.ph', marginX, currentY);
+  doc.text('hs.ramonmagsaysaycubao@depedqc.ph', marginX, footerStartY + 11.8);
+
+  return doc;
 
   return doc;
 }

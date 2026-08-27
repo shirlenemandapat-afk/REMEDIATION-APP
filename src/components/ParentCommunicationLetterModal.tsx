@@ -170,9 +170,12 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
 
   const handlePrint = () => {
     try {
-      const ok = safePrintDocument('printable-guardian-notice', docFilename);
+      const ok = safePrintDocument('printable-guardian-notice', docFilename, {
+        pageSize: '8.5in 13in',
+        pageMargin: '1in',
+      });
       if (ok) {
-        showFeedback('Print preview launched! Select your printer or "Save as PDF".', 'success');
+        showFeedback('Print preview launched for 8.5x13 bond paper! Select your printer or "Save as PDF".', 'success');
       } else {
         showFeedback('Print preview blocked by browser. Please use "Save PDF File".', 'error');
       }
@@ -305,6 +308,11 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
               <strong className="text-emerald-950 font-bold bg-white px-2.5 py-0.5 rounded-md border border-amber-300 shadow-2xs">
                 {sessionTime || 'Custom Time'}
               </strong>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-emerald-900/10 text-emerald-950 font-bold px-2.5 py-1 rounded-lg border border-emerald-300/60 text-[11px]">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Format: 8.5&quot; &times; 13&quot; Long Bond (1&quot; Margin)</span>
             </div>
 
             <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-amber-300">

@@ -17,12 +17,19 @@ export async function downloadPDFDocument(
  * Strategy 1: Pop open a dedicated clean print window with styles and auto-print (works in iframes & sandboxes).
  * Strategy 2: Fallback to direct window.print().
  */
-export function safePrintDocument(elementId?: string, documentTitle?: string): boolean {
+export function safePrintDocument(
+  elementId?: string,
+  documentTitle?: string,
+  options?: { pageSize?: string; pageMargin?: string }
+): boolean {
   const docTitle = documentTitle || 'DepEd RMCHS Official Document';
   const originalTitle = document.title;
   if (documentTitle) {
     document.title = documentTitle;
   }
+
+  const pageSize = options?.pageSize || '8.5in 13in';
+  const pageMargin = options?.pageMargin || '1in';
 
   const targetEl = elementId ? document.getElementById(elementId) : null;
 
@@ -54,8 +61,8 @@ export function safePrintDocument(elementId?: string, documentTitle?: string): b
         ${stylesHtml}
         <style>
           @page {
-            size: A4 portrait;
-            margin: 10mm 12mm;
+            size: ${pageSize};
+            margin: ${pageMargin};
           }
           html, body {
             background-color: #ffffff !important;

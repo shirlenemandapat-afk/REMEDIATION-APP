@@ -36,7 +36,19 @@
   }
 
   /* Target printable sheets cleanly */
-  #printable-guardian-notice,
+  #printable-guardian-notice {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
   #printable-letter-container,
   #printable-anecdotal-report,
   #printable-narrative-report,
@@ -44,7 +56,7 @@
     display: block !important;
     width: 100% !important;
     margin: 0 auto !important;
-    padding: 8mm 12mm !important;
+    padding: 0 !important;
     border: none !important;
     box-shadow: none !important;
     background: #ffffff !important;
@@ -53,8 +65,8 @@
   }
 
   @page {
-    size: A4 portrait;
-    margin: 10mm 12mm;
+    size: 8.5in 13in;
+    margin: 1in;
   }
 
   .page-break-before {
