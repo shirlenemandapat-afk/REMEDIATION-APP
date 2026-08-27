@@ -35,22 +35,23 @@ export const AdminSystemSettings: React.FC<AdminSystemSettingsProps> = ({
   settings,
   onRefresh,
 }) => {
-  const [academicYear, setAcademicYear] = useState(settings.academicYear || '2025-2026');
-  const [currentQuarter, setCurrentQuarter] = useState(settings.currentQuarter || 'Quarter 1');
+  const safeSettings = settings || storage.getSettings();
+  const [academicYear, setAcademicYear] = useState(safeSettings?.academicYear || safeSettings?.schoolYear || '2025-2026');
+  const [currentQuarter, setCurrentQuarter] = useState(safeSettings?.currentQuarter || 'Quarter 1');
   const [passingScoreThreshold, setPassingScoreThreshold] = useState(
-    settings.passingScoreThreshold || 75
+    safeSettings?.passingScoreThreshold || 75
   );
   const [schoolName, setSchoolName] = useState(
-    settings.schoolName || 'Ramon Magsaysay (Cubao) High School'
+    safeSettings?.schoolName || 'Ramon Magsaysay (Cubao) High School'
   );
   const [division, setDivision] = useState(
-    settings.division || 'SDO Quezon City • TLE Department'
+    safeSettings?.division || 'SDO Quezon City • TLE Department'
   );
   const [region, setRegion] = useState(
-    settings.region || 'National Capital Region (NCR)'
+    safeSettings?.region || 'National Capital Region (NCR)'
   );
   const [departmentName, setDepartmentName] = useState(
-    settings.departmentName || 'Technology and Livelihood Education (TLE)'
+    safeSettings?.departmentName || safeSettings?.department || 'Technology and Livelihood Education (TLE)'
   );
 
   // Security / Password State

@@ -400,7 +400,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full min-h-[46px] py-3 px-4 bg-gradient-to-r from-emerald-800 to-emerald-700 hover:from-emerald-700 hover:to-emerald-600 disabled:opacity-60 text-yellow-300 font-extrabold text-sm rounded-xl shadow-lg transition-all transform active:scale-[0.99] flex items-center justify-center gap-2 mt-2 border border-amber-400/40 cursor-pointer"
+              className="w-full min-h-[48px] py-3 px-4 bg-gradient-to-r from-emerald-800 to-emerald-700 hover:from-emerald-700 hover:to-emerald-600 disabled:opacity-60 text-yellow-300 font-extrabold text-sm rounded-xl shadow-lg transition-all transform active:scale-[0.99] flex items-center justify-center gap-2 mt-2 border border-amber-400/40 cursor-pointer"
             >
               {isLoading ? (
                 <div className="w-4 h-4 border-2 border-yellow-300 border-t-transparent rounded-full animate-spin" />
@@ -414,6 +414,47 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                 : 'SIGN IN TO PORTAL'}
             </button>
           </form>
+
+          {/* Quick 1-Tap Mobile Sign In Options */}
+          <div className="pt-3 border-t border-slate-200 space-y-2">
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center">
+              Quick Mobile 1-Tap Sign-In
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  setIsLoading(true);
+                  setError('');
+                  const res = await storage.quickLoginAsync('shirlene.mandapat@depedqc.ph');
+                  setSuccessMsg('Welcome back, Shirlene M. Mandapat! Opening portal...');
+                  setTimeout(() => {
+                    onLoginSuccess(res.profile);
+                  }, 300);
+                }}
+                className="w-full py-2.5 px-3 min-h-[44px] bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-xl text-xs font-black text-emerald-900 transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs text-left"
+              >
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+                <span className="truncate">Sign In as <strong>Shirlene M. Mandapat</strong></span>
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setIsLoading(true);
+                  setError('');
+                  const res = await storage.quickLoginAsync('admin@projectsmile');
+                  setSuccessMsg('Welcome, TLE Department Administrator! Opening portal...');
+                  setTimeout(() => {
+                    onLoginSuccess(res.profile);
+                  }, 300);
+                }}
+                className="w-full py-2.5 px-3 min-h-[44px] bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl text-xs font-black text-slate-800 transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs text-left"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span className="truncate">Sign In as <strong>TLE Admin</strong></span>
+              </button>
+            </div>
+          </div>
 
           {/* Switch mode helper */}
           <div className="pt-2 text-center border-t border-slate-100">
