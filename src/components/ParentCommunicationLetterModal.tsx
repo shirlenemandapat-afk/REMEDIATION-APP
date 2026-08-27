@@ -310,11 +310,6 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
               </strong>
             </div>
 
-            <div className="flex items-center gap-1.5 bg-emerald-900/10 text-emerald-950 font-bold px-2.5 py-1 rounded-lg border border-emerald-300/60 text-[11px]">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
-              <span>Format: 8.5&quot; &times; 13&quot; Long Bond (1&quot; Margin)</span>
-            </div>
-
             <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-amber-300">
               <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer">
                 <input
