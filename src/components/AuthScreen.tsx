@@ -16,8 +16,6 @@ import {
   BookOpen,
   Eye,
   EyeOff,
-  Sparkles,
-  Smartphone,
 } from 'lucide-react';
 
 interface AuthScreenProps {
@@ -112,18 +110,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleQuickFillTeacher = () => {
-    setEmail('shirlene.mandapat@depedqc.ph');
-    setPassword('teacher123');
-    setError('');
-  };
-
-  const handleQuickFillAdmin = () => {
-    setEmail('admin@projectsmile');
-    setPassword('admin2025');
-    setError('');
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-emerald-900 to-green-950 flex items-center justify-center p-3 sm:p-6 md:p-8 selection:bg-amber-400 selection:text-emerald-950">
       <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-emerald-800/40 overflow-hidden">
@@ -204,40 +190,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                 : 'Set up your credentials and DepEd details for personal classroom records.'}
             </p>
           </div>
-
-          {/* Quick autofill helper chips for mobile phone users */}
-          {authMode === 'signin' && (
-            <div className="p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-900 mb-2">
-                <Smartphone className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Quick Fill for Mobile:</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={handleQuickFillTeacher}
-                  className="min-h-[40px] px-2.5 py-1.5 bg-white hover:bg-emerald-100/60 border border-emerald-300/80 rounded-xl text-left transition text-xs cursor-pointer shadow-2xs flex items-center justify-between"
-                >
-                  <div>
-                    <p className="font-bold text-slate-800 text-[11px]">Teacher Account</p>
-                    <p className="text-[10px] text-slate-500 truncate max-w-[140px]">shirlene.mandapat</p>
-                  </div>
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleQuickFillAdmin}
-                  className="min-h-[40px] px-2.5 py-1.5 bg-white hover:bg-purple-50 border border-purple-300/80 rounded-xl text-left transition text-xs cursor-pointer shadow-2xs flex items-center justify-between"
-                >
-                  <div>
-                    <p className="font-bold text-slate-800 text-[11px]">Admin Console</p>
-                    <p className="text-[10px] text-slate-500">admin@projectsmile</p>
-                  </div>
-                  <ShieldCheck className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                </button>
-              </div>
-            </div>
-          )}
 
           {error && (
             <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold leading-relaxed flex items-start gap-2">
