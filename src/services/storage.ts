@@ -777,14 +777,25 @@ export const storage = {
   },
 
   isLoggedIn(): boolean {
-    return localStorage.getItem(STORAGE_KEYS.AUTH_SESSION) === 'true';
+    try {
+      return sessionStorage.getItem(STORAGE_KEYS.AUTH_SESSION) === 'true';
+    } catch {
+      return false;
+    }
   },
 
   setLoggedIn(isLoggedIn: boolean): void {
-    if (isLoggedIn) {
-      localStorage.setItem(STORAGE_KEYS.AUTH_SESSION, 'true');
-    } else {
-      localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
+    try {
+      if (isLoggedIn) {
+        sessionStorage.setItem(STORAGE_KEYS.AUTH_SESSION, 'true');
+        // Clean legacy persistent session in localStorage if any exists
+        localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
+      } else {
+        sessionStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
+        localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
+      }
+    } catch (e) {
+      console.error('Session storage update error:', e);
     }
   },
 
@@ -910,7 +921,14 @@ export const storage = {
 
   logout(): void {
     this.setLoggedIn(false);
-    localStorage.removeItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
+    try {
+      sessionStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
+      sessionStorage.removeItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
+      localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
+      localStorage.removeItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
+    } catch (e) {
+      console.error('Logout cleanup error:', e);
+    }
   },
 
   switchActiveAccount(email: string): TeacherProfile {
