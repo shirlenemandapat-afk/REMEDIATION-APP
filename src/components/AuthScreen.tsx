@@ -41,6 +41,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [department, setDepartment] = useState<string>('Technology and Livelihood Education (TLE)');
   const [error, setError] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Sync latest accounts from server on component mount so mobile devices immediately get registered accounts
+  useEffect(() => {
+    storage.syncFromServer().then(() => {
+      // Re-trigger email lookup if needed
+      const found = storage.findAccountByEmail(email);
+      if (found) {
+        if (found.name) setName(found.name);
+        if (found.title) setTitle(found.title);
+        if (found.schoolName) setSchoolName(found.schoolName);
+        if (found.department) setDepartment(found.department);
+      }
+    });
+  }, []);
 
   // Check if current typed email is already registered
   const registeredAccount = storage.findAccountByEmail(email);
@@ -56,7 +71,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
     }
   }, [email]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
@@ -65,48 +80,64 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
     const cleanPassword = password.trim();
 
     if (!cleanEmail || !cleanEmail.includes('@')) {
-      setError('Please enter a valid school email address (e.g., shirlene.mandapat@depedqc.ph).');
+      setError('Please enter a valid school email address (e.g., yourname@depedqc.ph).');
       return;
     }
 
-    if (authMode === 'register') {
-      // Register or Reset Password flow
-      if (!cleanPassword || cleanPassword.length < 4) {
-        setError('Please set a password with at least 4 characters.');
-        return;
-      }
-      if (cleanPassword !== confirmPassword.trim()) {
-        setError('Passwords do not match. Please re-enter both fields.');
-        return;
-      }
+    setIsLoading(true);
 
-      const updatedProfile = storage.setPassword(cleanEmail, cleanPassword, {
-        name: name.trim() || 'Shirlene M. Mandapat',
-        title: title.trim() || 'Master Teacher I / TLE Coordinator',
-        schoolName: schoolName.trim() || 'Ramon Magsaysay (Cubao) High School',
-        department: department.trim() || 'Technology and Livelihood Education (TLE)',
-      });
+    try {
+      if (authMode === 'register') {
+        // Register or Reset Password flow
+        if (!cleanPassword || cleanPassword.length < 4) {
+          setError('Please set a password with at least 4 characters.');
+          setIsLoading(false);
+          return;
+        }
+        if (cleanPassword !== confirmPassword.trim()) {
+          setError('Passwords do not match. Please re-enter both fields.');
+          setIsLoading(false);
+          return;
+        }
 
-      setSuccessMsg(`Account for ${cleanEmail} saved successfully! Loading your RMCHS TLE dashboard...`);
-      setTimeout(() => {
-        onLoginSuccess(updatedProfile);
-      }, 500);
-    } else {
-      // Sign in flow for registered account
-      if (!cleanPassword) {
-        setError('Please enter your password.');
-        return;
-      }
+        const result = await storage.setPasswordAsync(cleanEmail, cleanPassword, {
+          name: name.trim() || 'Teacher',
+          title: title.trim() || 'Teacher I / TLE Faculty',
+          schoolName: schoolName.trim() || 'Ramon Magsaysay (Cubao) High School',
+          department: department.trim() || 'Technology and Livelihood Education (TLE)',
+        });
 
-      const result = storage.verifyPassword(cleanEmail, cleanPassword);
-      if (result.success && result.profile) {
-        setSuccessMsg(`Welcome back, ${result.profile.name}!`);
-        setTimeout(() => {
-          onLoginSuccess(result.profile!);
-        }, 400);
+        if (result.success && result.profile) {
+          setSuccessMsg(`Account for ${cleanEmail} registered successfully! Loading your portal...`);
+          setTimeout(() => {
+            onLoginSuccess(result.profile);
+          }, 400);
+        } else {
+          setError(result.message || 'Failed to save account.');
+          setIsLoading(false);
+        }
       } else {
-        setError(result.message || 'Incorrect password or email. If you haven\'t set up a password yet, switch to the "Register / Setup" tab.');
+        // Sign in flow for registered account
+        if (!cleanPassword) {
+          setError('Please enter your password.');
+          setIsLoading(false);
+          return;
+        }
+
+        const result = await storage.verifyPasswordAsync(cleanEmail, cleanPassword);
+        if (result.success && result.profile) {
+          setSuccessMsg(`Welcome back, ${result.profile.name}!`);
+          setTimeout(() => {
+            onLoginSuccess(result.profile!);
+          }, 350);
+        } else {
+          setError(result.message || 'Incorrect password or email. If you haven\'t set up your teacher account yet, switch to "Register / Setup".');
+          setIsLoading(false);
+        }
       }
+    } catch (err: any) {
+      setError('Authentication error. Please try again.');
+      setIsLoading(false);
     }
   };
 
@@ -308,9 +339,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                   {authMode === 'register' ? 'Create Password (min 4 chars)' : 'Password'}{' '}
                   <span className="text-red-500">*</span>
                 </label>
-                {authMode === 'signin' && (
-                  <span className="text-[10px] text-slate-400 font-medium">Default: teacher123</span>
-                )}
               </div>
               <div className="relative">
                 <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -371,10 +399,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
             <button
               type="submit"
-              className="w-full min-h-[46px] py-3 px-4 bg-gradient-to-r from-emerald-800 to-emerald-700 hover:from-emerald-700 hover:to-emerald-600 text-yellow-300 font-extrabold text-sm rounded-xl shadow-lg transition-all transform active:scale-[0.99] flex items-center justify-center gap-2 mt-2 border border-amber-400/40 cursor-pointer"
+              disabled={isLoading}
+              className="w-full min-h-[46px] py-3 px-4 bg-gradient-to-r from-emerald-800 to-emerald-700 hover:from-emerald-700 hover:to-emerald-600 disabled:opacity-60 text-yellow-300 font-extrabold text-sm rounded-xl shadow-lg transition-all transform active:scale-[0.99] flex items-center justify-center gap-2 mt-2 border border-amber-400/40 cursor-pointer"
             >
-              <ShieldCheck className="w-4 h-4 text-amber-300" />
-              {authMode === 'register' ? 'SAVE ACCOUNT & SIGN IN' : 'SIGN IN TO PORTAL'}
+              {isLoading ? (
+                <div className="w-4 h-4 border-2 border-yellow-300 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <ShieldCheck className="w-4 h-4 text-amber-300" />
+              )}
+              {isLoading
+                ? 'VERIFYING...'
+                : authMode === 'register'
+                ? 'SAVE ACCOUNT & SIGN IN'
+                : 'SIGN IN TO PORTAL'}
             </button>
           </form>
 

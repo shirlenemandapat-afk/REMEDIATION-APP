@@ -92,8 +92,19 @@ export default function App() {
     onConfirm: () => {},
   });
 
-  // Load initial state on boot + Supabase sync if credentials exist in environment
+  // Load initial state on boot + Server API sync + Supabase sync
   useEffect(() => {
+    // Initial server sync
+    storage.syncFromServer().then(() => {
+      const loggedIn = storage.isLoggedIn();
+      setIsLoggedIn(loggedIn);
+      if (loggedIn) {
+        setTeacher(storage.getTeacherProfile());
+        setStudents(storage.getStudents());
+        setSessions(storage.getSessions());
+      }
+    });
+
     const loggedIn = storage.isLoggedIn();
     setIsLoggedIn(loggedIn);
     if (loggedIn) {

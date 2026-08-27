@@ -799,9 +799,51 @@ export const storage = {
     }
   },
 
+  // Server data synchronization helper
+  async syncFromServer(): Promise<void> {
+    try {
+      const res = await fetch('/api/sync/all');
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success && result.data) {
+          const { accounts, students, sessions, programs, classes, announcements, auditLogs, systemSettings } = result.data;
+          if (accounts && Object.keys(accounts).length > 0) {
+            const local = this.getRegisteredAccounts();
+            const merged = { ...local, ...accounts };
+            this.saveRegisteredAccounts(merged);
+          }
+          if (Array.isArray(students) && students.length > 0) {
+            this.saveStudents(students);
+          }
+          if (Array.isArray(sessions) && sessions.length > 0) {
+            this.saveSessions(sessions);
+          }
+          if (Array.isArray(programs) && programs.length > 0) {
+            this.savePrograms(programs);
+          }
+          if (Array.isArray(classes) && classes.length > 0) {
+            this.saveClasses(classes);
+          }
+          if (Array.isArray(announcements) && announcements.length > 0) {
+            this.saveAnnouncements(announcements);
+          }
+          if (Array.isArray(auditLogs) && auditLogs.length > 0) {
+            this.saveAuditLogs(auditLogs);
+          }
+          if (systemSettings) {
+            this.saveSystemSettings(systemSettings);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Server sync skipped (offline mode):', e);
+    }
+  },
+
   // Setup/Register password for teacher on first login or profile update
   setPassword(email: string, password: string, additionalDetails?: Partial<TeacherProfile>): TeacherProfile {
     const norm = email.trim().toLowerCase();
+    const cleanPass = password.trim();
     const existing = this.findAccountByEmail(norm);
     const isAdmin = norm === DEFAULT_ADMIN_ACCOUNT.email.toLowerCase() || norm === 'admin@projectsmile';
     const isShirlene = norm === INITIAL_TEACHER.email.toLowerCase();
@@ -811,7 +853,7 @@ export const storage = {
       ...(existing || {}),
       ...(additionalDetails || {}),
       email: email.trim(),
-      passwordHash: password,
+      passwordHash: cleanPass,
       isPasswordSet: true,
       role: isAdmin ? 'admin' : (existing?.role || (isShirlene ? 'coordinator' : 'teacher')),
       name: additionalDetails?.name || existing?.name || (isAdmin ? 'TLE Department Head Admin' : (isShirlene ? INITIAL_TEACHER.name : 'Teacher')),
@@ -842,7 +884,110 @@ export const storage = {
     this.saveTeacherProfile(newProfile);
     this.setLoggedIn(true);
 
+    // Asynchronously push to backend server for cross-device sync
+    fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email.trim(),
+        password: cleanPass,
+        name: newProfile.name,
+        title: newProfile.title,
+        schoolName: newProfile.schoolName,
+        department: newProfile.department,
+        role: newProfile.role,
+        profileData: newProfile,
+      }),
+    }).catch((err) => console.warn('Cross-device account sync notice:', err));
+
     return newProfile;
+  },
+
+  async setPasswordAsync(
+    email: string,
+    password: string,
+    additionalDetails?: Partial<TeacherProfile>
+  ): Promise<{ success: boolean; profile: TeacherProfile; message?: string }> {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPass = password.trim();
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: cleanEmail,
+          password: cleanPass,
+          name: additionalDetails?.name,
+          title: additionalDetails?.title,
+          schoolName: additionalDetails?.schoolName,
+          department: additionalDetails?.department,
+          profileData: additionalDetails,
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.profile) {
+          const profile = json.profile as TeacherProfile;
+          const accounts = this.getRegisteredAccounts();
+          accounts[cleanEmail] = profile;
+          this.saveRegisteredAccounts(accounts);
+          localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, cleanEmail);
+          localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, email.trim());
+          this.saveTeacherProfile(profile);
+          this.setLoggedIn(true);
+          return { success: true, profile };
+        }
+      }
+    } catch (e) {
+      console.warn('Server registration call fallback to local:', e);
+    }
+
+    // Fallback to local
+    const prof = this.setPassword(email, password, additionalDetails);
+    return { success: true, profile: prof };
+  },
+
+  async verifyPasswordAsync(
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; profile?: TeacherProfile; message?: string }> {
+    if (!email || !password) {
+      return { success: false, message: 'Please provide both email and password.' };
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPass = password.trim();
+
+    // 1. Try server verification first (enables logging in from any phone/device)
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password: cleanPass }),
+      });
+
+      const json = await res.json();
+      if (res.ok && json.success && json.profile) {
+        const profile = json.profile as TeacherProfile;
+        const accounts = this.getRegisteredAccounts();
+        accounts[cleanEmail] = profile;
+        this.saveRegisteredAccounts(accounts);
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, cleanEmail);
+        localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, email.trim());
+        this.saveTeacherProfile(profile);
+        this.setLoggedIn(true);
+        return { success: true, profile };
+      } else if (res.status === 401 || res.status === 404) {
+        return { success: false, message: json.message || 'Incorrect password or account not found.' };
+      }
+    } catch (err) {
+      console.warn('Offline or server unreachable, validating locally:', err);
+    }
+
+    // 2. Local fallback if offline
+    return this.verifyPassword(email, password);
   },
 
   verifyPassword(email: string, password: string): { success: boolean; profile?: TeacherProfile; message?: string } {
@@ -862,11 +1007,7 @@ export const storage = {
     // Check specific registered account on this device
     if (account) {
       const storedPass = account.passwordHash ? account.passwordHash.trim() : '';
-      const isMatch =
-        account.passwordHash === password ||
-        account.passwordHash === cleanPass ||
-        storedPass === cleanPass ||
-        (storedPass.toLowerCase() === cleanPass.toLowerCase() && (storedPass === 'teacher123' || storedPass === 'admin2025'));
+      const isMatch = account.passwordHash === password || account.passwordHash === cleanPass || storedPass === cleanPass;
 
       if (isMatch) {
         // Successful login
@@ -880,98 +1021,16 @@ export const storage = {
         this.setLoggedIn(true);
         return { success: true, profile: account };
       } else {
-        // If it's Shirlene's account or admin and default password was used
-        if (
-          (norm === INITIAL_TEACHER.email.toLowerCase() && cleanPass.toLowerCase() === 'teacher123') ||
-          (norm.includes('admin') && cleanPass.toLowerCase() === 'admin2025')
-        ) {
-          account.passwordHash = cleanPass;
-          account.lastLoginAt = new Date().toLocaleString();
-          accounts[norm] = account;
-          this.saveRegisteredAccounts(accounts);
-          this.saveTeacherProfile(account);
-          this.setLoggedIn(true);
-          return { success: true, profile: account };
-        }
-
         return {
           success: false,
-          message: 'Incorrect password. If you forgot your password or changed devices, switch to "Register / Setup" to reset it in seconds.',
+          message: 'Incorrect password for this account. Please enter the password you registered with.',
         };
       }
     }
 
-    // Check Admin Account Fallback
-    if (
-      norm === DEFAULT_ADMIN_ACCOUNT.email.toLowerCase() ||
-      norm === 'admin@projectsmile' ||
-      norm.startsWith('admin@')
-    ) {
-      const adminProf: TeacherProfile = {
-        ...DEFAULT_ADMIN_ACCOUNT,
-        email: email.trim(),
-        role: 'admin',
-        passwordHash: cleanPass || 'admin2025',
-        isPasswordSet: true,
-        lastLoginAt: new Date().toLocaleString(),
-      };
-      accounts[norm] = adminProf;
-      this.saveRegisteredAccounts(accounts);
-      localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, norm);
-      localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, email.trim());
-      this.saveTeacherProfile(adminProf);
-      this.setLoggedIn(true);
-      return { success: true, profile: adminProf };
-    }
-
-    // Check Shirlene M. Mandapat (Master Teacher / Coordinator)
-    if (norm === INITIAL_TEACHER.email.toLowerCase() || norm.includes('shirlene.mandapat')) {
-      const demoProf: TeacherProfile = {
-        ...INITIAL_TEACHER,
-        email: email.trim(),
-        role: 'coordinator',
-        passwordHash: cleanPass || 'teacher123',
-        isPasswordSet: true,
-        lastLoginAt: new Date().toLocaleString(),
-      };
-      accounts[norm] = demoProf;
-      this.saveRegisteredAccounts(accounts);
-      localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, norm);
-      localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, email.trim());
-      this.saveTeacherProfile(demoProf);
-      this.setLoggedIn(true);
-      return { success: true, profile: demoProf };
-    }
-
-    // Auto-provision any valid DepEd faculty email on new mobile/desktop device seamlessly
-    if (email.includes('@')) {
-      // Derive a polite display name from email (e.g. maria.santos@depedqc.ph -> Maria Santos)
-      const nameParts = email.split('@')[0].split(/[._-]/).map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
-      const newProf: TeacherProfile = {
-        ...INITIAL_TEACHER,
-        name: nameParts || 'DepEd Faculty Teacher',
-        title: 'Teacher I / TLE Faculty',
-        email: email.trim(),
-        role: 'teacher',
-        passwordHash: cleanPass,
-        isPasswordSet: true,
-        schoolName: 'Ramon Magsaysay (Cubao) High School',
-        department: 'Technology and Livelihood Education (TLE)',
-        lastLoginAt: new Date().toLocaleString(),
-        registeredAt: new Date().toISOString().split('T')[0],
-      };
-      accounts[norm] = newProf;
-      this.saveRegisteredAccounts(accounts);
-      localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, norm);
-      localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, email.trim());
-      this.saveTeacherProfile(newProf);
-      this.setLoggedIn(true);
-      return { success: true, profile: newProf };
-    }
-
     return {
       success: false,
-      message: `Please enter a valid email address and password.`,
+      message: `Account "${email}" is not registered on this system. Switch to "Register / Setup" to create your teacher account.`,
     };
   },
 
@@ -1057,6 +1116,11 @@ export const storage = {
 
   saveStudents(students: Student[]): void {
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+    fetch('/api/sync/all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ students }),
+    }).catch((e) => console.warn('Background sync students notice:', e));
   },
 
   addStudent(studentData: Omit<Student, 'id' | 'enrolledDate' | 'status'> & { status?: Student['status'] }): Student {
@@ -1214,6 +1278,24 @@ export const storage = {
       } catch (err2) {
         console.error('Critical error persisting sessions to localStorage:', err2);
       }
+    }
+
+    // Sync to server
+    try {
+      const lightweightSessions = sessions.map((s) => ({
+        ...s,
+        movs: s.movs?.map((m) => ({ ...m, dataUrl: m.dataUrl && m.dataUrl.length > 50000 ? '' : m.dataUrl })),
+        assessmentTool: s.assessmentTool && s.assessmentTool.dataUrl && s.assessmentTool.dataUrl.length > 50000
+          ? { ...s.assessmentTool, dataUrl: '' }
+          : s.assessmentTool,
+      }));
+      fetch('/api/sync/all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessions: lightweightSessions }),
+      }).catch((e) => console.warn('Background sync sessions notice:', e));
+    } catch (e) {
+      console.warn('Sync sessions error:', e);
     }
   },
 
