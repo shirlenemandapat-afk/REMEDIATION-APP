@@ -215,7 +215,7 @@ export const supabaseService = {
   },
 
   // Pull All Data from Supabase
-  async fetchAll(): Promise<{
+  async fetchAll(targetUserEmail?: string): Promise<{
     teacher?: TeacherProfile;
     students: Student[];
     sessions: SessionRecord[];
@@ -224,8 +224,12 @@ export const supabaseService = {
     if (!client) return null;
 
     try {
+      const teacherQuery = targetUserEmail
+        ? client.from('teacher_profiles').select('*').eq('email', targetUserEmail).maybeSingle()
+        : client.from('teacher_profiles').select('*').limit(1).maybeSingle();
+
       const [teacherRes, studentsRes, sessionsRes] = await Promise.all([
-        client.from('teacher_profiles').select('*').limit(1).maybeSingle(),
+        teacherQuery,
         client.from('students').select('*').order('last_name', { ascending: true }),
         client.from('session_records').select('*').order('date', { ascending: false }),
       ]);

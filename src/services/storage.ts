@@ -62,8 +62,18 @@ export const storage = {
         isPasswordSet: true,
       };
     } else {
-      // Ensure admin has role 'admin'
       accounts[adminNorm].role = 'admin';
+    }
+
+    // Ensure Master Teacher / Coordinator account for Shirlene M. Mandapat exists
+    const teacherNorm = INITIAL_TEACHER.email.trim().toLowerCase();
+    if (!accounts[teacherNorm]) {
+      accounts[teacherNorm] = {
+        ...INITIAL_TEACHER,
+        role: 'coordinator',
+        passwordHash: INITIAL_TEACHER.passwordHash || 'teacher123',
+        isPasswordSet: true,
+      };
     }
 
     // Clean up any legacy prefilled demo faculty accounts from storage
@@ -696,6 +706,19 @@ export const storage = {
       if (data) {
         const parsed = JSON.parse(data);
         let modified = false;
+        if (parsed.email === INITIAL_TEACHER.email && (parsed.name.includes('Admin') || parsed.name.includes('TLE Department'))) {
+          parsed.name = INITIAL_TEACHER.name;
+          parsed.title = INITIAL_TEACHER.title;
+          parsed.role = INITIAL_TEACHER.role;
+          modified = true;
+        }
+        if (parsed.email !== 'admin@projectsmile' && (parsed.name === 'TLE Department Head Admin' || parsed.name === 'TLE Department Admin')) {
+          parsed.name = INITIAL_TEACHER.name;
+          parsed.title = INITIAL_TEACHER.title;
+          parsed.email = INITIAL_TEACHER.email;
+          parsed.role = INITIAL_TEACHER.role;
+          modified = true;
+        }
         if (parsed.schoolName === 'Quezon City High School' || !parsed.schoolName) {
           parsed.schoolName = 'Ramon Magsaysay (Cubao) High School';
           parsed.division = 'SDO Quezon City • TLE Department';
@@ -769,7 +792,8 @@ export const storage = {
   setPassword(email: string, password: string, additionalDetails?: Partial<TeacherProfile>): TeacherProfile {
     const norm = email.trim().toLowerCase();
     const existing = this.findAccountByEmail(norm);
-    const isAdmin = norm === DEFAULT_ADMIN_ACCOUNT.email.toLowerCase() || norm.startsWith('admin');
+    const isAdmin = norm === DEFAULT_ADMIN_ACCOUNT.email.toLowerCase() || norm === 'admin@projectsmile';
+    const isShirlene = norm === INITIAL_TEACHER.email.toLowerCase();
     
     const newProfile: TeacherProfile = {
       ...INITIAL_TEACHER,
@@ -778,9 +802,9 @@ export const storage = {
       email: email.trim(),
       passwordHash: password,
       isPasswordSet: true,
-      role: isAdmin ? 'admin' : (existing?.role || 'teacher'),
-      name: additionalDetails?.name || existing?.name || (isAdmin ? 'TLE Department Admin' : INITIAL_TEACHER.name),
-      title: additionalDetails?.title || existing?.title || (isAdmin ? 'Department Head / System Admin' : INITIAL_TEACHER.title),
+      role: isAdmin ? 'admin' : (existing?.role || (isShirlene ? 'coordinator' : 'teacher')),
+      name: additionalDetails?.name || existing?.name || (isAdmin ? 'TLE Department Head Admin' : (isShirlene ? INITIAL_TEACHER.name : 'Teacher')),
+      title: additionalDetails?.title || existing?.title || (isAdmin ? 'Department Head / System Administrator' : (isShirlene ? INITIAL_TEACHER.title : 'Teacher I')),
       schoolName: additionalDetails?.schoolName || existing?.schoolName || 'Ramon Magsaysay (Cubao) High School',
       division: 'SDO Quezon City • TLE Department',
       region: 'National Capital Region (NCR)',
@@ -887,6 +911,32 @@ export const storage = {
   logout(): void {
     this.setLoggedIn(false);
     localStorage.removeItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
+  },
+
+  switchActiveAccount(email: string): TeacherProfile {
+    const norm = email.trim().toLowerCase();
+    const account = this.findAccountByEmail(norm);
+    if (account) {
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, norm);
+      localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, account.email);
+      this.saveTeacherProfile(account);
+      this.setLoggedIn(true);
+      return account;
+    }
+    if (norm === DEFAULT_ADMIN_ACCOUNT.email.toLowerCase() || norm === 'admin@projectsmile') {
+      const admin: TeacherProfile = { ...DEFAULT_ADMIN_ACCOUNT, role: 'admin', isPasswordSet: true };
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, norm);
+      localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, admin.email);
+      this.saveTeacherProfile(admin);
+      this.setLoggedIn(true);
+      return admin;
+    }
+    const def: TeacherProfile = { ...INITIAL_TEACHER, role: 'coordinator', isPasswordSet: true };
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, INITIAL_TEACHER.email.toLowerCase());
+    localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, INITIAL_TEACHER.email);
+    this.saveTeacherProfile(def);
+    this.setLoggedIn(true);
+    return def;
   },
 
   // --- STUDENTS ---

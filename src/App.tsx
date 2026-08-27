@@ -108,7 +108,7 @@ export default function App() {
       if (isSupabaseConfigured()) {
         const config = getSupabaseConfig();
         if (config.autoSync) {
-          supabaseService.fetchAll().then((cloudData) => {
+          supabaseService.fetchAll(localTeacher.email).then((cloudData) => {
             if (cloudData) {
               if (cloudData.students && cloudData.students.length > 0) {
                 // Cloud has data -> update local state
@@ -118,7 +118,7 @@ export default function App() {
                   setSessions(cloudData.sessions);
                   storage.saveSessions(cloudData.sessions);
                 }
-                if (cloudData.teacher) {
+                if (cloudData.teacher && localTeacher.email && cloudData.teacher.email.toLowerCase() === localTeacher.email.toLowerCase()) {
                   setTeacher(cloudData.teacher);
                   storage.saveTeacherProfile(cloudData.teacher);
                 }
@@ -158,7 +158,7 @@ export default function App() {
 
     if (isSupabaseConfigured()) {
       supabaseService.upsertTeacher(profile);
-      supabaseService.fetchAll().then((cloudData) => {
+      supabaseService.fetchAll(profile.email).then((cloudData) => {
         if (cloudData) {
           if (cloudData.students && cloudData.students.length > 0) {
             setStudents(cloudData.students);
@@ -167,7 +167,7 @@ export default function App() {
               setSessions(cloudData.sessions);
               storage.saveSessions(cloudData.sessions);
             }
-            if (cloudData.teacher) {
+            if (cloudData.teacher && profile.email && cloudData.teacher.email.toLowerCase() === profile.email.toLowerCase()) {
               setTeacher(cloudData.teacher);
               storage.saveTeacherProfile(cloudData.teacher);
             }

@@ -25,6 +25,8 @@ import {
   RotateCcw,
   Database,
   Cloud,
+  UserCheck,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -519,6 +521,66 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* TAB 2: TEACHER & ACCOUNT */}
               {activeTab === 'teacher' && (
                 <div className="space-y-4">
+                  {/* Account Switcher & Role Badge */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs ${
+                        teacher.role === 'admin' || teacher.email === 'admin@projectsmile'
+                          ? 'bg-purple-900 text-yellow-300'
+                          : 'bg-emerald-800 text-white'
+                      }`}>
+                        {teacher.name ? teacher.name.charAt(0) : 'T'}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-bold text-slate-800">{teacher.name}</p>
+                          <span className={`px-1.5 py-0.2 text-[9px] font-black rounded uppercase ${
+                            teacher.role === 'admin' || teacher.email === 'admin@projectsmile'
+                              ? 'bg-purple-100 text-purple-800 border border-purple-300'
+                              : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                          }`}>
+                            {teacher.role === 'admin' ? 'ADMIN' : 'TEACHER / COORDINATOR'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 font-mono">{teacher.email}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      {teacher.email === 'admin@projectsmile' || teacher.role === 'admin' ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const p = storage.switchActiveAccount('shirlene.mandapat@depedqc.ph');
+                            onUpdateTeacher(p);
+                            setEditName(p.name);
+                            setEditTitle(p.title);
+                            setSaveSuccess('Switched to Shirlene M. Mandapat (Teacher / Coordinator) account.');
+                          }}
+                          className="px-2.5 py-1.5 text-[11px] font-bold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg transition shadow-xs cursor-pointer flex items-center gap-1"
+                        >
+                          <UserCheck className="w-3.5 h-3.5" />
+                          Switch to Teacher View
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const p = storage.switchActiveAccount('admin@projectsmile');
+                            onUpdateTeacher(p);
+                            setEditName(p.name);
+                            setEditTitle(p.title);
+                            setSaveSuccess('Switched to TLE Department Admin console.');
+                          }}
+                          className="px-2.5 py-1.5 text-[11px] font-bold bg-purple-900 hover:bg-purple-950 text-yellow-300 rounded-lg transition shadow-xs cursor-pointer flex items-center gap-1"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          Switch to Admin View
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       Registered DepEd Email Address
