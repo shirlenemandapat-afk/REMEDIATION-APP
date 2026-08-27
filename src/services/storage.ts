@@ -851,12 +851,20 @@ export const storage = {
     }
 
     const norm = email.trim().toLowerCase();
+    const cleanPass = password.trim();
     const accounts = this.getRegisteredAccounts();
     const account = accounts[norm];
 
     // Check specific registered account
     if (account) {
-      if (account.passwordHash === password) {
+      const storedPass = account.passwordHash ? account.passwordHash.trim() : '';
+      const isMatch =
+        account.passwordHash === password ||
+        account.passwordHash === cleanPass ||
+        storedPass === cleanPass ||
+        (storedPass.toLowerCase() === cleanPass.toLowerCase() && (storedPass === 'teacher123' || storedPass === 'admin2025'));
+
+      if (isMatch) {
         // Successful login
         account.lastLoginAt = new Date().toLocaleString();
         accounts[norm] = account;
@@ -868,13 +876,19 @@ export const storage = {
         this.setLoggedIn(true);
         return { success: true, profile: account };
       } else {
-        return { success: false, message: 'Incorrect password. Please re-enter or contact your Department Admin to reset your password.' };
+        return {
+          success: false,
+          message: 'Incorrect password. Check for mobile keyboard capitalization or trailing spaces. You can also switch to "Register / Setup" to reset your password.',
+        };
       }
     }
 
     // Check Admin Account Fallback if not yet customized
-    if (norm === DEFAULT_ADMIN_ACCOUNT.email.toLowerCase() && (password === 'admin2025' || password === DEFAULT_ADMIN_ACCOUNT.passwordHash)) {
-      const adminProf = { ...DEFAULT_ADMIN_ACCOUNT, role: 'admin' as const, passwordHash: password, isPasswordSet: true, lastLoginAt: new Date().toLocaleString() };
+    if (
+      (norm === DEFAULT_ADMIN_ACCOUNT.email.toLowerCase() || norm === 'admin@projectsmile') &&
+      (cleanPass === 'admin2025' || cleanPass.toLowerCase() === 'admin2025' || cleanPass === DEFAULT_ADMIN_ACCOUNT.passwordHash)
+    ) {
+      const adminProf: TeacherProfile = { ...DEFAULT_ADMIN_ACCOUNT, role: 'admin', passwordHash: 'admin2025', isPasswordSet: true, lastLoginAt: new Date().toLocaleString() };
       accounts[norm] = adminProf;
       this.saveRegisteredAccounts(accounts);
       localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, norm);
@@ -885,8 +899,11 @@ export const storage = {
     }
 
     // Check default sample teacher
-    if (norm === INITIAL_TEACHER.email.toLowerCase() && (password === INITIAL_TEACHER.passwordHash || password === 'teacher123')) {
-      const demoProf = { ...INITIAL_TEACHER, role: 'teacher' as const, passwordHash: password, isPasswordSet: true, lastLoginAt: new Date().toLocaleString() };
+    if (
+      norm === INITIAL_TEACHER.email.toLowerCase() &&
+      (cleanPass === INITIAL_TEACHER.passwordHash || cleanPass.toLowerCase() === 'teacher123' || cleanPass === 'teacher123')
+    ) {
+      const demoProf: TeacherProfile = { ...INITIAL_TEACHER, role: 'coordinator', passwordHash: 'teacher123', isPasswordSet: true, lastLoginAt: new Date().toLocaleString() };
       accounts[norm] = demoProf;
       this.saveRegisteredAccounts(accounts);
       localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, norm);
@@ -898,7 +915,7 @@ export const storage = {
 
     return {
       success: false,
-      message: `Account "${email}" is not yet registered. Please click "Register / Setup" to create your teacher profile, or login as admin@projectsmile.`,
+      message: `Account "${email}" is not yet registered on this device. Switch to the "Register / Setup" tab to register or reset your password in 5 seconds.`,
     };
   },
 
