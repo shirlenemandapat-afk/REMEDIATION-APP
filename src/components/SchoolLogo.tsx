@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import rmchsSvgLogo from '../assets/images/rmchs_logo.svg';
 import officialLogoImg from '../assets/images/rmchs_tle_official_logo.png';
 import webpLogoImg from '../assets/images/rmchs_tle_logo.webp';
 
@@ -15,14 +16,16 @@ export const SchoolLogo: React.FC<SchoolLogoProps> = ({
 }) => {
   const [currentSrcIndex, setCurrentSrcIndex] = useState(0);
 
+  // Official Ramon Magsaysay (Cubao) High School Seal (Wikipedia File:Ramon Magsaysay (Cubao) High School.svg)
   const fallbackList = [
+    rmchsSvgLogo,
+    '/rmchs_logo.svg',
+    '/rmchs_official_seal.png',
     officialLogoImg,
     webpLogoImg,
-    '/rmchs_tle_official_logo.png',
     '/rmchs_logo_512.png',
-    '/rmchs_tle_logo.webp',
-    './rmchs_tle_official_logo.png',
-    './rmchs_logo_512.png',
+    '/rmchs_tle_official_logo.png',
+    'https://upload.wikimedia.org/wikipedia/commons/8/88/Ramon_Magsaysay_%28Cubao%29_High_School.svg',
   ];
 
   const sizeMap = {
@@ -49,14 +52,15 @@ export const SchoolLogo: React.FC<SchoolLogoProps> = ({
       className={`relative inline-block select-none shrink-0 ${dim} ${
         showShadow ? 'drop-shadow-md' : ''
       } ${className}`}
-      title="Ramon Magsaysay (Cubao) High School - TLE Department Official Logo"
+      title="Ramon Magsaysay (Cubao) High School Official Seal"
     >
       <img
         src={fallbackList[currentSrcIndex]}
-        alt="Ramon Magsaysay (Cubao) High School - TLE Department Official Logo"
+        alt="Ramon Magsaysay (Cubao) High School Official Seal"
         className="w-full h-full object-contain aspect-square select-none block"
         loading="eager"
         decoding="async"
+        referrerPolicy="no-referrer"
         onError={handleError}
       />
       {isAllFailed && (
@@ -65,7 +69,7 @@ export const SchoolLogo: React.FC<SchoolLogoProps> = ({
             RMCHS
           </span>
           <span className="text-[7px] font-bold text-emerald-200 uppercase leading-none mt-0.5">
-            TLE DEPT
+            CUBAO HS
           </span>
         </div>
       )}
