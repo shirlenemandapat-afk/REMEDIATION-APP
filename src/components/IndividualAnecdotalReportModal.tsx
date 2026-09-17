@@ -262,16 +262,16 @@ export const IndividualAnecdotalReportModal: React.FC<IndividualAnecdotalReportM
             </h2>
 
             {studentSessions.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left border-collapse border border-slate-300">
+              <div className="w-full overflow-visible print:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <table className="w-full table-fixed text-xs text-left border-collapse border border-slate-300">
                   <thead>
                     <tr className="bg-slate-100 text-slate-800 font-bold font-serif">
-                      <th className="p-2 border border-slate-300 w-20">Date</th>
-                      <th className="p-2 border border-slate-300">Focus Competency</th>
-                      <th className="p-2 border border-slate-300">Activity & Strategies</th>
-                      <th className="p-2 border border-slate-300 text-center w-24">Raw Score / Items</th>
-                      <th className="p-2 border border-slate-300 text-center w-28">Mastery Level</th>
-                      <th className="p-2 border border-slate-300">Teacher Anecdotal Remarks & Observations</th>
+                      <th className="p-2 border border-slate-300 w-[11%]">Date</th>
+                      <th className="p-2 border border-slate-300 w-[18%]">Focus Competency</th>
+                      <th className="p-2 border border-slate-300 w-[24%]">Activity & Strategies</th>
+                      <th className="p-2 border border-slate-300 text-center w-[11%]">Raw Score / Items</th>
+                      <th className="p-2 border border-slate-300 text-center w-[12%]">Mastery Level</th>
+                      <th className="p-2 border border-slate-300 w-[24%]">Teacher Anecdotal Remarks & Observations</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
@@ -279,13 +279,13 @@ export const IndividualAnecdotalReportModal: React.FC<IndividualAnecdotalReportM
                       const sessMastery = interpretMasteryLevel(sess.score);
                       return (
                         <tr key={sess.id} className="align-top">
-                          <td className="p-2 border border-slate-300 font-bold text-slate-800 whitespace-nowrap">
+                          <td className="p-2 border border-slate-300 font-bold text-slate-800 text-[11px] break-words">
                             {sess.date}
                           </td>
-                          <td className="p-2 border border-slate-300 font-semibold text-slate-900">
+                          <td className="p-2 border border-slate-300 font-semibold text-slate-900 break-words">
                             {sess.focusCompetency || student.focusTopic}
                           </td>
-                          <td className="p-2 border border-slate-300 text-[11px] text-slate-700">
+                          <td className="p-2 border border-slate-300 text-[11px] text-slate-700 break-words">
                             <p className="font-bold text-emerald-950">
                               {sess.activityTypes ? sess.activityTypes.join(', ') : sess.activityType}
                             </p>
@@ -309,7 +309,7 @@ export const IndividualAnecdotalReportModal: React.FC<IndividualAnecdotalReportM
                               {sessMastery.description}
                             </span>
                           </td>
-                          <td className="p-2 border border-slate-300 text-[11px] text-slate-800 leading-relaxed text-justify">
+                          <td className="p-2 border border-slate-300 text-[11px] text-slate-800 leading-relaxed text-justify break-words">
                             {sess.remarks}
                           </td>
                         </tr>

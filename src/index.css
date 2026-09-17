@@ -29,7 +29,18 @@
     position: static !important;
   }
 
-  .inset-0, .overflow-y-auto {
+  *, *::before, *::after {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  ::-webkit-scrollbar {
+    display: none !important;
+    width: 0px !important;
+    height: 0px !important;
+  }
+
+  .inset-0, .overflow-y-auto, .overflow-x-auto, .overflow-auto {
     overflow: visible !important;
     height: auto !important;
     max-height: none !important;

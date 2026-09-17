@@ -190,10 +190,55 @@ export async function downloadElementAsPDF(
         backgroundColor: '#ffffff',
         logging: false,
         imageTimeout: 5000,
-        onclone: (_clonedDoc, clonedEl) => {
+        onclone: (clonedDoc, clonedEl) => {
           clonedEl.style.backgroundColor = '#ffffff';
           clonedEl.style.color = '#000000';
+          clonedEl.style.overflow = 'visible';
+          clonedEl.style.maxHeight = 'none';
+          clonedEl.style.height = 'auto';
           sanitizeOklchColors(clonedEl);
+
+          // Force eliminate all scrollbars, overflows, and clip paths across the entire cloned document
+          try {
+            const styleTag = clonedDoc.createElement('style');
+            styleTag.textContent = `
+              *, *::before, *::after {
+                scrollbar-width: none !important;
+                -ms-overflow-style: none !important;
+              }
+              ::-webkit-scrollbar {
+                display: none !important;
+                width: 0px !important;
+                height: 0px !important;
+                background: transparent !important;
+              }
+              ::-webkit-scrollbar-thumb, ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner {
+                display: none !important;
+              }
+              .overflow-x-auto, .overflow-y-auto, .overflow-auto {
+                overflow: visible !important;
+                height: auto !important;
+                max-height: none !important;
+              }
+            `;
+            clonedDoc.head.appendChild(styleTag);
+          } catch (e) {
+            console.warn('Failed to inject scrollbar override styles in clonedDoc:', e);
+          }
+
+          // Directly normalize inline overflow styles on all descendant elements
+          const allElements = clonedEl.querySelectorAll('*');
+          allElements.forEach((node) => {
+            const el = node as HTMLElement;
+            if (el.style) {
+              if (el.style.overflow && el.style.overflow !== 'visible') el.style.overflow = 'visible';
+              if (el.style.overflowX && el.style.overflowX !== 'visible') el.style.overflowX = 'visible';
+              if (el.style.overflowY && el.style.overflowY !== 'visible') el.style.overflowY = 'visible';
+              el.style.scrollbarWidth = 'none';
+              (el.style as any).msOverflowStyle = 'none';
+            }
+          });
+
           const buttons = clonedEl.querySelectorAll('button, .print\\:hidden, [data-no-print]');
           buttons.forEach((btn) => {
             (btn as HTMLElement).style.display = 'none';

@@ -74,6 +74,21 @@ export function safePrintDocument(
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
+          * {
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+          }
+          ::-webkit-scrollbar {
+            display: none !important;
+            width: 0px !important;
+            height: 0px !important;
+            background: transparent !important;
+          }
+          .overflow-x-auto, .overflow-y-auto, .overflow-auto {
+            overflow: visible !important;
+            height: auto !important;
+            max-height: none !important;
+          }
           .print-toolbar {
             position: sticky;
             top: 0;
