@@ -266,7 +266,10 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
     try {
       const docId = `printable-deped-doc-${activeTab}`;
       const filename = `RMCHS_${programType}_${activeTab}_SY${schoolYear.replace(/[^a-zA-Z0-9]/g, '_')}`;
-      safePrintDocument(docId, filename);
+      safePrintDocument(docId, filename, {
+        pageSize: '8.5in 13in',
+        pageMargin: '0.75in',
+      });
     } catch (err) {
       showFeedback('Print dialog failed to open. You can use Download PDF instead.', 'error');
     }
@@ -280,11 +283,11 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
       const docId = `printable-deped-doc-${activeTab}`;
       const filename = `RMCHS_${programType}_${activeTab}_SY${schoolYear.replace(/[^a-zA-Z0-9]/g, '_')}`;
       const success = await downloadPDFDocument(docId, filename, {
-        format: 'a4',
+        format: 'folio',
         orientation: 'portrait',
       });
       if (success) {
-        showFeedback('Official Document PDF successfully downloaded!', 'success');
+        showFeedback('Official Document PDF (8.5" × 13" Long Bond) successfully downloaded!', 'success');
       } else {
         showFeedback('PDF generation issue. Click Print and select "Save as PDF".', 'error');
       }

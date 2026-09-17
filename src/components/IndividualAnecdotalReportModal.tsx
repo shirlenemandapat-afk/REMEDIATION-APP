@@ -61,7 +61,10 @@ export const IndividualAnecdotalReportModal: React.FC<IndividualAnecdotalReportM
 
   const handlePrint = () => {
     try {
-      safePrintDocument('printable-anecdotal-report', docFilename);
+      safePrintDocument('printable-anecdotal-report', docFilename, {
+        pageSize: '8.5in 13in',
+        pageMargin: '0.75in',
+      });
     } catch (err) {
       showFeedback('Print dialog failed to open. You can use Download PDF instead.', 'error');
     }
@@ -73,11 +76,11 @@ export const IndividualAnecdotalReportModal: React.FC<IndividualAnecdotalReportM
     setFeedbackMessage(null);
     try {
       const success = await downloadPDFDocument('printable-anecdotal-report', docFilename, {
-        format: 'a4',
+        format: 'folio',
         orientation: 'portrait',
       });
       if (success) {
-        showFeedback('Anecdotal Report PDF successfully downloaded to your Downloads folder!', 'success');
+        showFeedback('Anecdotal Report PDF (8.5" × 13" Long Bond) downloaded successfully!', 'success');
       } else {
         showFeedback('PDF generation issue. You can click Print Report and choose Save as PDF.', 'error');
       }

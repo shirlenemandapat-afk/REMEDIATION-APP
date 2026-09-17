@@ -172,10 +172,10 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
     try {
       const ok = safePrintDocument('printable-guardian-notice', docFilename, {
         pageSize: '8.5in 13in',
-        pageMargin: '1in',
+        pageMargin: '0.75in',
       });
       if (ok) {
-        showFeedback('Print preview launched for 8.5x13 bond paper! Select your printer or "Save as PDF".', 'success');
+        showFeedback('Print preview launched for 8.5" × 13" bond paper! Select your printer or "Save as PDF".', 'success');
       } else {
         showFeedback('Print preview blocked by browser. Please use "Save PDF File".', 'error');
       }

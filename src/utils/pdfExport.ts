@@ -4,7 +4,7 @@ import html2canvas from 'html2canvas';
 
 export interface PDFExportOptions {
   filename?: string;
-  format?: 'a4' | 'letter';
+  format?: 'folio' | 'a4' | 'letter' | [number, number];
   orientation?: 'portrait' | 'landscape';
   margin?: number | [number, number, number, number];
   quality?: number;
@@ -57,14 +57,25 @@ async function generateMultiPagePDF(
   imgHeight: number,
   options?: PDFExportOptions
 ): Promise<jsPDF> {
-  const format = options?.format || 'a4';
+  // Philippine DepEd Standard: 8.5 x 13 inches (Folio / Long Bond Paper = 215.9mm x 330.2mm)
+  let formatVal: any = [215.9, 330.2];
+  if (options?.format === 'a4') {
+    formatVal = 'a4';
+  } else if (options?.format === 'letter') {
+    formatVal = 'letter';
+  } else if (Array.isArray(options?.format)) {
+    formatVal = options.format;
+  } else if (options?.format === 'folio' || !options?.format) {
+    formatVal = [215.9, 330.2];
+  }
+
   const orientation = options?.orientation || 'portrait';
-  const marginMm = typeof options?.margin === 'number' ? options?.margin : 8; // 8mm margin
+  const marginMm = typeof options?.margin === 'number' ? options?.margin : 12; // 12mm margin (~0.5in)
 
   const pdf = new jsPDF({
     orientation,
     unit: 'mm',
-    format,
+    format: formatVal,
     compress: true,
   });
 

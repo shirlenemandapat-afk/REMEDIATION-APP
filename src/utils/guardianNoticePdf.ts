@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { Student, TeacherProfile } from '../types';
+import { RMCHS_LOGO_BASE64, DEPED_KAGAWARAN_LOGO_BASE64, BAGONG_PILIPINAS_LOGO_BASE64 } from './logoBase64';
 
 export interface GuardianNoticeData {
   student: Student;
@@ -58,7 +59,20 @@ export function generateGuardianNoticePDF(data: GuardianNoticeData): jsPDF {
   const pageHeight = 330.2; // 13.0 inches in mm
   const marginX = 25.4; // 1.0 inch (25.4mm) left & right margin
   const contentWidth = pageWidth - marginX * 2; // 165.1 mm (6.5 inches)
+  // Header top padding
   let currentY = 25.4; // 1.0 inch (25.4mm) top margin
+
+  // Official Kagawaran ng Edukasyon Logo - MIDDLE TOP PORTION (RMCHS logo removed from header)
+  const logoSize = 18; // 18mm x 18mm
+  const logoX = (pageWidth - logoSize) / 2;
+  const logoY = 16.5;
+  try {
+    doc.addImage(DEPED_KAGAWARAN_LOGO_BASE64, 'PNG', logoX, logoY, logoSize, logoSize);
+  } catch (err) {
+    console.warn('Header logo render fallback:', err);
+  }
+
+  currentY = logoY + logoSize + 4.5;
 
   // 1. Official DepEd Header (Centered)
   doc.setFont('times', 'normal');
@@ -342,22 +356,53 @@ export function generateGuardianNoticePDF(data: GuardianNoticeData): jsPDF {
   const replyDateW = doc.getTextWidth('Date: ');
   doc.line(col3X + replyDateW, currentY + 0.6, marginX + contentWidth, currentY + 0.6);
 
-  // 19. Official DepEd Footer (Bottom of page - positioned cleanly above 1-inch bottom margin at 304.8mm)
+  // 19. Official DepEd Footer with Logos from Left to Right: BAGONG PILIPINAS, followed by RMCHS
   const footerStartY = Math.max(currentY + 8, 287);
   doc.setLineWidth(0.5);
   doc.setDrawColor(15, 23, 42);
   doc.line(marginX, footerStartY, marginX + contentWidth, footerStartY);
 
-  doc.setFont('times', 'normal');
-  doc.setFontSize(8.8);
+  // Render Footer Logos from Left to Right:
+  // 1. BAGONG PILIPINAS Logo
+  // 2. RMCHS Official School Seal Logo
+  const bpWidth = 14;
+  const bpHeight = 13;
+  const rmchsSize = 12;
+  const footerLogoY = footerStartY + 2.5;
+
+  try {
+    // 1. Bagong Pilipinas (Left)
+    doc.addImage(BAGONG_PILIPINAS_LOGO_BASE64, 'PNG', marginX, footerLogoY, bpWidth, bpHeight);
+
+    // Subtle divider between logos
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.3);
+    doc.line(marginX + bpWidth + 2.5, footerLogoY + 1, marginX + bpWidth + 2.5, footerLogoY + bpHeight - 1);
+
+    // 2. Followed by RMCHS Logo
+    doc.addImage(RMCHS_LOGO_BASE64, 'PNG', marginX + bpWidth + 5, footerLogoY + 0.5, rmchsSize, rmchsSize);
+
+    // Divider between logos and school details
+    const sepX = marginX + bpWidth + 5 + rmchsSize + 3.5;
+    doc.line(sepX, footerStartY + 2, sepX, footerStartY + 15.5);
+  } catch (err) {
+    console.warn('Footer logos render fallback:', err);
+  }
+
+  // Institutional contact info on the LEFT SIDE following the logos
+  const textX = marginX + bpWidth + 5 + rmchsSize + 6;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
-  doc.text('731 Epifanio de los Santos Avenue, Quezon City', marginX, footerStartY + 4.2);
-  doc.text('(8) 519-36-60', marginX, footerStartY + 8.0);
+  doc.text('Ramon Magsaysay (Cubao) High School', textX, footerStartY + 4.2);
 
-  doc.setTextColor(30, 64, 175); // blue-700
-  doc.text('hs.ramonmagsaysaycubao@depedqc.ph', marginX, footerStartY + 11.8);
-
-  return doc;
+  doc.setFont('times', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(71, 85, 105);
+  doc.text('731 Epifanio de los Santos Avenue, Quezon City', textX, footerStartY + 7.8);
+  doc.text('(8) 519-36-60', textX, footerStartY + 11.4);
+  doc.setTextColor(30, 64, 175);
+  doc.text('hs.ramonmagsaysaycubao@depedqc.ph', textX, footerStartY + 15.0);
 
   return doc;
 }
