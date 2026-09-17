@@ -153,15 +153,19 @@ export default function App() {
     setSessions(storage.getSessions());
   };
 
-  const handleLoginSuccess = (profile: TeacherProfile) => {
+  const handleLoginSuccess = async (profile: TeacherProfile) => {
+    // Immediately pull latest records from server so any computer gets the up-to-date data
+    await storage.syncFromServer().catch((err) => console.warn('Login server sync:', err));
+
+    const latestTeacher = storage.findAccountByEmail(profile.email) || profile;
     const localStudents = storage.getStudents();
     const localSessions = storage.getSessions();
-    setTeacher(profile);
+    setTeacher(latestTeacher);
     setStudents(localStudents);
     setSessions(localSessions);
     setIsLoggedIn(true);
 
-    if (profile.role === 'admin' || profile.email === 'admin@projectsmile') {
+    if (latestTeacher.role === 'admin' || latestTeacher.email === 'admin@projectsmile') {
       setActiveTab('admin-portal');
     } else {
       setActiveTab('students');
