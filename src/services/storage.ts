@@ -813,15 +813,6 @@ export const storage = {
           email: profile.email.trim(),
         };
         this.saveRegisteredAccounts(accounts);
-
-        // Sync to backend server so changes persist across different computers
-        fetch('/api/sync/all', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            accounts: { [norm]: accounts[norm] },
-          }),
-        }).catch((err) => console.warn('Background sync teacher profile error:', err));
       }
     } catch (e) {
       console.error('Error saving teacher profile', e);
