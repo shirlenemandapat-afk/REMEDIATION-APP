@@ -210,6 +210,17 @@ async function startServer() {
       };
 
       db.accounts[cleanEmail] = newProfile;
+
+      // Record audit log for new teacher registration so Admin can see it immediately
+      db.auditLogs.unshift({
+        id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        userEmail: cleanEmail,
+        action: 'TEACHER_REGISTERED',
+        details: `Faculty account registered: ${newProfile.name} (${cleanEmail}) - ${newProfile.title}`,
+        targetUser: cleanEmail,
+        timestamp: new Date().toISOString(),
+      });
+
       writeDb(db);
 
       console.log(`[AUTH] Account registered/updated on server: ${cleanEmail}`);
@@ -220,7 +231,7 @@ async function startServer() {
     }
   });
 
-  // User Login
+  // User Login (Strict: requires account to be registered first)
   app.post('/api/auth/login', (req, res) => {
     try {
       const { email, password } = req.body;
@@ -233,35 +244,23 @@ async function startServer() {
       const db = readDb();
       let account = db.accounts[cleanEmail];
 
-      // Auto-provision if valid faculty account and not registered yet
+      // Fallback seed accounts for initial administrative coordinators only
       if (!account) {
-        const isShirlene = cleanEmail.includes('shirlene') || cleanEmail.includes('mandapat');
-        const isAdmin = cleanEmail.includes('admin');
-        const nameParts = cleanEmail.split('@')[0].split(/[._-]/).map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+        if (cleanEmail === 'admin@projectsmile' || cleanEmail === 'shirlene.mandapat@depedqc.ph') {
+          account = INITIAL_DEFAULT_DB.accounts[cleanEmail];
+          if (account) {
+            db.accounts[cleanEmail] = account;
+            writeDb(db);
+          }
+        }
+      }
 
-        account = {
-          email: cleanEmail,
-          passwordHash: cleanPassword,
-          isPasswordSet: true,
-          role: isAdmin ? 'admin' : isShirlene ? 'coordinator' : 'teacher',
-          accountStatus: 'Active',
-          name: isShirlene ? 'Shirlene M. Mandapat' : isAdmin ? 'TLE Department Head Admin' : nameParts || 'Teacher',
-          title: isShirlene ? 'Master Teacher I / TLE Coordinator' : isAdmin ? 'Department Head / System Administrator' : 'Teacher I / TLE Faculty',
-          schoolName: 'Ramon Magsaysay (Cubao) High School',
-          division: 'SDO Quezon City • TLE Department',
-          region: 'National Capital Region (NCR)',
-          academicYear: '2025-2026',
-          department: 'Technology and Livelihood Education (TLE)',
-          assignedSubjects: ['ICT - Computer Programming'],
-          reportsSubmissionStatus: 'Submitted',
-          registeredAt: new Date().toISOString().split('T')[0],
-          lastLoginAt: new Date().toLocaleString(),
-        };
-
-        db.accounts[cleanEmail] = account;
-        writeDb(db);
-        console.log(`[AUTH] Auto-provisioned faculty account: ${cleanEmail}`);
-        return res.json({ success: true, profile: account });
+      // If still not found, DO NOT auto-provision. New teachers must register and set up their account first.
+      if (!account || !account.isPasswordSet) {
+        return res.status(404).json({
+          success: false,
+          message: 'Account not found. New teachers must register and set up their account first before signing in. Please switch to the "Register / Setup" tab.',
+        });
       }
 
       // Check password match
@@ -419,6 +418,19 @@ async function startServer() {
     } catch (err: any) {
       console.error('[SYNC ERROR]:', err);
       res.status(500).json({ success: false, message: 'Failed to sync data.' });
+    }
+  });
+
+  // Get all registered faculty accounts for Admin view and cross-device sync
+  app.get('/api/accounts', (_req, res) => {
+    try {
+      const db = readDb();
+      res.json({
+        success: true,
+        accounts: Object.values(db.accounts),
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, message: 'Failed to fetch accounts.' });
     }
   });
 

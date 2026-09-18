@@ -30,23 +30,29 @@ export const AdminStudentMonitoring: React.FC<AdminStudentMonitoringProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [gradeFilter, setGradeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [teacherFilter, setTeacherFilter] = useState('all');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
     students[0]?.id || null
   );
 
   const activeStudents = students.filter((s) => !s.isArchived);
 
+  // Unique teacher emails
+  const teacherEmails = Array.from(new Set(activeStudents.map((s) => s.teacherEmail || 'shirlene.mandapat@depedqc.ph'))).filter(Boolean);
+
   // Filtered Students
   const filteredStudents = activeStudents.filter((s) => {
     const matchesSearch =
       `${s.lastName}, ${s.firstName} ${s.middleInitial}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.section.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.subject.toLowerCase().includes(searchTerm.toLowerCase());
+      s.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.teacherEmail && s.teacherEmail.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesGrade = gradeFilter === 'all' || s.gradeLevel === gradeFilter;
     const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
+    const matchesTeacher = teacherFilter === 'all' || (s.teacherEmail || 'shirlene.mandapat@depedqc.ph').toLowerCase() === teacherFilter.toLowerCase();
 
-    return matchesSearch && matchesGrade && matchesStatus;
+    return matchesSearch && matchesGrade && matchesStatus && matchesTeacher;
   });
 
   const currentStudent = activeStudents.find((s) => s.id === selectedStudentId) || filteredStudents[0] || null;
@@ -151,6 +157,26 @@ export const AdminStudentMonitoring: React.FC<AdminStudentMonitoringProps> = ({
                 <option value="Mastered / Promoted">Mastered</option>
               </select>
             </div>
+
+            {teacherEmails.length > 1 && (
+              <div className="pt-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Filter by Teacher Account:
+                </label>
+                <select
+                  value={teacherFilter}
+                  onChange={(e) => setTeacherFilter(e.target.value)}
+                  className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-700 font-semibold focus:outline-none"
+                >
+                  <option value="all">All Teachers ({teacherEmails.length})</option>
+                  {teacherEmails.map((email) => (
+                    <option key={email} value={email}>
+                      {email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
@@ -178,6 +204,11 @@ export const AdminStudentMonitoring: React.FC<AdminStudentMonitoringProps> = ({
                     <p className="text-[11px] text-slate-500 truncate mt-0.5">
                       {s.gradeLevel} - {s.section} • {s.subject}
                     </p>
+                    {s.teacherEmail && (
+                      <p className="text-[10px] text-emerald-800/80 font-medium truncate mt-0.5">
+                        Teacher: {s.teacherEmail}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex flex-col items-end shrink-0 gap-1">

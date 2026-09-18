@@ -166,9 +166,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
           <h1 className="text-base sm:text-lg font-black tracking-wide uppercase text-yellow-300 font-serif">
             RAMON MAGSAYSAY (CUBAO) HIGH SCHOOL
           </h1>
-          <p className="text-[11px] sm:text-xs font-bold text-white mt-0.5">
-            Technology and Livelihood Education (TLE)
-          </p>
         </div>
 
         {/* Auth Mode Switcher Tabs */}
@@ -414,74 +411,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                 : 'SIGN IN TO PORTAL'}
             </button>
           </form>
-
-          {/* Quick 1-Tap Mobile Sign In Options */}
-          <div className="pt-3 border-t border-slate-200 space-y-2">
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center">
-              Quick Mobile 1-Tap Sign-In
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={async () => {
-                  setIsLoading(true);
-                  setError('');
-                  const res = await storage.quickLoginAsync('shirlene.mandapat@depedqc.ph');
-                  setSuccessMsg('Welcome back, Shirlene M. Mandapat! Opening portal...');
-                  setTimeout(() => {
-                    onLoginSuccess(res.profile);
-                  }, 300);
-                }}
-                className="w-full py-2.5 px-3 min-h-[44px] bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-xl text-xs font-black text-emerald-900 transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs text-left"
-              >
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
-                <span className="truncate">Sign In as <strong>Shirlene M. Mandapat</strong></span>
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  setIsLoading(true);
-                  setError('');
-                  const res = await storage.quickLoginAsync('admin@projectsmile');
-                  setSuccessMsg('Welcome, TLE Department Administrator! Opening portal...');
-                  setTimeout(() => {
-                    onLoginSuccess(res.profile);
-                  }, 300);
-                }}
-                className="w-full py-2.5 px-3 min-h-[44px] bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl text-xs font-black text-slate-800 transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs text-left"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span className="truncate">Sign In as <strong>TLE Admin</strong></span>
-              </button>
-            </div>
-          </div>
-
-          {/* Switch mode helper */}
-          <div className="pt-2 text-center border-t border-slate-100">
-            {authMode === 'signin' ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('register');
-                  setError('');
-                }}
-                className="text-xs font-bold text-emerald-700 hover:text-emerald-900 hover:underline cursor-pointer py-1.5 inline-block"
-              >
-                Need to register a new email or reset password? Click here
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('signin');
-                  setError('');
-                }}
-                className="text-xs font-bold text-emerald-700 hover:text-emerald-900 hover:underline cursor-pointer py-1.5 inline-block"
-              >
-                Already registered? Click here to Sign In
-              </button>
-            )}
-          </div>
         </div>
       </div>
     </div>

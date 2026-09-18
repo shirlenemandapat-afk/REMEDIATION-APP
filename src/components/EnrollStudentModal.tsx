@@ -22,12 +22,12 @@ interface EnrollStudentModalProps {
 }
 
 const SCHEDULE_VENUES = [
-  'TLE Laboratory / Workshop Room',
-  'ICT Computer Laboratory',
-  'Cookery / FCS Kitchen Laboratory',
-  'Industrial Arts (IA) Shop',
-  'Agri-Fishery Arts (AFA) Area',
   'Designated Section Classroom',
+  'Academic Remediation Center / Learning Resource Center',
+  'Computer Laboratory',
+  'Science / Skills Laboratory',
+  'School Library',
+  'Specialized Subject Workshop Room',
 ];
 
 // Helper: Convert 24h format (15:30) to 12h AM/PM (03:30 PM)

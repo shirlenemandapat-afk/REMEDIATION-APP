@@ -239,6 +239,7 @@ export interface Student {
   notes?: string;
   isArchived?: boolean;
   archivedAt?: string;
+  teacherEmail?: string; // Teacher account email who enrolled/manages this student
 }
 
 export interface SessionRecord {
@@ -263,6 +264,7 @@ export interface SessionRecord {
   movs: MOVAttachment[]; // Means of verification files/photos
   assessmentTool?: MOVAttachment; // Uploaded assessment/intervention tool with mandatory caption
   createdAt: string;
+  teacherEmail?: string; // Teacher account email who conducted/logged this session
 }
 
 export type UserRole = 'admin' | 'school_head' | 'coordinator' | 'teacher' | 'student';

@@ -1,6 +1,5 @@
 import React from 'react';
 import { SchoolLogo } from './SchoolLogo';
-import { Award } from 'lucide-react';
 
 interface RMCHSHeaderBannerProps {
   className?: string;
@@ -47,11 +46,6 @@ export const RMCHSHeaderBanner: React.FC<RMCHSHeaderBannerProps> = ({
             RAMON MAGSAYSAY (CUBAO) HIGH SCHOOL
           </h1>
 
-          {/* Department Name on separate line */}
-          <div className="text-sm sm:text-base font-bold text-white tracking-wide">
-            Technology and Livelihood Education (TLE) Department
-          </div>
-
           {/* Project S.M.I.L.E. Feature Banner with Acronym Meaning on distinct separate line */}
           <div className="pt-1.5 flex flex-col items-center md:items-start gap-1">
             <div className="inline-flex items-center px-4 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-emerald-950 font-black text-sm sm:text-base tracking-wider shadow-md">
@@ -68,7 +62,7 @@ export const RMCHSHeaderBanner: React.FC<RMCHSHeaderBannerProps> = ({
       {showSubtitle && (
         <div className="relative z-10 bg-emerald-950/80 border-t border-amber-400/30 px-4 py-1.5 text-center">
           <p className="text-[11px] sm:text-xs text-amber-200/90 font-medium tracking-wide">
-            Daily Anecdotal Records &bull; Quarterly Remediation Tracking &bull; Skills Enhancement in ICT, AFA, FCS & IA
+            Daily Anecdotal Records &bull; Quarterly Remediation Tracking &bull; Learning Enhancement Across All Learning Areas
           </p>
         </div>
       )}

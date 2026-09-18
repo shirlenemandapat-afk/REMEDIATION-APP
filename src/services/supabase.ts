@@ -275,6 +275,7 @@ export const supabaseService = {
         notes: s.notes,
         isArchived: Boolean(s.is_archived),
         archivedAt: s.archived_at,
+        teacherEmail: s.teacher_email || '',
       }));
 
       const sessions: SessionRecord[] = (sessionsRes.data || []).map((sess: any) => ({
@@ -299,9 +300,34 @@ export const supabaseService = {
         movs: Array.isArray(sess.movs) ? sess.movs : [],
         assessmentTool: sess.assessment_tool || undefined,
         createdAt: sess.created_at,
+        teacherEmail: sess.teacher_email || '',
       }));
 
-      return { teacher, students, sessions };
+      // Filter students by teacher_email if caller is a specific teacher (non-admin)
+      const isUserAdmin = targetUserEmail?.toLowerCase().includes('admin');
+      let finalStudents = students;
+      let finalSessions = sessions;
+
+      if (targetUserEmail && !isUserAdmin) {
+        const normEmail = targetUserEmail.toLowerCase();
+        finalStudents = students.filter((s) => {
+          if (s.teacherEmail) {
+            return s.teacherEmail.toLowerCase() === normEmail;
+          }
+          // Default legacy fallback for default coordinator
+          return normEmail === 'shirlene.mandapat@depedqc.ph';
+        });
+
+        const myStudentIds = new Set(finalStudents.map((s) => s.id));
+        finalSessions = sessions.filter((sess) => {
+          if (sess.teacherEmail) {
+            return sess.teacherEmail.toLowerCase() === normEmail;
+          }
+          return myStudentIds.has(sess.studentId);
+        });
+      }
+
+      return { teacher, students: finalStudents, sessions: finalSessions };
     } catch (e: any) {
       console.warn('Unable to reach Supabase during fetch (offline/network fallback active):', e?.message || e);
       return null;
@@ -365,6 +391,7 @@ export const supabaseService = {
           notes: s.notes || null,
           is_archived: Boolean(s.isArchived),
           archived_at: s.archivedAt || null,
+          teacher_email: s.teacherEmail || teacher.email.toLowerCase(),
           updated_at: new Date().toISOString(),
         }));
 
@@ -398,6 +425,7 @@ export const supabaseService = {
           remarks: sess.remarks || '',
           movs: sess.movs || [],
           assessment_tool: sess.assessmentTool || null,
+          teacher_email: sess.teacherEmail || teacher.email.toLowerCase(),
           created_at: sess.createdAt,
           updated_at: new Date().toISOString(),
         }));
@@ -448,7 +476,7 @@ export const supabaseService = {
   },
 
   // Save single student to Supabase
-  async upsertStudent(student: Student): Promise<void> {
+  async upsertStudent(student: Student, teacherEmail?: string): Promise<void> {
     const client = getSupabaseClient();
     if (!client) return;
     try {
@@ -471,6 +499,7 @@ export const supabaseService = {
         notes: student.notes || null,
         is_archived: Boolean(student.isArchived),
         archived_at: student.archivedAt || null,
+        teacher_email: student.teacherEmail || teacherEmail || null,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
       if (error) console.warn('Supabase upsertStudent notice:', error.message || error);
@@ -493,7 +522,7 @@ export const supabaseService = {
   },
 
   // Save session record to Supabase
-  async upsertSession(session: SessionRecord): Promise<void> {
+  async upsertSession(session: SessionRecord, teacherEmail?: string): Promise<void> {
     const client = getSupabaseClient();
     if (!client) return;
     try {
@@ -518,12 +547,46 @@ export const supabaseService = {
         remarks: session.remarks || '',
         movs: session.movs || [],
         assessment_tool: session.assessmentTool || null,
+        teacher_email: session.teacherEmail || teacherEmail || null,
         created_at: session.createdAt,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
       if (error) console.warn('Supabase upsertSession notice:', error.message || error);
     } catch (e: any) {
       console.warn('Supabase upsertSession skipped:', e?.message || e);
+    }
+  },
+
+  // Fetch all teacher profiles from Supabase for Admin management
+  async fetchAllTeachers(): Promise<TeacherProfile[]> {
+    const client = getSupabaseClient();
+    if (!client) return [];
+    try {
+      const { data, error } = await client.from('teacher_profiles').select('*');
+      if (error || !data) return [];
+      return data.map((t: any) => ({
+        email: t.email,
+        name: t.name,
+        title: t.title,
+        schoolName: t.school_name,
+        division: t.division,
+        region: t.region,
+        academicYear: t.academic_year,
+        department: t.department,
+        masterTeacherName: t.master_teacher_name,
+        masterTeacherPosition: t.master_teacher_position,
+        headTeacherName: t.head_teacher_name,
+        headTeacherPosition: t.head_teacher_position,
+        principalName: t.principal_name,
+        principalPosition: t.principal_position,
+        role: t.role || (t.email?.toLowerCase().includes('admin') ? 'admin' : 'teacher'),
+        accountStatus: t.account_status || 'Active',
+        assignedSubjects: t.assigned_subjects || ['ICT - Computer Programming'],
+        isPasswordSet: true,
+      }));
+    } catch (e) {
+      console.warn('Supabase fetchAllTeachers error:', e);
+      return [];
     }
   },
 

@@ -99,9 +99,10 @@ export default function App() {
       const loggedIn = storage.isLoggedIn();
       setIsLoggedIn(loggedIn);
       if (loggedIn) {
-        setTeacher(storage.getTeacherProfile());
-        setStudents(storage.getStudents());
-        setSessions(storage.getSessions());
+        const localTeacher = storage.getTeacherProfile();
+        setTeacher(localTeacher);
+        setStudents(storage.getStudents(localTeacher.email));
+        setSessions(storage.getSessions(localTeacher.email));
       }
     });
 
@@ -109,8 +110,8 @@ export default function App() {
     setIsLoggedIn(loggedIn);
     if (loggedIn) {
       const localTeacher = storage.getTeacherProfile();
-      const localStudents = storage.getStudents();
-      const localSessions = storage.getSessions();
+      const localStudents = storage.getStudents(localTeacher.email);
+      const localSessions = storage.getSessions(localTeacher.email);
       setTeacher(localTeacher);
       setStudents(localStudents);
       setSessions(localSessions);
@@ -124,10 +125,10 @@ export default function App() {
               if (cloudData.students && cloudData.students.length > 0) {
                 // Cloud has data -> update local state
                 setStudents(cloudData.students);
-                storage.saveStudents(cloudData.students);
+                storage.saveStudents(cloudData.students, localTeacher.email);
                 if (cloudData.sessions) {
                   setSessions(cloudData.sessions);
-                  storage.saveSessions(cloudData.sessions);
+                  storage.saveSessions(cloudData.sessions, localTeacher.email);
                 }
                 if (cloudData.teacher && localTeacher.email && cloudData.teacher.email.toLowerCase() === localTeacher.email.toLowerCase()) {
                   setTeacher(cloudData.teacher);
@@ -148,14 +149,16 @@ export default function App() {
   }, []);
 
   const refreshData = () => {
-    setTeacher(storage.getTeacherProfile());
-    setStudents(storage.getStudents());
-    setSessions(storage.getSessions());
+    const currentTeacher = storage.getTeacherProfile();
+    setTeacher(currentTeacher);
+    setStudents(storage.getStudents(currentTeacher.email));
+    setSessions(storage.getSessions(currentTeacher.email));
   };
 
   const handleLoginSuccess = (profile: TeacherProfile) => {
-    const localStudents = storage.getStudents();
-    const localSessions = storage.getSessions();
+    storage.setActiveUserEmail(profile.email);
+    const localStudents = storage.getStudents(profile.email);
+    const localSessions = storage.getSessions(profile.email);
     setTeacher(profile);
     setStudents(localStudents);
     setSessions(localSessions);
@@ -173,10 +176,10 @@ export default function App() {
         if (cloudData) {
           if (cloudData.students && cloudData.students.length > 0) {
             setStudents(cloudData.students);
-            storage.saveStudents(cloudData.students);
+            storage.saveStudents(cloudData.students, profile.email);
             if (cloudData.sessions) {
               setSessions(cloudData.sessions);
-              storage.saveSessions(cloudData.sessions);
+              storage.saveSessions(cloudData.sessions, profile.email);
             }
             if (cloudData.teacher && profile.email && cloudData.teacher.email.toLowerCase() === profile.email.toLowerCase()) {
               setTeacher(cloudData.teacher);
@@ -408,7 +411,7 @@ export default function App() {
                 </h1>
 
                 <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
-                  Project S.M.I.L.E. provides daily anecdotal logs, remediation tracking, and skills enhancement monitoring across <strong>ICT</strong> (Information & Communications Technology), <strong>AFA</strong> (Agri-Fishery Arts), <strong>FCS / H.E.</strong> (Family & Consumer Sciences), and <strong>IA</strong> (Industrial Arts).
+                  Project S.M.I.L.E. provides daily anecdotal logs, quarterly remediation tracking, and learning enhancement monitoring across all learning areas, grade levels, and academic subjects.
                 </p>
 
                 {/* Quick status pill counters */}
@@ -537,8 +540,8 @@ export default function App() {
         {activeTab === 'admin-portal' && (
           <AdminDashboard
             currentAdmin={teacher}
-            students={students}
-            sessions={sessions}
+            students={storage.getAllStudents()}
+            sessions={storage.getAllSessions()}
             onRefreshData={refreshData}
             onSelectStudent={(stud) => setViewStudent(stud)}
           />
@@ -634,7 +637,7 @@ export default function App() {
                 RAMON MAGSAYSAY (CUBAO) HIGH SCHOOL
               </p>
               <p className="text-xs text-emerald-300">
-                Technology and Livelihood Education (TLE) Department &bull; Project S.M.I.L.E.
+                Project S.M.I.L.E. &bull; Student Monitoring and Intervention for Learning Enhancement
               </p>
             </div>
           </div>

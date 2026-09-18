@@ -23,6 +23,7 @@ import {
   INITIAL_ANNOUNCEMENTS,
   DEFAULT_SYSTEM_SETTINGS,
 } from '../data/mockData';
+import { supabaseService } from './supabase';
 
 const STORAGE_KEYS = {
   TEACHER: 'remediation_app_teacher',
@@ -856,27 +857,57 @@ export const storage = {
             this.saveRegisteredAccounts(merged);
           }
           if (Array.isArray(students) && students.length > 0) {
-            this.saveStudents(students);
+            const localStudents = this.getStudents();
+            const studentMap = new Map();
+            localStudents.forEach((s) => studentMap.set(s.id, s));
+            students.forEach((s: Student) => studentMap.set(s.id, s));
+            const mergedStudents = Array.from(studentMap.values());
+            localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(mergedStudents));
           }
           if (Array.isArray(sessions) && sessions.length > 0) {
-            this.saveSessions(sessions);
+            const localSessions = this.getSessions();
+            const sessionMap = new Map();
+            localSessions.forEach((s) => sessionMap.set(s.id, s));
+            sessions.forEach((s: SessionRecord) => sessionMap.set(s.id, s));
+            const mergedSessions = Array.from(sessionMap.values());
+            localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(mergedSessions));
           }
           if (Array.isArray(programs) && programs.length > 0) {
-            this.savePrograms(programs);
+            localStorage.setItem(STORAGE_KEYS.PROGRAMS, JSON.stringify(programs));
           }
           if (Array.isArray(classes) && classes.length > 0) {
-            this.saveClasses(classes);
+            localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
           }
           if (Array.isArray(announcements) && announcements.length > 0) {
-            this.saveAnnouncements(announcements);
+            localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(announcements));
           }
           if (Array.isArray(auditLogs) && auditLogs.length > 0) {
-            this.saveAuditLogs(auditLogs);
+            const localLogs = this.getAuditLogs();
+            const logMap = new Map();
+            localLogs.forEach((l) => logMap.set(l.id, l));
+            auditLogs.forEach((l: any) => logMap.set(l.id, l));
+            const mergedLogs = Array.from(logMap.values());
+            localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(mergedLogs));
           }
           if (systemSettings) {
-            this.saveSystemSettings(systemSettings);
+            localStorage.setItem(STORAGE_KEYS.SYSTEM_SETTINGS, JSON.stringify(systemSettings));
           }
         }
+      }
+
+      // Also check Supabase for any registered teacher profiles if configured
+      try {
+        const cloudTeachers = await supabaseService.fetchAllTeachers();
+        if (cloudTeachers && cloudTeachers.length > 0) {
+          const accounts = this.getRegisteredAccounts();
+          cloudTeachers.forEach((t) => {
+            const norm = t.email.toLowerCase();
+            accounts[norm] = { ...(accounts[norm] || {}), ...t, isPasswordSet: true };
+          });
+          this.saveRegisteredAccounts(accounts);
+        }
+      } catch (e) {
+        // Supabase sync optional
       }
     } catch (e) {
       console.warn('Server sync skipped (offline mode):', e);
@@ -980,6 +1011,18 @@ export const storage = {
           localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, email.trim());
           this.saveTeacherProfile(profile);
           this.setLoggedIn(true);
+
+          // Add audit log for registration
+          this.addAuditLog(
+            cleanEmail,
+            'TEACHER_REGISTERED',
+            `Faculty account registered: ${profile.name} (${cleanEmail}) - ${profile.title}`,
+            cleanEmail
+          );
+
+          // Push to Supabase if available
+          supabaseService.upsertTeacher(profile).catch(() => {});
+
           return { success: true, profile };
         }
       }
@@ -989,6 +1032,13 @@ export const storage = {
 
     // Fallback to local
     const prof = this.setPassword(email, password, additionalDetails);
+    this.addAuditLog(
+      cleanEmail,
+      'TEACHER_REGISTERED',
+      `Faculty account registered: ${prof.name} (${cleanEmail}) - ${prof.title}`,
+      cleanEmail
+    );
+    supabaseService.upsertTeacher(prof).catch(() => {});
     return { success: true, profile: prof };
   },
 
@@ -1022,8 +1072,12 @@ export const storage = {
         this.saveTeacherProfile(profile);
         this.setLoggedIn(true);
         return { success: true, profile };
-      } else if (res.status === 401) {
-        return { success: false, message: json.message || 'Incorrect password for this account.' };
+      } else {
+        // Return clear failure message; do NOT auto-create account
+        return {
+          success: false,
+          message: json.message || 'Account not found. New teachers must register and set up their account first before signing in. Please switch to the "Register / Setup" tab.',
+        };
       }
     } catch (err) {
       console.warn('Offline or server unreachable, validating locally:', err);
@@ -1150,33 +1204,16 @@ export const storage = {
       } else {
         return {
           success: false,
-          message: 'Incorrect password for this account. Please enter your password or click Reset Password.',
+          message: 'Incorrect password for this account. Please enter your registered password or switch to "Register / Setup".',
         };
       }
     }
 
-    // Auto-create and log in if new email
-    const nameParts = norm.split('@')[0].split(/[._-]/).map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
-    const newProf: TeacherProfile = {
-      ...INITIAL_TEACHER,
-      name: nameParts || 'Teacher',
-      title: 'Teacher I / TLE Faculty',
-      email: email.trim(),
-      role: norm.includes('admin') ? 'admin' : norm.includes('shirlene') ? 'coordinator' : 'teacher',
-      passwordHash: cleanPass,
-      isPasswordSet: true,
-      schoolName: 'Ramon Magsaysay (Cubao) High School',
-      department: 'Technology and Livelihood Education (TLE)',
-      lastLoginAt: new Date().toLocaleString(),
-      registeredAt: new Date().toISOString().split('T')[0],
+    // Account not registered yet. New teachers must register and set up their account first.
+    return {
+      success: false,
+      message: 'Account not found. New teachers must register and set up their account first before signing in. Please switch to the "Register / Setup" tab.',
     };
-    accounts[norm] = newProf;
-    this.saveRegisteredAccounts(accounts);
-    localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, norm);
-    localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, email.trim());
-    this.saveTeacherProfile(newProf);
-    this.setLoggedIn(true);
-    return { success: true, profile: newProf };
   },
 
   // Safe Quick Demo Login without wiping or corrupting registered teacher accounts
@@ -1208,6 +1245,12 @@ export const storage = {
     }
   },
 
+  setActiveUserEmail(email: string): void {
+    const norm = email.trim().toLowerCase();
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, norm);
+    localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, email);
+  },
+
   switchActiveAccount(email: string): TeacherProfile {
     const norm = email.trim().toLowerCase();
     const account = this.findAccountByEmail(norm);
@@ -1234,8 +1277,21 @@ export const storage = {
     return def;
   },
 
+  isAdminEmail(email?: string | null): boolean {
+    if (!email) return false;
+    const lower = email.toLowerCase().trim();
+    if (lower === 'admin@projectsmile' || lower.includes('admin')) return true;
+    try {
+      const accounts = this.getRegisteredAccounts();
+      const acct = accounts[lower];
+      return acct?.role === 'admin';
+    } catch {
+      return false;
+    }
+  },
+
   // --- STUDENTS ---
-  getStudents(): Student[] {
+  getAllStudents(): Student[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.STUDENTS);
       if (data) {
@@ -1259,71 +1315,138 @@ export const storage = {
     return INITIAL_STUDENTS;
   },
 
-  saveStudents(students: Student[]): void {
-    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  getStudents(forTeacherEmail?: string): Student[] {
+    const all = this.getAllStudents();
+    const activeEmail = (forTeacherEmail || this.getActiveUserEmail() || '').toLowerCase().trim();
+
+    // If no active email or requester is admin, return all students
+    if (!activeEmail || this.isAdminEmail(activeEmail)) {
+      return all;
+    }
+
+    // Filter strictly by teacher email
+    return all.filter((s) => {
+      if (s.teacherEmail) {
+        return s.teacherEmail.toLowerCase() === activeEmail;
+      }
+      // If legacy student without teacherEmail, assign to default coordinator
+      return activeEmail === 'shirlene.mandapat@depedqc.ph';
+    });
+  },
+
+  saveStudents(students: Student[], forTeacherEmail?: string): void {
+    const activeEmail = (forTeacherEmail || this.getActiveUserEmail() || '').toLowerCase().trim();
+    const allExisting = this.getAllStudents();
+
+    let combined: Student[];
+    if (activeEmail && !this.isAdminEmail(activeEmail)) {
+      // Retain students from other teachers intact in database
+      const others = allExisting.filter((s) => {
+        const sEmail = (s.teacherEmail || 'shirlene.mandapat@depedqc.ph').toLowerCase();
+        return sEmail !== activeEmail;
+      });
+      // Tag saving students with this teacher's email
+      const tagged = students.map((s) => ({
+        ...s,
+        teacherEmail: s.teacherEmail || activeEmail,
+      }));
+      combined = [...tagged, ...others];
+    } else {
+      combined = students;
+    }
+
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(combined));
     fetch('/api/sync/all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ students }),
+      body: JSON.stringify({ students: combined }),
     }).catch((e) => console.warn('Background sync students notice:', e));
   },
 
-  addStudent(studentData: Omit<Student, 'id' | 'enrolledDate' | 'status'> & { status?: Student['status'] }): Student {
-    const students = this.getStudents();
+  addStudent(studentData: Omit<Student, 'id' | 'enrolledDate' | 'status'> & { status?: Student['status']; teacherEmail?: string }): Student {
+    const allStudents = this.getAllStudents();
+    const activeEmail = this.getActiveUserEmail();
+    const teacherEmail = studentData.teacherEmail || (activeEmail ? activeEmail.toLowerCase() : 'shirlene.mandapat@depedqc.ph');
     const newStudent: Student = {
       ...studentData,
       id: `stud-${Date.now()}`,
       enrolledDate: new Date().toISOString().split('T')[0],
       status: studentData.status || (studentData.baselineScore >= 80 ? 'Mastered / Promoted' : studentData.baselineScore >= 60 ? 'Progressing' : 'Needs Remediation'),
+      teacherEmail,
     };
-    students.unshift(newStudent);
-    this.saveStudents(students);
+    allStudents.unshift(newStudent);
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(allStudents));
+    fetch('/api/sync/all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ students: allStudents }),
+    }).catch((e) => console.warn('Background sync students notice:', e));
     return newStudent;
   },
 
   updateStudent(student: Student): void {
-    const students = this.getStudents();
-    const index = students.findIndex((s) => s.id === student.id);
+    const allStudents = this.getAllStudents();
+    const index = allStudents.findIndex((s) => s.id === student.id);
     if (index !== -1) {
-      students[index] = student;
-      this.saveStudents(students);
+      allStudents[index] = student;
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(allStudents));
+      fetch('/api/sync/all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ students: allStudents }),
+      }).catch((e) => console.warn('Background sync students notice:', e));
     }
   },
 
   archiveStudent(studentId: string): void {
-    const students = this.getStudents();
-    const index = students.findIndex((s) => s.id === studentId);
+    const allStudents = this.getAllStudents();
+    const index = allStudents.findIndex((s) => s.id === studentId);
     if (index !== -1) {
-      students[index].isArchived = true;
-      students[index].archivedAt = new Date().toISOString();
-      this.saveStudents(students);
+      allStudents[index].isArchived = true;
+      allStudents[index].archivedAt = new Date().toISOString();
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(allStudents));
+      fetch('/api/sync/all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ students: allStudents }),
+      }).catch((e) => console.warn('Background sync students notice:', e));
     }
   },
 
   unarchiveStudent(studentId: string): void {
-    const students = this.getStudents();
-    const index = students.findIndex((s) => s.id === studentId);
+    const allStudents = this.getAllStudents();
+    const index = allStudents.findIndex((s) => s.id === studentId);
     if (index !== -1) {
-      students[index].isArchived = false;
-      delete students[index].archivedAt;
-      this.saveStudents(students);
+      allStudents[index].isArchived = false;
+      delete allStudents[index].archivedAt;
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(allStudents));
+      fetch('/api/sync/all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ students: allStudents }),
+      }).catch((e) => console.warn('Background sync students notice:', e));
     }
   },
 
   archiveSection(sectionName: string): void {
-    const students = this.getStudents();
-    const updated = students.map((s) => {
+    const allStudents = this.getAllStudents();
+    const updated = allStudents.map((s) => {
       if (s.section === sectionName || `${s.gradeLevel} - ${s.section}` === sectionName) {
         return { ...s, isArchived: true, archivedAt: new Date().toISOString() };
       }
       return s;
     });
-    this.saveStudents(updated);
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(updated));
+    fetch('/api/sync/all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ students: updated }),
+    }).catch((e) => console.warn('Background sync students notice:', e));
   },
 
   unarchiveSection(sectionName: string): void {
-    const students = this.getStudents();
-    const updated = students.map((s) => {
+    const allStudents = this.getAllStudents();
+    const updated = allStudents.map((s) => {
       if (s.section === sectionName || `${s.gradeLevel} - ${s.section}` === sectionName) {
         const copy = { ...s, isArchived: false };
         delete copy.archivedAt;
@@ -1331,47 +1454,70 @@ export const storage = {
       }
       return s;
     });
-    this.saveStudents(updated);
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(updated));
+    fetch('/api/sync/all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ students: updated }),
+    }).catch((e) => console.warn('Background sync students notice:', e));
   },
 
   deleteSection(sectionName: string): void {
-    const students = this.getStudents();
-    const targetStudentIds = students
+    const allStudents = this.getAllStudents();
+    const targetStudentIds = allStudents
       .filter((s) => s.section === sectionName || `${s.gradeLevel} - ${s.section}` === sectionName)
       .map((s) => s.id);
     
-    const remainingStudents = students.filter(
+    const remainingStudents = allStudents.filter(
       (s) => s.section !== sectionName && `${s.gradeLevel} - ${s.section}` !== sectionName
     );
-    this.saveStudents(remainingStudents);
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(remainingStudents));
 
     // Also remove sessions for those students
-    const sessions = this.getSessions().filter((sess) => !targetStudentIds.includes(sess.studentId));
-    this.saveSessions(sessions);
+    const allSessions = this.getAllSessions().filter((sess) => !targetStudentIds.includes(sess.studentId));
+    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(allSessions));
+
+    fetch('/api/sync/all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ students: remainingStudents, sessions: allSessions }),
+    }).catch((e) => console.warn('Background sync delete section notice:', e));
   },
 
   deleteStudent(studentId: string): void {
-    const students = this.getStudents().filter((s) => s.id !== studentId);
-    this.saveStudents(students);
+    const allStudents = this.getAllStudents().filter((s) => s.id !== studentId);
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(allStudents));
     
     // Also delete associated sessions
-    const sessions = this.getSessions().filter((sess) => sess.studentId !== studentId);
-    this.saveSessions(sessions);
+    const allSessions = this.getAllSessions().filter((sess) => sess.studentId !== studentId);
+    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(allSessions));
+
+    fetch('/api/sync/all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ students: allStudents, sessions: allSessions }),
+    }).catch((e) => console.warn('Background sync delete student notice:', e));
   },
 
   deleteAllArchived(): void {
-    const students = this.getStudents();
-    const archivedIds = students.filter((s) => s.isArchived).map((s) => s.id);
-    const remaining = students.filter((s) => !s.isArchived);
-    this.saveStudents(remaining);
+    const allStudents = this.getAllStudents();
+    const archivedIds = allStudents.filter((s) => s.isArchived).map((s) => s.id);
+    const remaining = allStudents.filter((s) => !s.isArchived);
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(remaining));
 
     // Also remove sessions for archived students
-    const sessions = this.getSessions().filter((sess) => !archivedIds.includes(sess.studentId));
-    this.saveSessions(sessions);
+    const allSessions = this.getAllSessions().filter((sess) => !archivedIds.includes(sess.studentId));
+    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(allSessions));
+
+    fetch('/api/sync/all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ students: remaining, sessions: allSessions }),
+    }).catch((e) => console.warn('Background sync delete archived notice:', e));
   },
 
   // --- SESSIONS ---
-  getSessions(): SessionRecord[] {
+  getAllSessions(): SessionRecord[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.SESSIONS);
       if (data) {
@@ -1402,14 +1548,53 @@ export const storage = {
     return INITIAL_SESSIONS;
   },
 
-  saveSessions(sessions: SessionRecord[]): void {
+  getSessions(forTeacherEmail?: string): SessionRecord[] {
+    const all = this.getAllSessions();
+    const activeEmail = (forTeacherEmail || this.getActiveUserEmail() || '').toLowerCase().trim();
+
+    if (!activeEmail || this.isAdminEmail(activeEmail)) {
+      return all;
+    }
+
+    const myStudents = this.getStudents(activeEmail);
+    const myStudentIdSet = new Set(myStudents.map((s) => s.id));
+
+    return all.filter((sess) => {
+      if (sess.teacherEmail) {
+        return sess.teacherEmail.toLowerCase() === activeEmail;
+      }
+      return myStudentIdSet.has(sess.studentId) || activeEmail === 'shirlene.mandapat@depedqc.ph';
+    });
+  },
+
+  saveSessions(sessions: SessionRecord[], forTeacherEmail?: string): void {
+    const activeEmail = (forTeacherEmail || this.getActiveUserEmail() || '').toLowerCase().trim();
+    const allExisting = this.getAllSessions();
+
+    let combined: SessionRecord[];
+    if (activeEmail && !this.isAdminEmail(activeEmail)) {
+      const myStudents = this.getStudents(activeEmail);
+      const myStudentIdSet = new Set(myStudents.map((s) => s.id));
+      const others = allExisting.filter((sess) => {
+        const sEmail = (sess.teacherEmail || '').toLowerCase();
+        if (sEmail) return sEmail !== activeEmail;
+        return !myStudentIdSet.has(sess.studentId);
+      });
+      const tagged = sessions.map((s) => ({
+        ...s,
+        teacherEmail: s.teacherEmail || activeEmail,
+      }));
+      combined = [...tagged, ...others];
+    } else {
+      combined = sessions;
+    }
+
     try {
-      localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+      localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(combined));
     } catch (e) {
       console.warn('LocalStorage quota warning, compressing session payload...', e);
       try {
-        // Fallback: strip heavy base64 strings if storage limit is reached so session data is never lost
-        const safeSessions = sessions.map((sess) => ({
+        const safeSessions = combined.map((sess) => ({
           ...sess,
           movs: sess.movs?.map((m) => ({
             ...m,
@@ -1427,45 +1612,46 @@ export const storage = {
 
     // Sync to server
     try {
-      const lightweightSessions = sessions.map((s) => ({
+      const lightweightSessions = combined.map((s) => ({
         ...s,
-        movs: s.movs?.map((m) => ({ ...m, dataUrl: m.dataUrl && m.dataUrl.length > 50000 ? '' : m.dataUrl })),
-        assessmentTool: s.assessmentTool && s.assessmentTool.dataUrl && s.assessmentTool.dataUrl.length > 50000
-          ? { ...s.assessmentTool, dataUrl: '' }
-          : s.assessmentTool,
+        movs: s.movs?.map((m) => ({ ...m, dataUrl: '' })),
+        assessmentTool: s.assessmentTool ? { ...s.assessmentTool, dataUrl: '' } : undefined,
       }));
       fetch('/api/sync/all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessions: lightweightSessions }),
       }).catch((e) => console.warn('Background sync sessions notice:', e));
-    } catch (e) {
-      console.warn('Sync sessions error:', e);
+    } catch (err) {
+      console.warn('Silent sessions sync notice:', err);
     }
   },
 
-  addSession(sessionData: Omit<SessionRecord, 'id' | 'createdAt'>): SessionRecord {
-    const sessions = this.getSessions();
+  addSession(sessionData: Omit<SessionRecord, 'id' | 'createdAt'> & { teacherEmail?: string }): SessionRecord {
+    const allSessions = this.getAllSessions();
+    const activeEmail = this.getActiveUserEmail();
+    const teacherEmail = sessionData.teacherEmail || (activeEmail ? activeEmail.toLowerCase() : 'shirlene.mandapat@depedqc.ph');
     const newSession: SessionRecord = {
       ...sessionData,
       id: `sess-${Date.now()}`,
       createdAt: new Date().toISOString(),
+      teacherEmail,
     };
-    sessions.unshift(newSession);
-    this.saveSessions(sessions);
+    allSessions.unshift(newSession);
+    this.saveSessions(allSessions);
 
     // Automatically update student's status or baseline progress if score is high
-    const students = this.getStudents();
-    const studentIndex = students.findIndex((s) => s.id === sessionData.studentId);
+    const allStudents = this.getAllStudents();
+    const studentIndex = allStudents.findIndex((s) => s.id === sessionData.studentId);
     if (studentIndex !== -1) {
-      const student = students[studentIndex];
+      const student = allStudents[studentIndex];
       if (sessionData.score >= 80 && student.status !== 'Mastered / Promoted') {
         student.status = 'Mastered / Promoted';
       } else if (sessionData.score >= 60 && student.status === 'Needs Remediation') {
         student.status = 'Progressing';
       }
-      students[studentIndex] = student;
-      this.saveStudents(students);
+      allStudents[studentIndex] = student;
+      this.saveStudents(allStudents);
     }
 
     return newSession;

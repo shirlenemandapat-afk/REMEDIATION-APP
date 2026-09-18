@@ -11,10 +11,6 @@ import {
   Edit3,
   X,
   Check,
-  Laptop,
-  Utensils,
-  Wrench,
-  Sprout,
   Shield,
   Building2,
   Award,
@@ -183,30 +179,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               </div>
 
-              {/* TLE and SMILE title on clear separate lines */}
-              <div className="mt-0.5 space-y-0.5">
-                <p className="text-xs sm:text-sm font-bold text-white tracking-tight">
-                  Technology and Livelihood Education (TLE)
-                </p>
+              {/* SMILE title */}
+              <div className="mt-0.5">
                 <p className="text-[11px] sm:text-xs text-amber-200 font-medium tracking-wide">
                   Student Monitoring and Intervention for Learning Enhancement
                 </p>
-              </div>
-
-              {/* TLE 4 Strands Quick Tags */}
-              <div className="hidden xl:flex items-center gap-1.5 mt-1">
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-900/90 text-emerald-200 border border-emerald-700/60">
-                  <Laptop className="w-2.5 h-2.5 text-yellow-400" /> ICT
-                </span>
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-900/90 text-emerald-200 border border-emerald-700/60">
-                  <Sprout className="w-2.5 h-2.5 text-yellow-400" /> AFA
-                </span>
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-900/90 text-emerald-200 border border-emerald-700/60">
-                  <Utensils className="w-2.5 h-2.5 text-yellow-400" /> FCS / H.E.
-                </span>
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-900/90 text-emerald-200 border border-emerald-700/60">
-                  <Wrench className="w-2.5 h-2.5 text-yellow-400" /> IA
-                </span>
               </div>
             </div>
           </div>
