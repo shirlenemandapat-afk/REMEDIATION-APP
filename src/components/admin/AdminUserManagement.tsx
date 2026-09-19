@@ -757,38 +757,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                     )}
                   </div>
 
-                  {/* Quick Suggestions from Remediation Programs (if any) */}
-                  {programs.length > 0 && (
-                    <div className="pt-1">
-                      <span className="text-[11px] font-bold text-slate-500 block mb-1">Quick Select from Remediation Programs:</span>
-                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                        {Array.from(new Set<string>(programs.map((p) => p.title))).map((title: string) => {
-                          const isAlreadyAdded = newAssignedSubjects.includes(title);
-                          return (
-                            <button
-                              key={title}
-                              type="button"
-                              onClick={() => {
-                                if (isAlreadyAdded) {
-                                  handleRemoveNewSubject(title);
-                                } else {
-                                  handleAddNewSubject(title);
-                                }
-                              }}
-                              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer flex items-center gap-1 ${
-                                isAlreadyAdded
-                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-100'
-                              }`}
-                            >
-                              {isAlreadyAdded ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Plus className="w-3 h-3 text-slate-400" />}
-                              <span>{title}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+
                 </div>
               </div>
 
@@ -944,38 +913,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                     )}
                   </div>
 
-                  {/* Quick Suggestions from Remediation Programs (if any) */}
-                  {programs.length > 0 && (
-                    <div className="pt-1">
-                      <span className="text-[11px] font-bold text-slate-500 block mb-1">Quick Select from Remediation Programs:</span>
-                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                        {Array.from(new Set<string>(programs.map((p) => p.title))).map((title: string) => {
-                          const isAlreadyAdded = editAssignedSubjects.includes(title);
-                          return (
-                            <button
-                              key={title}
-                              type="button"
-                              onClick={() => {
-                                if (isAlreadyAdded) {
-                                  handleRemoveEditSubject(title);
-                                } else {
-                                  handleAddEditSubject(title);
-                                }
-                              }}
-                              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer flex items-center gap-1 ${
-                                isAlreadyAdded
-                                  ? 'bg-blue-50 border-blue-300 text-blue-800'
-                                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-100'
-                              }`}
-                            >
-                              {isAlreadyAdded ? <CheckCircle2 className="w-3 h-3 text-blue-600" /> : <Plus className="w-3 h-3 text-slate-400" />}
-                              <span>{title}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+
                 </div>
               </div>
 
@@ -1313,38 +1251,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                   )}
                 </div>
 
-                {/* Quick Suggestions from Remediation Programs (if any) */}
-                {programs.length > 0 && (
-                  <div className="pt-1">
-                    <span className="text-[11px] font-bold text-slate-500 block mb-1">Quick Select from Remediation Programs:</span>
-                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                      {Array.from(new Set<string>(programs.map((p) => p.title))).map((title: string) => {
-                        const isAlreadyAdded = selectedSubjects.includes(title);
-                        return (
-                          <button
-                            key={title}
-                            type="button"
-                            onClick={() => {
-                              if (isAlreadyAdded) {
-                                handleRemoveAssignSubject(title);
-                              } else {
-                                handleAddAssignSubject(title);
-                              }
-                            }}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer flex items-center gap-1 ${
-                              isAlreadyAdded
-                                ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-100'
-                            }`}
-                          >
-                            {isAlreadyAdded ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Plus className="w-3 h-3 text-slate-400" />}
-                            <span>{title}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+
               </div>
 
               {assignFeedback && (

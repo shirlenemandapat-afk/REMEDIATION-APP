@@ -204,30 +204,6 @@ export const AdminProgramManagement: React.FC<AdminProgramManagementProps> = ({
         </button>
       </div>
 
-      {/* 6 Learning Area Quick Selector Badges */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-        {[] .map((area) => {
-          const count = programs.filter((p) => p.learningArea === area).length;
-          const isSelected = areaFilter === area;
-          return (
-            <button
-              key={area}
-              type="button"
-              onClick={() => setAreaFilter(isSelected ? 'all' : area)}
-              className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
-                isSelected
-                  ? 'bg-emerald-900 text-yellow-300 border-emerald-800 shadow-md ring-2 ring-emerald-600'
-                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90 shadow-2xs'
-              }`}
-            >
-              <span className="text-[11px] font-bold leading-tight line-clamp-2">{area}</span>
-              <span className={`text-[10px] font-mono mt-2 ${isSelected ? 'text-emerald-200' : 'text-slate-400'}`}>
-                {count} {count === 1 ? 'Program' : 'Programs'}
-              </span>
-            </button>
-          );
-        })}
-      </div>
 
       {/* Filter and Search Bar */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm flex flex-wrap items-center justify-between gap-3">

@@ -340,6 +340,13 @@ export const storage = {
     accounts[norm] = updated;
     this.saveRegisteredAccounts(accounts);
 
+    // Immediate background sync to server database
+    fetch('/api/sync/all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accounts: accounts }),
+    }).catch(() => {});
+
     // If currently logged-in user is target, sync
     const activeEmail = localStorage.getItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
     if (activeEmail === norm) {
