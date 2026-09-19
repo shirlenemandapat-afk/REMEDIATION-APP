@@ -81,8 +81,8 @@ export const AdminTeacherReports: React.FC<AdminTeacherReportsProps> = ({
   const sessionsWithMovs = sessions.filter((s) => s.movs && s.movs.length > 0);
 
   // Toggle status for teacher submission
-  const handleToggleSubmissionStatus = (teacherEmail: string, newStatus: 'Submitted' | 'Pending' | 'Draft') => {
-    storage.adminUpdateTeacher(currentAdmin.email, teacherEmail, {
+  const handleToggleSubmissionStatus = async (teacherEmail: string, newStatus: 'Submitted' | 'Pending' | 'Draft') => {
+    await storage.adminUpdateTeacher(currentAdmin.email, teacherEmail, {
       reportsSubmissionStatus: newStatus,
     });
     onRefresh();

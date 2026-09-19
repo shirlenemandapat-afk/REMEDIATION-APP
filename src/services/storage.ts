@@ -324,7 +324,7 @@ export const storage = {
     return { success: true, message: `Password for ${accounts[norm].name} was reset successfully to "${newPassword}".` };
   },
 
-  adminUpdateTeacher(adminEmail: string, targetEmail: string, updates: Partial<TeacherProfile>): { success: boolean; profile?: TeacherProfile; message: string } {
+  async adminUpdateTeacher(adminEmail: string, targetEmail: string, updates: Partial<TeacherProfile>): Promise<{ success: boolean; profile?: TeacherProfile; message: string }> {
     const norm = targetEmail.trim().toLowerCase();
     const accounts = this.getRegisteredAccounts();
     if (!accounts[norm]) {
@@ -340,12 +340,16 @@ export const storage = {
     accounts[norm] = updated;
     this.saveRegisteredAccounts(accounts);
 
-    // Immediate background sync to server database
-    fetch('/api/sync/all', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accounts: accounts }),
-    }).catch(() => {});
+    // Wait for server database sync to complete
+    try {
+      await fetch('/api/sync/all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accounts: accounts }),
+      });
+    } catch (e) {
+      console.error('Server sync failed:', e);
+    }
 
     // If currently logged-in user is target, sync
     const activeEmail = localStorage.getItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);

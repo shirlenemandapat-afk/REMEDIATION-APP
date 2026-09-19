@@ -145,11 +145,11 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   };
 
   // Handle Update Teacher
-  const handleSaveEditTeacher = (e: React.FormEvent) => {
+  const handleSaveEditTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editTeacher) return;
 
-    const res = storage.adminUpdateTeacher(currentAdmin.email, editTeacher.email, {
+    const res = await storage.adminUpdateTeacher(currentAdmin.email, editTeacher.email, {
       name: editName.trim(),
       title: editTitle.trim(),
       role: editRole,

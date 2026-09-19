@@ -77,7 +77,17 @@ export const AdminProgramManagement: React.FC<AdminProgramManagementProps> = ({
     const matchesArea = areaFilter === 'all' || p.learningArea === areaFilter;
     const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
 
-    return matchesSearch && matchesArea && matchesStatus;
+    // Check if at least one assigned teacher is qualified for the learning area
+    // by matching the program's learningArea against the assigned subjects of registered teachers.
+    const hasQualifiedTeacher = p.assignedTeacherEmails.some(email => {
+      const teacher = teachers.find(t => t.email === email);
+      return teacher && teacher.assignedSubjects && teacher.assignedSubjects.some(subject => 
+        subject.toLowerCase().includes(p.learningArea.toLowerCase()) || 
+        p.learningArea.toLowerCase().includes(subject.toLowerCase())
+      );
+    });
+
+    return matchesSearch && matchesArea && matchesStatus && hasQualifiedTeacher;
   });
 
   const toggleTeacherSelection = (email: string, isEdit = false) => {
@@ -193,15 +203,6 @@ export const AdminProgramManagement: React.FC<AdminProgramManagementProps> = ({
             Configure curriculum objectives, target competencies, schedules, and faculty assignments across the 6 DepEd TLE learning areas.
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={() => setIsCreateOpen(true)}
-          className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-sm cursor-pointer active:scale-95 shrink-0"
-        >
-          <PlusCircle className="w-4 h-4 text-yellow-300" />
-          CREATE REMEDIATION PROGRAM
-        </button>
       </div>
 
 
@@ -242,94 +243,107 @@ export const AdminProgramManagement: React.FC<AdminProgramManagementProps> = ({
         </div>
       </div>
 
-      {/* Programs Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredPrograms.map((prog) => {
-          const statusBg =
-            prog.status === 'Active'
-              ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-              : prog.status === 'Upcoming'
-              ? 'bg-blue-100 text-blue-900 border-blue-300'
-              : 'bg-slate-100 text-slate-700 border-slate-300';
+      {/* Header and Filter area remains the same ... (Assuming this is lines 196-244, but just focus on fixing the list rendering) */}
+      <div className="space-y-6">
+        {/* Empty State */}
+        {filteredPrograms.length === 0 && (
+          <div className="py-12 text-center text-xs text-slate-400 bg-white rounded-2xl border border-slate-200">
+            No remediation programs found.
+          </div>
+        )}
+
+        {/* Programs Grouped by Subject Area */}
+        {(Object.entries(filteredPrograms.reduce((acc, prog) => {
+          if (!acc[prog.learningArea]) {
+            acc[prog.learningArea] = [];
+          }
+          acc[prog.learningArea].push(prog);
+          return acc;
+        }, {} as Record<string, RemediationProgram[]>)) as [string, RemediationProgram[]][]).map(([area, programs]) => {
+          const teachersInArea = Array.from(new Set(
+            programs.flatMap(p => p.assignedTeacherEmails || [])
+          ));
+          const teacherNames = teachersInArea
+            .map(email => teachers.find(t => t.email === email)?.name)
+            .filter(Boolean);
 
           return (
-            <div
-              key={prog.id}
-              className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm hover:shadow-md transition space-y-3.5 flex flex-col justify-between"
-            >
-              <div className="space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
-                    {prog.learningArea}
-                  </span>
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${statusBg}`}>
-                    {prog.status}
-                  </span>
-                </div>
-
-                <h3 className="text-sm font-extrabold text-slate-900 leading-snug">{prog.title}</h3>
-
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs space-y-1">
-                  <div className="flex items-center gap-1 font-bold text-slate-700 text-[11px]">
-                    <Target className="w-3.5 h-3.5 text-emerald-600" /> Program Objectives:
-                  </div>
-                  <p className="text-slate-600 text-[11px] leading-relaxed line-clamp-3">{prog.programObjectives}</p>
+            <div key={area} className="space-y-3">
+              <div className="bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-100 flex items-center justify-between">
+                <h3 className="text-sm font-extrabold text-emerald-900 uppercase tracking-wide">
+                  {area} Remediation
+                </h3>
+                <div className="text-[11px] font-semibold text-emerald-800 bg-white px-2 py-1 rounded-lg border border-emerald-200">
+                  Teachers: {teacherNames.length > 0 ? teacherNames.join(', ') : 'None assigned'}
                 </div>
               </div>
 
-              <div className="space-y-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="flex items-center gap-1 text-slate-500">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" /> Schedule:
-                  </span>
-                  <span className="font-semibold text-slate-800">{prog.scheduleDescription}</span>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {programs.map((prog) => {
+                  const statusBg =
+                    prog.status === 'Active'
+                      ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                      : prog.status === 'Upcoming'
+                      ? 'bg-blue-100 text-blue-900 border-blue-300'
+                      : 'bg-slate-100 text-slate-700 border-slate-300';
 
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="flex items-center gap-1 text-slate-500">
-                    <Users className="w-3.5 h-3.5 text-slate-400" /> Assigned Faculty:
-                  </span>
-                  <span className="font-semibold text-slate-800 text-right truncate max-w-[180px]">
-                    {prog.assignedTeacherNames?.join(', ') || 'None assigned'}
-                  </span>
-                </div>
+                  return (
+                    <div
+                      key={prog.id}
+                      className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm hover:shadow-md transition space-y-3.5 flex flex-col justify-between"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+                            {prog.learningArea}
+                          </span>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${statusBg}`}>
+                            {prog.status}
+                          </span>
+                        </div>
 
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-400">Target: {prog.targetGradeLevel}</span>
-                  <span className="text-slate-400 font-mono">
-                    {prog.startDate} to {prog.endDate}
-                  </span>
-                </div>
+                        <h3 className="text-sm font-extrabold text-slate-900 leading-snug">{prog.title}</h3>
 
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => openEdit(prog)}
-                    className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition flex items-center gap-1 cursor-pointer"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" /> Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeleteProgramId(prog.id)}
-                    className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition flex items-center gap-1 cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> Delete
-                  </button>
-                </div>
+                        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs space-y-1">
+                          <div className="flex items-center gap-1 font-bold text-slate-700 text-[11px]">
+                            <Target className="w-3.5 h-3.5 text-emerald-600" /> Program Objectives:
+                          </div>
+                          <p className="text-slate-600 text-[11px] leading-relaxed line-clamp-3">{prog.programObjectives}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="flex items-center gap-1 text-slate-500">
+                            <Calendar className="w-3.5 h-3.5 text-slate-400" /> Schedule:
+                          </span>
+                          <span className="font-semibold text-slate-800">{prog.scheduleDescription}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="flex items-center gap-1 text-slate-500">
+                            <Users className="w-3.5 h-3.5 text-slate-400" /> Assigned Faculty:
+                          </span>
+                          <span className="font-semibold text-slate-800 text-right truncate max-w-[180px]">
+                            {prog.assignedTeacherNames?.join(', ') || 'None assigned'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-400">Target: {prog.targetGradeLevel}</span>
+                          <span className="text-slate-400 font-mono">
+                            {prog.startDate} to {prog.endDate}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           );
         })}
-
-        {filteredPrograms.length === 0 && (
-          <div className="col-span-2 py-12 text-center text-xs text-slate-400 bg-white rounded-2xl border border-slate-200">
-            No remediation programs found. Click "Create Remediation Program" to set up a new program.
-          </div>
-        )}
       </div>
-
-      {/* --- CREATE PROGRAM MODAL --- */}
       {isCreateOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6 border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
