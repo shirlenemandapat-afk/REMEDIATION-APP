@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RemediationClass, RemediationProgram, TeacherProfile, Student, LEARNING_AREAS, LearningArea } from '../../types';
+import { RemediationClass, RemediationProgram, TeacherProfile, Student } from '../../types';
 import { storage } from '../../services/storage';
 import {
   CalendarCheck,
@@ -46,7 +46,7 @@ export const AdminClassScheduleManagement: React.FC<AdminClassScheduleManagement
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [className, setClassName] = useState('');
   const [programId, setProgramId] = useState<string>(programs[0]?.id || '');
-  const [learningArea, setLearningArea] = useState<LearningArea>(LEARNING_AREAS[0]);
+  const [learningArea, setLearningArea] = useState<string>(programs[0]?.title || '');
   const [assignedTeacherEmail, setAssignedTeacherEmail] = useState<string>(teachers[0]?.email || '');
   const [enrolledStudentIds, setEnrolledStudentIds] = useState<string[]>([]);
   const [scheduleDays, setScheduleDays] = useState<string[]>(['Monday', 'Wednesday']);
@@ -59,7 +59,7 @@ export const AdminClassScheduleManagement: React.FC<AdminClassScheduleManagement
   // Edit Class Modal
   const [editClass, setEditClass] = useState<RemediationClass | null>(null);
   const [editClassName, setEditClassName] = useState('');
-  const [editLearningArea, setEditLearningArea] = useState<LearningArea>(LEARNING_AREAS[0]);
+  const [editLearningArea, setEditLearningArea] = useState<string>('');
   const [editAssignedTeacherEmail, setEditAssignedTeacherEmail] = useState('');
   const [editEnrolledStudentIds, setEditEnrolledStudentIds] = useState<string[]>([]);
   const [editScheduleDays, setEditScheduleDays] = useState<string[]>([]);
@@ -464,12 +464,12 @@ export const AdminClassScheduleManagement: React.FC<AdminClassScheduleManagement
                   <label className="block font-bold text-slate-700 mb-1">Learning Area *</label>
                   <select
                     value={learningArea}
-                    onChange={(e) => setLearningArea(e.target.value as LearningArea)}
+                    onChange={(e) => setLearningArea(e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   >
-                    {LEARNING_AREAS.map((area) => (
-                      <option key={area} value={area}>
-                        {area}
+                    {programs.map((p) => (
+                      <option key={p.id} value={p.title}>
+                        {p.title}
                       </option>
                     ))}
                   </select>
@@ -681,12 +681,12 @@ export const AdminClassScheduleManagement: React.FC<AdminClassScheduleManagement
                   <label className="block font-bold text-slate-700 mb-1">Learning Area</label>
                   <select
                     value={editLearningArea}
-                    onChange={(e) => setEditLearningArea(e.target.value as LearningArea)}
+                    onChange={(e) => setEditLearningArea(e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   >
-                    {LEARNING_AREAS.map((area) => (
-                      <option key={area} value={area}>
-                        {area}
+                    {programs.map((p) => (
+                      <option key={p.id} value={p.title}>
+                        {p.title}
                       </option>
                     ))}
                   </select>

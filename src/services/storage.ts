@@ -163,7 +163,7 @@ export const storage = {
     }
 
     this.saveRegisteredAccounts(accounts);
-    return Object.values(accounts).sort((a, b) =>
+    return (Object.values(accounts) as TeacherProfile[]).sort((a, b) =>
       (a.name || '').localeCompare(b.name || '')
     );
   },
@@ -209,6 +209,89 @@ export const storage = {
     );
 
     return { success: true, profile: newTeacher, message: `Teacher ${newTeacher.name} created successfully.` };
+  },
+
+  deleteTeacher(adminEmail: string, email: string): { success: boolean; message: string } {
+    const norm = email.trim().toLowerCase();
+    if (norm === DEFAULT_ADMIN_ACCOUNT.email.toLowerCase()) {
+      return { success: false, message: 'Cannot delete the primary System Administrator account.' };
+    }
+    const accounts = this.getRegisteredAccounts();
+    if (!accounts[norm]) {
+      return { success: false, message: 'Account not found.' };
+    }
+
+    const teacherName = accounts[norm].name;
+    delete accounts[norm];
+    this.saveRegisteredAccounts(accounts);
+
+    // Sync to backend if available
+    fetch('/api/sync/all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accounts: accounts }),
+    }).catch(() => {});
+    
+    this.addAuditLog(
+      adminEmail,
+      'DELETE_TEACHER',
+      `Admin permanently deleted teacher account: ${teacherName} (${norm}).`,
+      norm
+    );
+    
+    return { success: true, message: `Account for ${teacherName} (${norm}) was deleted permanently.` };
+  },
+
+  adminDeleteTeacherWithPassword(
+    adminEmail: string,
+    adminPassword: string,
+    targetEmail: string
+  ): { success: boolean; message: string } {
+    // 1. Verify Admin Password
+    const adminAccounts = this.getRegisteredAccounts();
+    const admin = adminAccounts[adminEmail.trim().toLowerCase()];
+    if (!admin || admin.passwordHash !== adminPassword.trim()) {
+      return { success: false, message: 'Invalid admin password.' };
+    }
+
+    const norm = targetEmail.trim().toLowerCase();
+    if (norm === DEFAULT_ADMIN_ACCOUNT.email.toLowerCase()) {
+      return { success: false, message: 'Cannot delete the primary System Administrator account.' };
+    }
+    if (norm === adminEmail.trim().toLowerCase()) {
+      return { success: false, message: 'You cannot delete your own logged-in admin account.' };
+    }
+
+    if (!adminAccounts[norm]) {
+      return { success: false, message: `Account ${targetEmail} not found.` };
+    }
+
+    const teacherName = adminAccounts[norm].name;
+    delete adminAccounts[norm];
+    this.saveRegisteredAccounts(adminAccounts);
+
+    // Clear active session if target user was logged in
+    const activeEmail = localStorage.getItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
+    if (activeEmail && activeEmail.toLowerCase() === norm) {
+      localStorage.removeItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
+      localStorage.removeItem(STORAGE_KEYS.TEACHER);
+    }
+
+    // Sync to backend if available
+    fetch('/api/sync/all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accounts: adminAccounts }),
+    }).catch(() => {});
+
+    this.addAuditLog(
+      adminEmail,
+      'DELETE_TEACHER',
+      `Admin permanently deleted teacher account: ${teacherName} (${norm}).`,
+      norm
+    );
+
+    return { success: true, message: `Teacher account ${teacherName} (${norm}) was permanently deleted. They will need to register again.` };
   },
 
   adminResetTeacherPassword(adminEmail: string, targetEmail: string, newPassword: string): { success: boolean; message: string } {

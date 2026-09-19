@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RemediationProgram, TeacherProfile, LEARNING_AREAS, LearningArea } from '../../types';
+import { RemediationProgram, TeacherProfile } from '../../types';
 import { storage } from '../../services/storage';
 import {
   BookOpen,
@@ -38,7 +38,6 @@ export const AdminProgramManagement: React.FC<AdminProgramManagementProps> = ({
   // Create Program Modal
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [title, setTitle] = useState('');
-  const [learningArea, setLearningArea] = useState<LearningArea>(LEARNING_AREAS[0]);
   const [targetGradeLevel, setTargetGradeLevel] = useState('Grade 7 & 8');
   const [programObjectives, setProgramObjectives] = useState('');
   const [assignedTeacherEmails, setAssignedTeacherEmails] = useState<string[]>([]);
@@ -52,7 +51,7 @@ export const AdminProgramManagement: React.FC<AdminProgramManagementProps> = ({
   // Edit Program Modal
   const [editProgram, setEditProgram] = useState<RemediationProgram | null>(null);
   const [editTitle, setEditTitle] = useState('');
-  const [editLearningArea, setEditLearningArea] = useState<LearningArea>(LEARNING_AREAS[0]);
+  const [editLearningArea, setEditLearningArea] = useState<string>('');
   const [editTargetGradeLevel, setEditTargetGradeLevel] = useState('');
   const [editProgramObjectives, setEditProgramObjectives] = useState('');
   const [editAssignedTeacherEmails, setEditAssignedTeacherEmails] = useState<string[]>([]);
@@ -205,7 +204,7 @@ export const AdminProgramManagement: React.FC<AdminProgramManagementProps> = ({
 
       {/* 6 Learning Area Quick Selector Badges */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-        {LEARNING_AREAS.map((area) => {
+        {[] .map((area) => {
           const count = programs.filter((p) => p.learningArea === area).length;
           const isSelected = areaFilter === area;
           return (

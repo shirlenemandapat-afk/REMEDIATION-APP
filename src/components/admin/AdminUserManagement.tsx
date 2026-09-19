@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TeacherProfile, UserRole, LEARNING_AREAS } from '../../types';
+import { TeacherProfile, UserRole, RemediationProgram } from '../../types';
 import { storage } from '../../services/storage';
 import { TeacherPositionSelect } from '../BookingSchedulePicker';
 import {
@@ -17,17 +17,21 @@ import {
   Shield,
   UserCheck,
   Filter,
+  Trash2,
+  Plus,
 } from 'lucide-react';
 
 interface AdminUserManagementProps {
   currentAdmin: TeacherProfile;
   teachers: TeacherProfile[];
+  programs: RemediationProgram[];
   onRefresh: () => void;
 }
 
 export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   currentAdmin,
   teachers,
+  programs,
   onRefresh,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,6 +46,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   const [newRole, setNewRole] = useState<UserRole>('teacher');
   const [newPassword, setNewPassword] = useState('deped2025');
   const [newAssignedSubjects, setNewAssignedSubjects] = useState<string[]>([]);
+  const [newSubjectInput, setNewSubjectInput] = useState('');
   const [addFeedback, setAddFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Edit Teacher Modal
@@ -50,6 +55,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   const [editTitle, setEditTitle] = useState('');
   const [editRole, setEditRole] = useState<UserRole>('teacher');
   const [editAssignedSubjects, setEditAssignedSubjects] = useState<string[]>([]);
+  const [editSubjectInput, setEditSubjectInput] = useState('');
   const [editFeedback, setEditFeedback] = useState<string | null>(null);
 
   // Reset Password Modal
@@ -62,9 +68,15 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   const [togglePasswordInput, setTogglePasswordInput] = useState('');
   const [toggleFeedback, setToggleFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Delete Teacher Password Prompt Modal
+  const [deleteTeacher, setDeleteTeacher] = useState<TeacherProfile | null>(null);
+  const [deletePasswordInput, setDeletePasswordInput] = useState('');
+  const [deleteFeedback, setDeleteFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
   // Assign Subject Modal
   const [assignSubjectsTeacher, setAssignSubjectsTeacher] = useState<TeacherProfile | null>(null);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [assignSubjectInput, setAssignSubjectInput] = useState('');
   const [assignFeedback, setAssignFeedback] = useState<string | null>(null);
 
   // Filter teachers
@@ -128,6 +140,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
     setEditTitle(t.title);
     setEditRole(t.role || 'teacher');
     setEditAssignedSubjects(t.assignedSubjects || []);
+    setEditSubjectInput('');
     setEditFeedback(null);
   };
 
@@ -156,6 +169,36 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   // Handle Toggle Status
   const handleToggleStatusPrompt = (t: TeacherProfile) => {
     setToggleTeacher(t);
+  };
+
+  // Handle Delete Teacher Prompt
+  const handleDeleteTeacherPrompt = (t: TeacherProfile) => {
+    setDeleteTeacher(t);
+    setDeletePasswordInput('');
+    setDeleteFeedback(null);
+  };
+
+  const handleExecuteDeleteTeacher = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deleteTeacher || !deletePasswordInput) return;
+
+    const res = storage.adminDeleteTeacherWithPassword(
+      currentAdmin.email,
+      deletePasswordInput,
+      deleteTeacher.email
+    );
+
+    if (res.success) {
+      setDeleteFeedback({ type: 'success', message: res.message });
+      onRefresh();
+      setTimeout(() => {
+        setDeleteTeacher(null);
+        setDeletePasswordInput('');
+        setDeleteFeedback(null);
+      }, 1200);
+    } else {
+      setDeleteFeedback({ type: 'error', message: res.message });
+    }
   };
 
   const handleExecuteToggleStatus = (e: React.FormEvent) => {
@@ -212,6 +255,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   const openAssignSubjects = (t: TeacherProfile) => {
     setAssignSubjectsTeacher(t);
     setSelectedSubjects(t.assignedSubjects || []);
+    setAssignSubjectInput('');
     setAssignFeedback(null);
   };
 
@@ -227,7 +271,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
     );
 
     if (res.success) {
-      setAssignFeedback('Assigned learning areas updated.');
+      setAssignFeedback('Assigned subject areas updated.');
       onRefresh();
       setTimeout(() => {
         setAssignSubjectsTeacher(null);
@@ -236,22 +280,70 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
     }
   };
 
+  const handleAddAssignSubject = (subjToAdd?: string) => {
+    const raw = (subjToAdd !== undefined ? subjToAdd : assignSubjectInput).trim();
+    if (!raw) return;
+    const parts = raw.split(',').map((s) => s.trim()).filter(Boolean);
+    setSelectedSubjects((prev) => {
+      const next = [...prev];
+      for (const p of parts) {
+        if (!next.includes(p)) next.push(p);
+      }
+      return next;
+    });
+    if (subjToAdd === undefined) {
+      setAssignSubjectInput('');
+    }
+  };
+
+  const handleRemoveAssignSubject = (subj: string) => {
+    setSelectedSubjects((prev) => prev.filter((s) => s !== subj));
+  };
+
   const toggleSubjectSelection = (subj: string) => {
     setSelectedSubjects((prev) =>
       prev.includes(subj) ? prev.filter((s) => s !== subj) : [...prev, subj]
     );
   };
 
-  const toggleNewSubjectSelection = (subj: string) => {
-    setNewAssignedSubjects((prev) =>
-      prev.includes(subj) ? prev.filter((s) => s !== subj) : [...prev, subj]
-    );
+  const handleAddNewSubject = (subjToAdd?: string) => {
+    const raw = (subjToAdd !== undefined ? subjToAdd : newSubjectInput).trim();
+    if (!raw) return;
+    const parts = raw.split(',').map((s) => s.trim()).filter(Boolean);
+    setNewAssignedSubjects((prev) => {
+      const next = [...prev];
+      for (const p of parts) {
+        if (!next.includes(p)) next.push(p);
+      }
+      return next;
+    });
+    if (subjToAdd === undefined) {
+      setNewSubjectInput('');
+    }
   };
 
-  const toggleEditSubjectSelection = (subj: string) => {
-    setEditAssignedSubjects((prev) =>
-      prev.includes(subj) ? prev.filter((s) => s !== subj) : [...prev, subj]
-    );
+  const handleRemoveNewSubject = (subj: string) => {
+    setNewAssignedSubjects((prev) => prev.filter((s) => s !== subj));
+  };
+
+  const handleAddEditSubject = (subjToAdd?: string) => {
+    const raw = (subjToAdd !== undefined ? subjToAdd : editSubjectInput).trim();
+    if (!raw) return;
+    const parts = raw.split(',').map((s) => s.trim()).filter(Boolean);
+    setEditAssignedSubjects((prev) => {
+      const next = [...prev];
+      for (const p of parts) {
+        if (!next.includes(p)) next.push(p);
+      }
+      return next;
+    });
+    if (subjToAdd === undefined) {
+      setEditSubjectInput('');
+    }
+  };
+
+  const handleRemoveEditSubject = (subj: string) => {
+    setEditAssignedSubjects((prev) => prev.filter((s) => s !== subj));
   };
 
   return (
@@ -264,7 +356,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
             User & Faculty Account Management
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manage teacher profiles, access credentials, account activation, and TLE learning area assignments.
+            Manage teacher profiles, access credentials, account activation, and assigned subject areas.
           </p>
         </div>
 
@@ -327,7 +419,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
               <tr>
                 <th className="px-5 py-3.5">Faculty Member</th>
                 <th className="px-4 py-3.5">Role & Designation</th>
-                <th className="px-4 py-3.5">Assigned Learning Areas</th>
+                <th className="px-4 py-3.5">Assigned Subject Areas</th>
                 <th className="px-4 py-3.5 text-center">Status</th>
                 <th className="px-5 py-3.5 text-right">Actions</th>
               </tr>
@@ -440,6 +532,17 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                         >
                           <KeyRound className="w-4 h-4" />
                         </button>
+
+                        {t.email.toLowerCase() !== currentAdmin.email.toLowerCase() && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTeacherPrompt(t)}
+                            title="Delete Account Permanently"
+                            className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-100 hover:text-rose-800 transition cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
 
                         {t.email.toLowerCase() !== currentAdmin.email.toLowerCase() && (
                           <button
@@ -602,30 +705,90 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                 </div>
               </div>
 
-              {/* Learning Area assignments */}
+              {/* Subject Area assignments */}
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Assign TLE Learning Areas</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200 max-h-40 overflow-y-auto">
-                  {LEARNING_AREAS.map((subj) => {
-                    const isChecked = newAssignedSubjects.includes(subj);
-                    return (
-                      <label
-                        key={subj}
-                        onClick={() => toggleNewSubjectSelection(subj)}
-                        className={`flex items-center gap-2 p-2 rounded-lg text-[11px] font-semibold cursor-pointer transition ${
-                          isChecked ? 'bg-emerald-100 text-emerald-950 border border-emerald-300' : 'bg-white text-slate-700 border border-slate-200'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {}}
-                          className="rounded text-emerald-600 focus:ring-emerald-500 pointer-events-none"
-                        />
-                        <span className="truncate">{subj}</span>
-                      </label>
-                    );
-                  })}
+                <label className="block font-bold text-slate-700 mb-1">Subject Area(s)</label>
+                <div className="space-y-2.5">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newSubjectInput}
+                      onChange={(e) => setNewSubjectInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddNewSubject();
+                        }
+                      }}
+                      placeholder="Input subject area (e.g. Science, Mathematics, English) and click Add"
+                      className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAddNewSubject()}
+                      className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 shrink-0 cursor-pointer shadow-sm active:scale-95"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add
+                    </button>
+                  </div>
+
+                  {/* List of currently assigned subjects */}
+                  <div className="min-h-[44px] p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-1.5 items-center">
+                    {newAssignedSubjects.length === 0 ? (
+                      <span className="text-xs text-slate-400 italic">No subject areas added yet. Type a subject area above to add.</span>
+                    ) : (
+                      newAssignedSubjects.map((subj) => (
+                        <span
+                          key={subj}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-300 text-slate-800 rounded-lg text-xs font-semibold shadow-xs"
+                        >
+                          <span>{subj}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveNewSubject(subj)}
+                            className="text-slate-400 hover:text-rose-600 rounded-full p-0.5 transition cursor-pointer"
+                            title="Remove subject"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Quick Suggestions from Remediation Programs (if any) */}
+                  {programs.length > 0 && (
+                    <div className="pt-1">
+                      <span className="text-[11px] font-bold text-slate-500 block mb-1">Quick Select from Remediation Programs:</span>
+                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                        {Array.from(new Set(programs.map((p) => p.title))).map((title) => {
+                          const isAlreadyAdded = newAssignedSubjects.includes(title);
+                          return (
+                            <button
+                              key={title}
+                              type="button"
+                              onClick={() => {
+                                if (isAlreadyAdded) {
+                                  handleRemoveNewSubject(title);
+                                } else {
+                                  handleAddNewSubject(title);
+                                }
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer flex items-center gap-1 ${
+                                isAlreadyAdded
+                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-100'
+                              }`}
+                            >
+                              {isAlreadyAdded ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Plus className="w-3 h-3 text-slate-400" />}
+                              <span>{title}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -731,28 +894,88 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Assigned TLE Learning Areas</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200 max-h-40 overflow-y-auto">
-                  {LEARNING_AREAS.map((subj) => {
-                    const isChecked = editAssignedSubjects.includes(subj);
-                    return (
-                      <label
-                        key={subj}
-                        onClick={() => toggleEditSubjectSelection(subj)}
-                        className={`flex items-center gap-2 p-2 rounded-lg text-[11px] font-semibold cursor-pointer transition ${
-                          isChecked ? 'bg-emerald-100 text-emerald-950 border border-emerald-300' : 'bg-white text-slate-700 border border-slate-200'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {}}
-                          className="rounded text-emerald-600 focus:ring-emerald-500 pointer-events-none"
-                        />
-                        <span className="truncate">{subj}</span>
-                      </label>
-                    );
-                  })}
+                <label className="block font-bold text-slate-700 mb-1">Subject Area(s)</label>
+                <div className="space-y-2.5">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={editSubjectInput}
+                      onChange={(e) => setEditSubjectInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddEditSubject();
+                        }
+                      }}
+                      placeholder="Input subject area (e.g. Science, Mathematics, English) and click Add"
+                      className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAddEditSubject()}
+                      className="px-4 py-2.5 bg-blue-700 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 shrink-0 cursor-pointer shadow-sm active:scale-95"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add
+                    </button>
+                  </div>
+
+                  {/* List of currently assigned subjects */}
+                  <div className="min-h-[44px] p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-1.5 items-center">
+                    {editAssignedSubjects.length === 0 ? (
+                      <span className="text-xs text-slate-400 italic">No subject areas assigned yet. Type a subject area above to add.</span>
+                    ) : (
+                      editAssignedSubjects.map((subj) => (
+                        <span
+                          key={subj}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-300 text-slate-800 rounded-lg text-xs font-semibold shadow-xs"
+                        >
+                          <span>{subj}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveEditSubject(subj)}
+                            className="text-slate-400 hover:text-rose-600 rounded-full p-0.5 transition cursor-pointer"
+                            title="Remove subject"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Quick Suggestions from Remediation Programs (if any) */}
+                  {programs.length > 0 && (
+                    <div className="pt-1">
+                      <span className="text-[11px] font-bold text-slate-500 block mb-1">Quick Select from Remediation Programs:</span>
+                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                        {Array.from(new Set(programs.map((p) => p.title))).map((title) => {
+                          const isAlreadyAdded = editAssignedSubjects.includes(title);
+                          return (
+                            <button
+                              key={title}
+                              type="button"
+                              onClick={() => {
+                                if (isAlreadyAdded) {
+                                  handleRemoveEditSubject(title);
+                                } else {
+                                  handleAddEditSubject(title);
+                                }
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer flex items-center gap-1 ${
+                                isAlreadyAdded
+                                  ? 'bg-blue-50 border-blue-300 text-blue-800'
+                                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-100'
+                              }`}
+                            >
+                              {isAlreadyAdded ? <CheckCircle2 className="w-3 h-3 text-blue-600" /> : <Plus className="w-3 h-3 text-slate-400" />}
+                              <span>{title}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -928,13 +1151,104 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
           </div>
         </div>
       )}
-      {assignSubjectsTeacher && (
+
+      {/* --- PERMANENT DELETE TEACHER MODAL --- */}
+      {deleteTeacher && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-base font-extrabold text-rose-700 flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+                Permanently Delete Account
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteTeacher(null);
+                  setDeletePasswordInput('');
+                  setDeleteFeedback(null);
+                }}
+                className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleExecuteDeleteTeacher} className="space-y-4 text-xs">
+              <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl space-y-1.5 text-slate-700">
+                <p className="font-bold text-rose-900">
+                  Are you sure you want to permanently delete this account?
+                </p>
+                <p>
+                  Target Account: <strong>{deleteTeacher.name}</strong> ({deleteTeacher.email})
+                </p>
+                <p className="text-[11px] text-rose-700 font-medium">
+                  • This will permanently erase the user credentials from the system.<br />
+                  • The teacher must register again to have an account and gain access.
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Enter Admin Password to Confirm *</label>
+                <input
+                  type="password"
+                  required
+                  autoFocus
+                  value={deletePasswordInput}
+                  onChange={(e) => setDeletePasswordInput(e.target.value)}
+                  placeholder="Enter your admin password"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-mono focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                />
+              </div>
+
+              {deleteFeedback && (
+                <div
+                  className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                    deleteFeedback.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'bg-rose-50 text-rose-800 border border-rose-200'
+                  }`}
+                >
+                  {deleteFeedback.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  )}
+                  <span>{deleteFeedback.message}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteTeacher(null);
+                    setDeletePasswordInput('');
+                    setDeleteFeedback(null);
+                  }}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-bold transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-rose-700 hover:bg-rose-600 text-white font-extrabold rounded-xl transition shadow-md cursor-pointer flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Permanently Delete
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {assignSubjectsTeacher && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                 <BookOpen className="w-5 h-5 text-emerald-700" />
-                Assign TLE Learning Areas
+                Assign Subject Area(s)
               </h3>
               <button
                 type="button"
@@ -947,32 +1261,90 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
 
             <form onSubmit={handleSaveAssignedSubjects} className="space-y-4 text-xs">
               <p className="text-slate-600">
-                Select learning areas taught by <strong>{assignSubjectsTeacher.name}</strong>:
+                Manage learning and subject areas taught by <strong>{assignSubjectsTeacher.name}</strong>:
               </p>
 
-              <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200 max-h-60 overflow-y-auto">
-                {LEARNING_AREAS.map((subj) => {
-                  const isChecked = selectedSubjects.includes(subj);
-                  return (
-                    <label
-                      key={subj}
-                      onClick={() => toggleSubjectSelection(subj)}
-                      className={`flex items-center gap-2.5 p-2.5 rounded-lg text-xs font-semibold cursor-pointer transition ${
-                        isChecked
-                          ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
-                          : 'bg-white text-slate-700 border border-slate-200'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => {}}
-                        className="rounded text-emerald-600 focus:ring-emerald-500 pointer-events-none"
-                      />
-                      <span>{subj}</span>
-                    </label>
-                  );
-                })}
+              <div className="space-y-2.5">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={assignSubjectInput}
+                    onChange={(e) => setAssignSubjectInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddAssignSubject();
+                      }
+                    }}
+                    placeholder="Input subject area (e.g. Science, Mathematics, English) and click Add"
+                    className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAddAssignSubject()}
+                    className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 shrink-0 cursor-pointer shadow-sm active:scale-95"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add
+                  </button>
+                </div>
+
+                {/* List of currently assigned subjects */}
+                <div className="min-h-[44px] p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-1.5 items-center">
+                  {selectedSubjects.length === 0 ? (
+                    <span className="text-xs text-slate-400 italic">No subject areas assigned yet. Type a subject area above to add.</span>
+                  ) : (
+                    selectedSubjects.map((subj) => (
+                      <span
+                        key={subj}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-300 text-slate-800 rounded-lg text-xs font-semibold shadow-xs"
+                      >
+                        <span>{subj}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAssignSubject(subj)}
+                          className="text-slate-400 hover:text-rose-600 rounded-full p-0.5 transition cursor-pointer"
+                          title="Remove subject"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))
+                  )}
+                </div>
+
+                {/* Quick Suggestions from Remediation Programs (if any) */}
+                {programs.length > 0 && (
+                  <div className="pt-1">
+                    <span className="text-[11px] font-bold text-slate-500 block mb-1">Quick Select from Remediation Programs:</span>
+                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                      {Array.from(new Set(programs.map((p) => p.title))).map((title) => {
+                        const isAlreadyAdded = selectedSubjects.includes(title);
+                        return (
+                          <button
+                            key={title}
+                            type="button"
+                            onClick={() => {
+                              if (isAlreadyAdded) {
+                                handleRemoveAssignSubject(title);
+                              } else {
+                                handleAddAssignSubject(title);
+                              }
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer flex items-center gap-1 ${
+                              isAlreadyAdded
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-100'
+                            }`}
+                          >
+                            {isAlreadyAdded ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Plus className="w-3 h-3 text-slate-400" />}
+                            <span>{title}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {assignFeedback && (

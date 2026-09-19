@@ -269,21 +269,13 @@ export interface SessionRecord {
 
 export type UserRole = 'admin' | 'school_head' | 'coordinator' | 'teacher';
 
-export const LEARNING_AREAS = [
-  'ICT - Computer Programming',
-  'ICT - Computer Systems Servicing',
-  'Electronics and Electricity Servicing',
-  'Food Preservation',
-  'Garments',
-  'Health and Wellness',
-] as const;
-
-export type LearningArea = (typeof LEARNING_AREAS)[number] | string;
+export const LEARNING_AREAS = [] as const;
+export type LearningArea = string;
 
 export interface RemediationProgram {
   id: string;
-  title: string;
-  learningArea: LearningArea;
+  title: string; // The subject name (e.g., "Math", "Science", "Programming")
+  learningArea?: string; // Optional legacy / subject categorization
   targetGradeLevel: string; // e.g. "Grade 7", "Grade 8", "All Grades"
   programObjectives: string;
   assignedTeacherEmails: string[];

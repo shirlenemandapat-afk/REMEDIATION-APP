@@ -102,22 +102,6 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => navigate('programs')}
-              className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-emerald-950 font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-md cursor-pointer active:scale-95"
-            >
-              <BookOpen className="w-4 h-4" />
-              MANAGE PROGRAMS
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('classes')}
-              className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-md border border-emerald-500/50 cursor-pointer active:scale-95"
-            >
-              <CalendarCheck className="w-4 h-4 text-yellow-300" />
-              SCHEDULES & CLASSES
-            </button>
           </div>
         </div>
       </div>
@@ -165,7 +149,7 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-            <span>Across All 6 TLE Learning Areas</span>
+            <span>Across All Remediation Subjects</span>
             <ArrowUpRight className="w-3.5 h-3.5 ml-auto text-emerald-600 opacity-0 group-hover:opacity-100 transition" />
           </p>
         </div>

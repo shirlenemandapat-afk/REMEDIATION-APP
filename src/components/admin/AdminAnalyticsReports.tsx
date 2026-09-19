@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Student, SessionRecord, RemediationProgram, TeacherProfile, LEARNING_AREAS } from '../../types';
+import { Student, SessionRecord, RemediationProgram, TeacherProfile } from '../../types';
 import {
   TrendingUp,
   BarChart2,
@@ -177,10 +177,10 @@ export const AdminAnalyticsReports: React.FC<AdminAnalyticsReportsProps> = ({
             onChange={(e) => setSelectedSubject(e.target.value)}
             className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
-            <option value="all">All 6 TLE Learning Areas</option>
-            {LEARNING_AREAS.map((a) => (
-              <option key={a} value={a}>
-                {a}
+            <option value="all">All Remediation Programs</option>
+            {programs.map((p) => (
+              <option key={p.id} value={p.title}>
+                {p.title}
               </option>
             ))}
           </select>
@@ -276,16 +276,16 @@ export const AdminAnalyticsReports: React.FC<AdminAnalyticsReportsProps> = ({
 
       {/* Learning Area Breakdown Matrix */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm space-y-4">
-        <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+        <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
           <BarChart2 className="w-4 h-4 text-emerald-700" />
-          Learning Area Comparative Performance & Progress Breakdown
+          Subject Area Comparative Performance & Progress Breakdown
         </h3>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[11px]">
               <tr>
-                <th className="px-4 py-3">TLE Learning Area</th>
+                <th className="px-4 py-3">Subject / Program Area</th>
                 <th className="px-4 py-3 text-center">Enrolled Learners</th>
                 <th className="px-4 py-3 text-center">Avg Diagnostic</th>
                 <th className="px-4 py-3 text-center">Avg Post-Remediation</th>
@@ -294,7 +294,7 @@ export const AdminAnalyticsReports: React.FC<AdminAnalyticsReportsProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
-              {LEARNING_AREAS.map((area) => {
+              {Array.from(new Set([...programs.map((p) => p.title), ...activeStudents.map((s) => s.subject)].filter(Boolean))).map((area) => {
                 const areaStudents = activeStudents.filter((s) => s.subject === area);
                 const count = areaStudents.length;
                 const baseAvg =

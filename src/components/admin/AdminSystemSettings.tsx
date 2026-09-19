@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SystemSettings, TeacherProfile, LEARNING_AREAS, AdminAuditLog } from '../../types';
+import { SystemSettings, TeacherProfile, AdminAuditLog } from '../../types';
 import { storage } from '../../services/storage';
 import {
   Settings,
@@ -76,7 +76,7 @@ export const AdminSystemSettings: React.FC<AdminSystemSettingsProps> = ({
       division,
       region,
       departmentName,
-      activeLearningAreas: settings.activeLearningAreas || [...LEARNING_AREAS],
+      activeLearningAreas: settings.activeLearningAreas || [],
     });
 
     setFeedback('System configuration saved successfully!');
@@ -319,24 +319,7 @@ export const AdminSystemSettings: React.FC<AdminSystemSettingsProps> = ({
               </div>
             </div>
 
-            {/* Active Learning Areas Info */}
-            <div className="space-y-3 pt-2">
-              <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">
-                <Layers className="w-4 h-4 text-purple-700" />
-                Active TLE Learning Area Streams (6 Tracks)
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {LEARNING_AREAS.map((area) => (
-                  <div
-                    key={area}
-                    className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 flex items-center gap-2"
-                  >
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>{area}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* Active Learning Areas Info Removed */}
 
             {feedback && (
               <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center gap-2">
