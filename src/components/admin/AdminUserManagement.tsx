@@ -56,6 +56,11 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   const [resetTeacher, setResetTeacher] = useState<TeacherProfile | null>(null);
   const [resetPasswordInput, setResetPasswordInput] = useState('');
   const [resetFeedback, setResetFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  
+  // Toggle Status Password Prompt
+  const [toggleTeacher, setToggleTeacher] = useState<TeacherProfile | null>(null);
+  const [togglePasswordInput, setTogglePasswordInput] = useState('');
+  const [toggleFeedback, setToggleFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Assign Subject Modal
   const [assignSubjectsTeacher, setAssignSubjectsTeacher] = useState<TeacherProfile | null>(null);
@@ -149,13 +154,33 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   };
 
   // Handle Toggle Status
-  const handleToggleStatus = (t: TeacherProfile) => {
-    const nextStatus = t.accountStatus === 'Inactive' ? 'Active' : 'Inactive';
-    const res = storage.adminToggleAccountStatus(currentAdmin.email, t.email, nextStatus);
+  const handleToggleStatusPrompt = (t: TeacherProfile) => {
+    setToggleTeacher(t);
+  };
+
+  const handleExecuteToggleStatus = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!toggleTeacher || !togglePasswordInput) return;
+
+    const nextStatus = toggleTeacher.accountStatus === 'Inactive' ? 'Active' : 'Inactive';
+    
+    const res = storage.adminToggleAccountStatus(
+      currentAdmin.email,
+      togglePasswordInput,
+      toggleTeacher.email,
+      nextStatus
+    );
+    
     if (res.success) {
+      setToggleFeedback({ type: 'success', message: res.message });
       onRefresh();
+      setTimeout(() => {
+        setToggleTeacher(null);
+        setTogglePasswordInput('');
+        setToggleFeedback(null);
+      }, 1200);
     } else {
-      alert(res.message);
+      setToggleFeedback({ type: 'error', message: res.message });
     }
   };
 
@@ -419,7 +444,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                         {t.email.toLowerCase() !== currentAdmin.email.toLowerCase() && (
                           <button
                             type="button"
-                            onClick={() => handleToggleStatus(t)}
+                            onClick={() => handleToggleStatusPrompt(t)}
                             title={isActive ? 'Deactivate Account' : 'Activate Account'}
                             className={`p-1.5 rounded-lg transition cursor-pointer ${
                               isActive
@@ -492,16 +517,6 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
             </div>
             <p className="text-[11px] text-emerald-800">
               Enroll students, conduct daily anecdotal remediation logs, upload assessment MOVs, and generate class progress charts.
-            </p>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
-            <div className="flex items-center justify-between font-black text-slate-800">
-              <span>Student</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">READ-ONLY PORTAL</span>
-            </div>
-            <p className="text-[11px] text-slate-600">
-              View remediation workshop schedules, meeting venue links, activity sheets, and personal competency progress.
             </p>
           </div>
         </div>
@@ -841,7 +856,78 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
         </div>
       )}
 
-      {/* --- ASSIGN SUBJECTS MODAL --- */}
+      {/* --- TOGGLE STATUS MODAL --- */}
+      {toggleTeacher && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                Confirm Account Action
+              </h3>
+              <button
+                type="button"
+                onClick={() => setToggleTeacher(null)}
+                className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleExecuteToggleStatus} className="space-y-4 text-xs">
+              <p className="text-slate-600">
+                You are <strong>{toggleTeacher.accountStatus === 'Active' ? 'deactivating' : 'activating'}</strong> the account for <strong>{toggleTeacher.name}</strong> ({toggleTeacher.email}). 
+                Please enter <strong>your admin password</strong> to confirm this security-sensitive action.
+              </p>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Admin Password *</label>
+                <input
+                  type="password"
+                  required
+                  value={togglePasswordInput}
+                  onChange={(e) => setTogglePasswordInput(e.target.value)}
+                  placeholder="Enter your password"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-mono focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              {toggleFeedback && (
+                <div
+                  className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                    toggleFeedback.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'bg-rose-50 text-rose-800 border border-rose-200'
+                  }`}
+                >
+                  {toggleFeedback.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  )}
+                  <span>{toggleFeedback.message}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setToggleTeacher(null); setTogglePasswordInput(''); setToggleFeedback(null); }}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-bold transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`px-5 py-2 ${toggleTeacher.accountStatus === 'Active' ? 'bg-rose-700 hover:bg-rose-600' : 'bg-emerald-700 hover:bg-emerald-600'} text-white font-extrabold rounded-xl transition shadow-md cursor-pointer`}
+                >
+                  Confirm {toggleTeacher.accountStatus === 'Active' ? 'Deactivation' : 'Activation'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {assignSubjectsTeacher && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 space-y-4">

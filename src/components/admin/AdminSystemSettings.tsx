@@ -443,10 +443,6 @@ export const AdminSystemSettings: React.FC<AdminSystemSettingsProps> = ({
                 <span className="font-bold text-slate-900 block">Teacher</span>
                 <span className="text-[11px] text-slate-600">Manage assigned remedial learners, session logs, MOVs & grade cards.</span>
               </div>
-              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                <span className="font-bold text-slate-900 block">Student</span>
-                <span className="text-[11px] text-slate-600">View schedules, activities, learning materials & personal progress.</span>
-              </div>
             </div>
           </div>
 

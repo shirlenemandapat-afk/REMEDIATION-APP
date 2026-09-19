@@ -298,7 +298,19 @@ export const storage = {
     return { success: true, message: `Teacher account for ${teacherName} (${targetEmail}) was removed from the system.` };
   },
 
-  adminToggleAccountStatus(adminEmail: string, targetEmail: string, status: 'Active' | 'Inactive'): { success: boolean; message: string } {
+  adminToggleAccountStatus(
+    adminEmail: string,
+    adminPassword: string,
+    targetEmail: string,
+    status: 'Active' | 'Inactive'
+  ): { success: boolean; message: string } {
+    // 1. Verify Admin Password (local)
+    const adminAccounts = this.getRegisteredAccounts();
+    const admin = adminAccounts[adminEmail.trim().toLowerCase()];
+    if (!admin || admin.passwordHash !== adminPassword.trim()) {
+      return { success: false, message: 'Invalid admin password.' };
+    }
+
     const norm = targetEmail.trim().toLowerCase();
     const accounts = this.getRegisteredAccounts();
     if (!accounts[norm]) {
@@ -310,6 +322,13 @@ export const storage = {
 
     accounts[norm].accountStatus = status;
     this.saveRegisteredAccounts(accounts);
+
+    // Immediate background sync to server database
+    fetch('/api/sync/all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accounts: accounts }),
+    }).catch(() => {});
 
     this.addAuditLog(
       adminEmail,

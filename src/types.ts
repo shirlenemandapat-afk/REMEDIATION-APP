@@ -267,7 +267,7 @@ export interface SessionRecord {
   teacherEmail?: string; // Teacher account email who conducted/logged this session
 }
 
-export type UserRole = 'admin' | 'school_head' | 'coordinator' | 'teacher' | 'student';
+export type UserRole = 'admin' | 'school_head' | 'coordinator' | 'teacher';
 
 export const LEARNING_AREAS = [
   'ICT - Computer Programming',
