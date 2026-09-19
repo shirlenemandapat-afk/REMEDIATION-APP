@@ -153,7 +153,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
       name: editName.trim(),
       title: editTitle.trim(),
       role: editRole,
-      assignedSubjects: editAssignedSubjects,
+      assignedSubjects: editRole === 'teacher' ? editAssignedSubjects : [],
     });
 
     if (res.success) {
@@ -862,60 +862,60 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                 />
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Subject Area(s)</label>
-                <div className="space-y-2.5">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={editSubjectInput}
-                      onChange={(e) => setEditSubjectInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddEditSubject();
-                        }
-                      }}
-                      placeholder="Input subject area (e.g. Science, Mathematics, English) and click Add"
-                      className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleAddEditSubject()}
-                      className="px-4 py-2.5 bg-blue-700 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 shrink-0 cursor-pointer shadow-sm active:scale-95"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Add
-                    </button>
-                  </div>
+              {editRole === 'teacher' && (
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Subject Area(s)</label>
+                  <div className="space-y-2.5">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={editSubjectInput}
+                        onChange={(e) => setEditSubjectInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddEditSubject();
+                          }
+                        }}
+                        placeholder="Input subject area (e.g. Science, Mathematics, English) and click Add"
+                        className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleAddEditSubject()}
+                        className="px-4 py-2.5 bg-blue-700 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 shrink-0 cursor-pointer shadow-sm active:scale-95"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Add
+                      </button>
+                    </div>
 
-                  {/* List of currently assigned subjects */}
-                  <div className="min-h-[44px] p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-1.5 items-center">
-                    {editAssignedSubjects.length === 0 ? (
-                      <span className="text-xs text-slate-400 italic">No subject areas assigned yet. Type a subject area above to add.</span>
-                    ) : (
-                      editAssignedSubjects.map((subj) => (
-                        <span
-                          key={subj}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-300 text-slate-800 rounded-lg text-xs font-semibold shadow-xs"
-                        >
-                          <span>{subj}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveEditSubject(subj)}
-                            className="text-slate-400 hover:text-rose-600 rounded-full p-0.5 transition cursor-pointer"
-                            title="Remove subject"
+                    {/* List of currently assigned subjects */}
+                    <div className="min-h-[44px] p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-1.5 items-center">
+                      {editAssignedSubjects.length === 0 ? (
+                        <span className="text-xs text-slate-400 italic">No subject areas assigned yet. Type a subject area above to add.</span>
+                      ) : (
+                        editAssignedSubjects.map((subj) => (
+                          <span
+                            key={subj}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-300 text-slate-800 rounded-lg text-xs font-semibold shadow-xs"
                           >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))
-                    )}
+                            <span>{subj}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveEditSubject(subj)}
+                              className="text-slate-400 hover:text-rose-600 rounded-full p-0.5 transition cursor-pointer"
+                              title="Remove subject"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))
+                      )}
+                    </div>
                   </div>
-
-
                 </div>
-              </div>
+              )}
 
               {editFeedback && (
                 <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center gap-2">
