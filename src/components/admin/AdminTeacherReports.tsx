@@ -40,13 +40,19 @@ export const AdminTeacherReports: React.FC<AdminTeacherReportsProps> = ({
 
   // Group stats per teacher
   const teacherStats = teachers.map((teacher) => {
-    // In our system, sessions are linked to students, and students can be enrolled in classes or assigned to teachers
-    // Let's filter sessions
+    const tEmailNorm = (teacher.email || '').toLowerCase().trim();
+
+    // Filter sessions matching this teacher either directly by student.teacherEmail or by assigned subjects
     const teacherSessions = sessions.filter((s) => {
-      // Check if session has matching teacher in any form or matching subject
       const student = students.find((st) => st.id === s.studentId);
-      const isSubjMatch = teacher.assignedSubjects?.some((sub) => student?.subject === sub);
-      return isSubjMatch;
+      const isEmailMatch = Boolean(
+        student?.teacherEmail &&
+        student.teacherEmail.toLowerCase().trim() === tEmailNorm
+      );
+      const isSubjMatch = Boolean(
+        teacher.assignedSubjects?.some((sub) => student?.subject === sub)
+      );
+      return isEmailMatch || isSubjMatch;
     });
 
     const movCount = teacherSessions.reduce((acc, s) => acc + (s.movs?.length || 0), 0);

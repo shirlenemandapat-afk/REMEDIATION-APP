@@ -67,6 +67,13 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
   const [selectedActivityTypes, setSelectedActivityTypes] = useState<string[]>(['Remedial Hands-on Practice']);
   const [selectedInterventions, setSelectedInterventions] = useState<string[]>(['Task Simplification']);
 
+  // Custom encoded 'Others' inputs for Activity Types and Interventions
+  const [otherActivityText, setOtherActivityText] = useState<string>('');
+  const [otherActivityChecked, setOtherActivityChecked] = useState<boolean>(false);
+
+  const [otherStrategyText, setOtherStrategyText] = useState<string>('');
+  const [otherStrategyChecked, setOtherStrategyChecked] = useState<boolean>(false);
+
   // Active tooltip state for hover/tap description preview
   const [activeTooltip, setActiveTooltip] = useState<{ title: string; desc: string; category?: string } | null>(null);
 
@@ -95,6 +102,10 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
     if (isOpen) {
       setError('');
       setDate(new Date().toISOString().split('T')[0]);
+      setOtherActivityText('');
+      setOtherActivityChecked(false);
+      setOtherStrategyText('');
+      setOtherStrategyChecked(false);
 
       let targetId = preSelectedStudentId;
       if (!targetId || !students.some((s) => s.id === targetId)) {
@@ -132,24 +143,28 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
 
   // Activity Type multi-select toggle
   const toggleActivityType = (act: string) => {
-    setSelectedActivityTypes((prev) =>
-      prev.includes(act)
-        ? prev.length > 1
-          ? prev.filter((a) => a !== act)
-          : prev
-        : [...prev, act]
-    );
+    setSelectedActivityTypes((prev) => {
+      if (prev.includes(act)) {
+        if (prev.length > 1 || otherActivityText.trim() || otherActivityChecked) {
+          return prev.filter((a) => a !== act);
+        }
+        return prev;
+      }
+      return [...prev, act];
+    });
   };
 
   // Intervention strategy multi-select toggle
   const toggleIntervention = (strat: string) => {
-    setSelectedInterventions((prev) =>
-      prev.includes(strat)
-        ? prev.length > 1
-          ? prev.filter((s) => s !== strat)
-          : prev
-        : [...prev, strat]
-    );
+    setSelectedInterventions((prev) => {
+      if (prev.includes(strat)) {
+        if (prev.length > 1 || otherStrategyText.trim() || otherStrategyChecked) {
+          return prev.filter((s) => s !== strat);
+        }
+        return prev;
+      }
+      return [...prev, strat];
+    });
   };
 
   // Handle Assessment Tool Upload with compression
@@ -228,8 +243,55 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
     }
 
     const effectiveCompetency = focusCompetency.trim() || targetStudent.focusTopic || 'Target Learning Competency Mastery';
-    const effectiveActivities = selectedActivityTypes.length > 0 ? selectedActivityTypes : ['Remedial Hands-on Practice'];
-    const effectiveInterventions = selectedInterventions.length > 0 ? selectedInterventions : ['Task Simplification'];
+
+    // Helper to format custom encoded "Others:" entries
+    const formatCustomEntry = (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return '';
+      return trimmed.toLowerCase().startsWith('others:') ? trimmed : `Others: ${trimmed}`;
+    };
+
+    // Process Activity Types including encoded 'Others'
+    let effectiveActivities = [...selectedActivityTypes];
+    const hasCustomActivity = otherActivityChecked || !!otherActivityText.trim();
+    if (hasCustomActivity) {
+      const customTrimmed = otherActivityText.trim();
+      if (!customTrimmed && otherActivityChecked) {
+        setError("Please encode your custom activity type in the 'OTHERS:' field, or uncheck the box.");
+        formRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+      if (customTrimmed) {
+        const formatted = formatCustomEntry(customTrimmed);
+        if (!effectiveActivities.includes(formatted)) {
+          effectiveActivities.push(formatted);
+        }
+      }
+    }
+    if (effectiveActivities.length === 0) {
+      effectiveActivities = ['Remedial Hands-on Practice'];
+    }
+
+    // Process Intervention Strategies including encoded 'Others'
+    let effectiveInterventions = [...selectedInterventions];
+    const hasCustomStrategy = otherStrategyChecked || !!otherStrategyText.trim();
+    if (hasCustomStrategy) {
+      const customTrimmed = otherStrategyText.trim();
+      if (!customTrimmed && otherStrategyChecked) {
+        setError("Please encode your custom intervention / teaching strategy in the 'OTHERS:' field, or uncheck the box.");
+        formRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+      if (customTrimmed) {
+        const formatted = formatCustomEntry(customTrimmed);
+        if (!effectiveInterventions.includes(formatted)) {
+          effectiveInterventions.push(formatted);
+        }
+      }
+    }
+    if (effectiveInterventions.length === 0) {
+      effectiveInterventions = ['Task Simplification'];
+    }
 
     const safeRaw = Number(rawScore) >= 0 ? Number(rawScore) : 0;
     const safeTotal = Number(totalItems) > 0 ? Number(totalItems) : 20;
@@ -284,6 +346,10 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
     setMovs([]);
     setAssessmentTool(undefined);
     setAssessmentToolCaption('');
+    setOtherActivityText('');
+    setOtherActivityChecked(false);
+    setOtherStrategyText('');
+    setOtherStrategyChecked(false);
     setError('');
     onClose();
   };
@@ -490,7 +556,7 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
                 </span>
               </div>
               <span className="text-[11px] font-semibold text-emerald-700">
-                ({selectedActivityTypes.length} selected)
+                ({selectedActivityTypes.length + (otherActivityChecked || otherActivityText.trim() ? 1 : 0)} selected)
               </span>
             </div>
 
@@ -550,6 +616,80 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
                 );
               })}
             </div>
+
+            {/* OTHERS: Custom Activity Type Encoded by Teacher */}
+            <div
+              className={`rounded-xl border p-3 sm:p-3.5 transition-all ${
+                otherActivityChecked || otherActivityText.trim()
+                  ? 'bg-emerald-50/90 border-emerald-400 ring-2 ring-emerald-500/20 shadow-xs'
+                  : 'bg-slate-50/80 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={otherActivityChecked || !!otherActivityText.trim()}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setOtherActivityChecked(checked);
+                      if (!checked) {
+                        setOtherActivityText('');
+                      }
+                    }}
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                  />
+                  <span className="text-emerald-950 font-black text-xs sm:text-sm flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    OTHERS:
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-600">
+                    Encode Custom Activity Type
+                  </span>
+                </label>
+                {(otherActivityChecked || otherActivityText.trim()) && (
+                  <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-300">
+                    Custom Activity Added
+                  </span>
+                )}
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  value={otherActivityText}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setOtherActivityText(val);
+                    if (val.trim()) {
+                      setOtherActivityChecked(true);
+                    }
+                  }}
+                  onFocus={() => {
+                    if (!otherActivityChecked) setOtherActivityChecked(true);
+                  }}
+                  placeholder="Encode custom activity type (e.g. Diagnostic Speed Drill, Board Simulation, Multimedia Critique, etc.)"
+                  className="w-full pl-3 pr-8 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 font-semibold placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-xs"
+                />
+                {otherActivityText && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOtherActivityText('');
+                      setOtherActivityChecked(false);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                    title="Clear custom activity"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <p className="text-[10.5px] text-slate-500 mt-1.5 flex items-center gap-1">
+                <Info className="w-3 h-3 text-emerald-600 shrink-0" />
+                This custom activity will automatically be encoded and saved in the learner's anecdotal record and progress reports.
+              </p>
+            </div>
           </div>
 
           {/* REQUIREMENT 2 (cont.): Intervention & Teaching Strategies with Descriptions & Hover Buttons */}
@@ -564,7 +704,7 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
                 </span>
               </div>
               <span className="text-[11px] font-semibold text-blue-700">
-                ({selectedInterventions.length} selected)
+                ({selectedInterventions.length + (otherStrategyChecked || otherStrategyText.trim() ? 1 : 0)} selected)
               </span>
             </div>
 
@@ -623,6 +763,80 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
                   </div>
                 );
               })}
+            </div>
+
+            {/* OTHERS: Custom Intervention & Teaching Strategy Encoded by Teacher */}
+            <div
+              className={`rounded-xl border p-3 sm:p-3.5 transition-all ${
+                otherStrategyChecked || otherStrategyText.trim()
+                  ? 'bg-blue-50/90 border-blue-400 ring-2 ring-blue-500/20 shadow-xs'
+                  : 'bg-slate-50/80 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={otherStrategyChecked || !!otherStrategyText.trim()}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setOtherStrategyChecked(checked);
+                      if (!checked) {
+                        setOtherStrategyText('');
+                      }
+                    }}
+                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                  />
+                  <span className="text-blue-950 font-black text-xs sm:text-sm flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                    OTHERS:
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-600">
+                    Encode Custom Intervention or Teaching Strategy
+                  </span>
+                </label>
+                {(otherStrategyChecked || otherStrategyText.trim()) && (
+                  <span className="text-[10px] font-extrabold text-blue-800 bg-blue-100/90 px-2 py-0.5 rounded-full border border-blue-300">
+                    Custom Strategy Added
+                  </span>
+                )}
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  value={otherStrategyText}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setOtherStrategyText(val);
+                    if (val.trim()) {
+                      setOtherStrategyChecked(true);
+                    }
+                  }}
+                  onFocus={() => {
+                    if (!otherStrategyChecked) setOtherStrategyChecked(true);
+                  }}
+                  placeholder="Encode custom strategy (e.g. Peer-Led Reciprocal Questioning, Kinesthetic Modeling, Mnemonics Drill, etc.)"
+                  className="w-full pl-3 pr-8 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 font-semibold placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-xs"
+                />
+                {otherStrategyText && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOtherStrategyText('');
+                      setOtherStrategyChecked(false);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                    title="Clear custom strategy"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <p className="text-[10.5px] text-slate-500 mt-1.5 flex items-center gap-1">
+                <Info className="w-3 h-3 text-blue-600 shrink-0" />
+                This custom intervention strategy will automatically be encoded and saved in the learner's anecdotal record and progress reports.
+              </p>
             </div>
           </div>
 

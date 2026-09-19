@@ -34,6 +34,7 @@ import {
   FileSpreadsheet,
   Printer,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 
 export type AdminActiveTab =
@@ -72,18 +73,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [settings, setSettings] = useState<SystemSettings>(() => storage.getSettings());
   const [auditLogs, setAuditLogs] = useState(() => storage.getAuditLogs());
 
-  const handleRefreshAll = () => {
-    setTeachers(storage.getAllTeachers());
-    setPrograms(storage.getPrograms());
-    setClasses(storage.getRemediationClasses());
-    setAnnouncements(storage.getAnnouncements());
-    setSettings(storage.getSettings());
-    setAuditLogs(storage.getAuditLogs());
-    onRefreshData();
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleRefreshAll = async () => {
+    setIsSyncing(true);
+    try {
+      // Force sync teachers first to ensure dashboard has latest data
+      const freshTeachers = await storage.fetchAllTeachersFromServer();
+      setTeachers(freshTeachers);
+      
+      setPrograms(storage.getPrograms());
+      setClasses(storage.getRemediationClasses());
+      setAnnouncements(storage.getAnnouncements());
+      setSettings(storage.getSettings());
+      setAuditLogs(storage.getAuditLogs());
+      onRefreshData();
+      console.log('Admin dashboard refreshed successfully.');
+    } catch (error) {
+      console.error('Error refreshing admin dashboard:', error);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   useEffect(() => {
     handleRefreshAll();
+    
+    // Set up auto-polling every 30 seconds
+    const interval = setInterval(handleRefreshAll, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const navItems = [
@@ -130,6 +148,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* Quick Header Actions */}
           <div className="flex items-center gap-2.5 flex-wrap">
+            <button
+              type="button"
+              onClick={handleRefreshAll}
+              disabled={isSyncing}
+              className={`px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition flex items-center gap-2 shadow-sm border border-emerald-800 cursor-pointer ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing ? 'SYNCING...' : 'FORCE SYNC'}
+            </button>
             <button
               type="button"
               onClick={() => setActiveTab('analytics')}

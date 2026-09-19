@@ -129,7 +129,7 @@ export const ClassProgressDashboard: React.FC<ClassProgressDashboardProps> = ({
             Class / Section Progress & Mastery Dashboard
           </h2>
           <p className="text-xs text-slate-500">
-            Student Monitoring and Intervention for Learning Enhancement &bull; RMCHS TLE Department
+            Student Monitoring and Intervention for Learning Enhancement &bull; Ramon Magsaysay (Cubao) High School
           </p>
         </div>
 

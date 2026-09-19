@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Student, SessionRecord, interpretMasteryLevel } from '../../types';
+import { Student, SessionRecord, TeacherProfile, interpretMasteryLevel } from '../../types';
 import {
   GraduationCap,
   Search,
@@ -20,12 +20,14 @@ import {
 interface AdminStudentMonitoringProps {
   students: Student[];
   sessions: SessionRecord[];
+  teachers?: TeacherProfile[];
   onSelectStudent?: (student: Student) => void;
 }
 
 export const AdminStudentMonitoring: React.FC<AdminStudentMonitoringProps> = ({
   students,
   sessions,
+  teachers = [],
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [gradeFilter, setGradeFilter] = useState('all');
@@ -37,8 +39,13 @@ export const AdminStudentMonitoring: React.FC<AdminStudentMonitoringProps> = ({
 
   const activeStudents = students.filter((s) => !s.isArchived);
 
-  // Unique teacher emails
-  const teacherEmails = Array.from(new Set(activeStudents.map((s) => s.teacherEmail || 'shirlene.mandapat@depedqc.ph'))).filter(Boolean);
+  // Unique teacher emails gathered from both registered faculty accounts and active student profiles
+  const allTeacherEmails = Array.from(
+    new Set([
+      ...teachers.map((t) => (t.email || '').toLowerCase().trim()),
+      ...activeStudents.map((s) => (s.teacherEmail || 'shirlene.mandapat@depedqc.ph').toLowerCase().trim()),
+    ])
+  ).filter(Boolean);
 
   // Filtered Students
   const filteredStudents = activeStudents.filter((s) => {
@@ -158,7 +165,7 @@ export const AdminStudentMonitoring: React.FC<AdminStudentMonitoringProps> = ({
               </select>
             </div>
 
-            {teacherEmails.length > 1 && (
+            {allTeacherEmails.length > 1 && (
               <div className="pt-1">
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                   Filter by Teacher Account:
@@ -168,12 +175,18 @@ export const AdminStudentMonitoring: React.FC<AdminStudentMonitoringProps> = ({
                   onChange={(e) => setTeacherFilter(e.target.value)}
                   className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-700 font-semibold focus:outline-none"
                 >
-                  <option value="all">All Teachers ({teacherEmails.length})</option>
-                  {teacherEmails.map((email) => (
-                    <option key={email} value={email}>
-                      {email}
-                    </option>
-                  ))}
+                  <option value="all">All Teachers ({allTeacherEmails.length})</option>
+                  {allTeacherEmails.map((email) => {
+                    const matchedTeacher = teachers.find(
+                      (t) => (t.email || '').toLowerCase().trim() === email
+                    );
+                    const displayName = matchedTeacher ? `${matchedTeacher.name} (${email})` : email;
+                    return (
+                      <option key={email} value={email}>
+                        {displayName}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             )}

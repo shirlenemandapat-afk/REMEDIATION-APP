@@ -77,22 +77,7 @@ export const storage = {
       };
     }
 
-    // Clean up any legacy prefilled demo faculty accounts from storage
-    const legacyMockTeachers = [
-      'eduardo.reyes@depedqc.ph',
-      'maria.santos@depedqc.ph',
-      'juan.delacruz@depedqc.ph',
-      'corazon.santos@depedqc.ph',
-    ];
-    let changed = false;
-    legacyMockTeachers.forEach((email) => {
-      if (accounts[email.toLowerCase()]) {
-        delete accounts[email.toLowerCase()];
-        changed = true;
-      }
-    });
-
-    if (changed || !localStorage.getItem(STORAGE_KEYS.REGISTERED_ACCOUNTS)) {
+    if (!localStorage.getItem(STORAGE_KEYS.REGISTERED_ACCOUNTS)) {
       localStorage.setItem(STORAGE_KEYS.REGISTERED_ACCOUNTS, JSON.stringify(accounts));
     }
     return accounts;
@@ -127,6 +112,60 @@ export const storage = {
     const accounts = this.getRegisteredAccounts();
     const list: TeacherProfile[] = Object.values(accounts);
     return list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  },
+
+  async fetchAllTeachersFromServer(): Promise<TeacherProfile[]> {
+    const accounts = this.getRegisteredAccounts();
+
+    // 1. Fetch from local server db
+    try {
+      const res = await fetch('/api/accounts');
+      if (res.ok) {
+        const json = await res.json();
+        const serverList: TeacherProfile[] =
+          json.list ||
+          (json.accounts
+            ? Array.isArray(json.accounts)
+              ? json.accounts
+              : Object.values(json.accounts)
+            : []);
+
+        if (serverList && serverList.length > 0) {
+          serverList.forEach((t) => {
+            if (t && t.email) {
+              const norm = t.email.trim().toLowerCase();
+              accounts[norm] = {
+                ...(accounts[norm] || {}),
+                ...t,
+                isPasswordSet: true,
+              };
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Could not fetch registered accounts from server:', e);
+    }
+
+    // 2. Fetch from Supabase
+    try {
+      const cloudTeachers = await supabaseService.fetchAllTeachers();
+      if (cloudTeachers && cloudTeachers.length > 0) {
+        cloudTeachers.forEach((t) => {
+          if (t && t.email) {
+            const norm = t.email.toLowerCase().trim();
+            accounts[norm] = { ...(accounts[norm] || {}), ...t, isPasswordSet: true };
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Supabase sync optional', e);
+    }
+
+    this.saveRegisteredAccounts(accounts);
+    return Object.values(accounts).sort((a, b) =>
+      (a.name || '').localeCompare(b.name || '')
+    );
   },
 
   // --- ADMIN FACULTY MANAGEMENT ---
@@ -814,6 +853,13 @@ export const storage = {
           email: profile.email.trim(),
         };
         this.saveRegisteredAccounts(accounts);
+
+        // Immediate background sync to server database
+        fetch('/api/sync/all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accounts: { [norm]: profile } }),
+        }).catch(() => {});
       }
     } catch (e) {
       console.error('Error saving teacher profile', e);
@@ -857,7 +903,7 @@ export const storage = {
             this.saveRegisteredAccounts(merged);
           }
           if (Array.isArray(students) && students.length > 0) {
-            const localStudents = this.getStudents();
+            const localStudents = this.getAllStudents();
             const studentMap = new Map();
             localStudents.forEach((s) => studentMap.set(s.id, s));
             students.forEach((s: Student) => studentMap.set(s.id, s));
@@ -865,7 +911,7 @@ export const storage = {
             localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(mergedStudents));
           }
           if (Array.isArray(sessions) && sessions.length > 0) {
-            const localSessions = this.getSessions();
+            const localSessions = this.getAllSessions();
             const sessionMap = new Map();
             localSessions.forEach((s) => sessionMap.set(s.id, s));
             sessions.forEach((s: SessionRecord) => sessionMap.set(s.id, s));
@@ -893,6 +939,37 @@ export const storage = {
             localStorage.setItem(STORAGE_KEYS.SYSTEM_SETTINGS, JSON.stringify(systemSettings));
           }
         }
+      }
+
+      // Explicitly sync all registered faculty accounts from the dedicated server endpoint
+      try {
+        const accRes = await fetch('/api/accounts');
+        if (accRes.ok) {
+          const accJson = await accRes.json();
+          const serverList: TeacherProfile[] =
+            accJson.list ||
+            (accJson.accounts
+              ? Array.isArray(accJson.accounts)
+                ? accJson.accounts
+                : Object.values(accJson.accounts)
+              : []);
+          if (serverList && serverList.length > 0) {
+            const local = this.getRegisteredAccounts();
+            serverList.forEach((t) => {
+              if (t && t.email) {
+                const norm = t.email.trim().toLowerCase();
+                local[norm] = {
+                  ...(local[norm] || {}),
+                  ...t,
+                  isPasswordSet: true,
+                };
+              }
+            });
+            this.saveRegisteredAccounts(local);
+          }
+        }
+      } catch (err) {
+        console.warn('Sync /api/accounts notice:', err);
       }
 
       // Also check Supabase for any registered teacher profiles if configured
@@ -1071,12 +1148,23 @@ export const storage = {
         localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, email.trim());
         this.saveTeacherProfile(profile);
         this.setLoggedIn(true);
+
+        // Record audit log for faculty login
+        this.addAuditLog(
+          cleanEmail,
+          'TEACHER_LOGGED_IN',
+          `Faculty login: ${profile.name} (${cleanEmail}) accessed Project S.M.I.L.E. Portal.`,
+          cleanEmail
+        );
+
+        // Background sync to ensure all teacher accounts and rosters are aligned
+        this.syncFromServer().catch(() => {});
+
         return { success: true, profile };
       } else {
-        // Return clear failure message; do NOT auto-create account
         return {
           success: false,
-          message: json.message || 'Account not found. New teachers must register and set up their account first before signing in. Please switch to the "Register / Setup" tab.',
+          message: json.message || 'Login failed. Please check your credentials.',
         };
       }
     } catch (err) {
@@ -1200,6 +1288,15 @@ export const storage = {
         localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, email.trim());
         this.saveTeacherProfile(account);
         this.setLoggedIn(true);
+
+        // Record audit log for local login
+        this.addAuditLog(
+          norm,
+          'TEACHER_LOGGED_IN',
+          `Faculty login: ${account.name} (${norm}) accessed Project S.M.I.L.E. Portal.`,
+          norm
+        );
+
         return { success: true, profile: account };
       } else {
         return {
@@ -1209,11 +1306,15 @@ export const storage = {
       }
     }
 
-    // Account not registered yet. New teachers must register and set up their account first.
-    return {
-      success: false,
-      message: 'Account not found. New teachers must register and set up their account first before signing in. Please switch to the "Register / Setup" tab.',
-    };
+    // Auto-provision teacher account so they are immediately accounted for in the admin portal!
+    const newProf = this.setPassword(email, password);
+    this.addAuditLog(
+      norm,
+      'TEACHER_LOGGED_IN',
+      `Faculty login: ${newProf.name} (${norm}) accessed Project S.M.I.L.E. Portal.`,
+      norm
+    );
+    return { success: true, profile: newProf };
   },
 
   // Safe Quick Demo Login without wiping or corrupting registered teacher accounts
@@ -1249,6 +1350,21 @@ export const storage = {
     const norm = email.trim().toLowerCase();
     localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, norm);
     localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, email);
+  },
+
+  getActiveUserEmail(): string | null {
+    try {
+      const email = localStorage.getItem(STORAGE_KEYS.ACTIVE_USER_EMAIL) || sessionStorage.getItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
+      if (email) return email.toLowerCase().trim();
+      const teacher = localStorage.getItem(STORAGE_KEYS.TEACHER);
+      if (teacher) {
+        const parsed = JSON.parse(teacher);
+        if (parsed?.email) return parsed.email.toLowerCase().trim();
+      }
+      return null;
+    } catch {
+      return null;
+    }
   },
 
   switchActiveAccount(email: string): TeacherProfile {

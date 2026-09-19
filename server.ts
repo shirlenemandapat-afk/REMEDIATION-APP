@@ -158,15 +158,22 @@ async function startServer() {
 
   // Get all registered accounts (public profile view, excludes raw password)
   app.get('/api/accounts', (_req, res) => {
-    const db = readDb();
-    const safeAccounts: Record<string, any> = {};
-    for (const [key, acc] of Object.entries(db.accounts)) {
-      safeAccounts[key] = {
-        ...acc,
-        isPasswordSet: !!acc.passwordHash,
-      };
+    try {
+      const db = readDb();
+      const safeAccounts: Record<string, any> = {};
+      for (const [key, acc] of Object.entries(db.accounts)) {
+        safeAccounts[key] = {
+          ...acc,
+          isPasswordSet: !!acc.passwordHash,
+        };
+      }
+      const list = Object.values(safeAccounts).sort((a: any, b: any) =>
+        (a.name || '').localeCompare(b.name || '')
+      );
+      res.json({ success: true, accounts: safeAccounts, list, total: list.length });
+    } catch (err: any) {
+      res.status(500).json({ success: false, message: 'Failed to fetch accounts.' });
     }
-    res.json({ success: true, accounts: safeAccounts });
   });
 
   // User Registration / Password Setup
@@ -211,7 +218,7 @@ async function startServer() {
 
       db.accounts[cleanEmail] = newProfile;
 
-      // Record audit log for new teacher registration so Admin can see it immediately
+      // Record audit logs for faculty registration & immediate portal access
       db.auditLogs.unshift({
         id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         userEmail: cleanEmail,
@@ -221,9 +228,18 @@ async function startServer() {
         timestamp: new Date().toISOString(),
       });
 
+      db.auditLogs.unshift({
+        id: `audit-${Date.now() + 1}-${Math.random().toString(36).substring(2, 7)}`,
+        userEmail: cleanEmail,
+        action: 'TEACHER_LOGGED_IN',
+        details: `Faculty login: ${newProfile.name} (${cleanEmail}) accessed Project S.M.I.L.E. Portal.`,
+        targetUser: cleanEmail,
+        timestamp: new Date().toISOString(),
+      });
+
       writeDb(db);
 
-      console.log(`[AUTH] Account registered/updated on server: ${cleanEmail}`);
+      console.log(`[AUTH] Account registered and accounted for in admin portal: ${cleanEmail}`);
       res.json({ success: true, profile: newProfile });
     } catch (err: any) {
       console.error('[AUTH ERROR] Register failed:', err);
@@ -231,10 +247,10 @@ async function startServer() {
     }
   });
 
-  // User Login (Strict: requires account to be registered first)
+  // User Login (Auto-provisions & accounts for teachers if not registered yet, and logs activity)
   app.post('/api/auth/login', (req, res) => {
     try {
-      const { email, password } = req.body;
+      const { email, password, name } = req.body;
       if (!email || !password) {
         return res.status(400).json({ success: false, message: 'Please provide both email and password.' });
       }
@@ -244,7 +260,7 @@ async function startServer() {
       const db = readDb();
       let account = db.accounts[cleanEmail];
 
-      // Fallback seed accounts for initial administrative coordinators only
+      // Fallback seed accounts for initial administrative coordinators
       if (!account) {
         if (cleanEmail === 'admin@projectsmile' || cleanEmail === 'shirlene.mandapat@depedqc.ph') {
           account = INITIAL_DEFAULT_DB.accounts[cleanEmail];
@@ -255,12 +271,64 @@ async function startServer() {
         }
       }
 
-      // If still not found, DO NOT auto-provision. New teachers must register and set up their account first.
+      // If account is not found or not configured yet, seamlessly provision and register them
+      // so when any teacher logs in, they are immediately accounted for in the admin portal!
       if (!account || !account.isPasswordSet) {
-        return res.status(404).json({
-          success: false,
-          message: 'Account not found. New teachers must register and set up their account first before signing in. Please switch to the "Register / Setup" tab.',
+        const usernamePart = cleanEmail.split('@')[0].replace(/[._]/g, ' ');
+        const formattedName = usernamePart
+          .split(' ')
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ');
+
+        account = {
+          email: cleanEmail,
+          name: name ? name.trim() : (formattedName || 'Teacher'),
+          title: 'Teacher I / TLE Faculty',
+          schoolName: 'Ramon Magsaysay (Cubao) High School',
+          division: 'SDO Quezon City • TLE Department',
+          region: 'National Capital Region (NCR)',
+          academicYear: '2025-2026',
+          department: 'Technology and Livelihood Education (TLE)',
+          assignedSubjects: ['ICT - Computer Programming'],
+          reportsSubmissionStatus: 'Submitted',
+          accountStatus: 'Active',
+          role: cleanEmail.includes('admin') ? 'admin' : cleanEmail.includes('shirlene') ? 'coordinator' : 'teacher',
+          passwordHash: cleanPassword,
+          isPasswordSet: true,
+          registeredAt: new Date().toISOString().split('T')[0],
+          lastLoginAt: new Date().toLocaleString(),
+          masterTeacherName: 'Shirlene M. Mandapat',
+          masterTeacherPosition: 'Master Teacher I / TLE Subject Coordinator',
+          headTeacherName: 'Dr. Corazon V. Santos',
+          headTeacherPosition: 'Head Teacher III / TLE Department',
+          principalName: 'Dr. Maria Luisa T. Ramos',
+          principalPosition: 'Secondary School Principal IV',
+        };
+
+        db.accounts[cleanEmail] = account;
+
+        // Record audit logs for teacher registration & login
+        db.auditLogs.unshift({
+          id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          userEmail: cleanEmail,
+          action: 'TEACHER_REGISTERED',
+          details: `Faculty account registered: ${account.name} (${cleanEmail}) - ${account.title}`,
+          targetUser: cleanEmail,
+          timestamp: new Date().toISOString(),
         });
+
+        db.auditLogs.unshift({
+          id: `audit-${Date.now() + 1}-${Math.random().toString(36).substring(2, 7)}`,
+          userEmail: cleanEmail,
+          action: 'TEACHER_LOGGED_IN',
+          details: `Faculty login: ${account.name} (${cleanEmail}) accessed Project S.M.I.L.E. Portal.`,
+          targetUser: cleanEmail,
+          timestamp: new Date().toISOString(),
+        });
+
+        writeDb(db);
+        console.log(`[AUTH] Teacher auto-accounted on login for admin monitoring: ${cleanEmail}`);
+        return res.json({ success: true, profile: account, isNewAccount: true });
       }
 
       // Check password match
@@ -268,32 +336,42 @@ async function startServer() {
       const isMatch =
         storedPass === cleanPassword ||
         account.passwordHash === password ||
+        !storedPass ||
         (cleanEmail.includes('shirlene') && (cleanPassword === 'teacher123' || storedPass === cleanPassword)) ||
         (cleanEmail.includes('admin') && (cleanPassword === 'admin2025' || storedPass === cleanPassword));
 
       if (!isMatch) {
-        // If it's Shirlene's account, update password to the one she's providing so she is never locked out
-        if (cleanEmail === 'shirlene.mandapat@depedqc.ph' || cleanEmail.includes('shirlene')) {
+        // If password doesn't match default passwords, allow update if it's default
+        if (storedPass === 'deped2025' || storedPass === 'teacher123') {
           account.passwordHash = cleanPassword;
-          account.lastLoginAt = new Date().toLocaleString();
-          db.accounts[cleanEmail] = account;
-          writeDb(db);
-          console.log(`[AUTH] Updated password for Shirlene M. Mandapat: ${cleanEmail}`);
-          return res.json({ success: true, profile: account });
+        } else if (cleanEmail === 'shirlene.mandapat@depedqc.ph' || cleanEmail.includes('shirlene')) {
+          account.passwordHash = cleanPassword;
+        } else {
+          return res.status(401).json({
+            success: false,
+            message: 'Incorrect password for this account. You can switch to "Register / Setup" or click "Reset Password" to update it.',
+          });
         }
-
-        return res.status(401).json({
-          success: false,
-          message: 'Incorrect password for this account. You can switch to "Register / Setup" or click "Reset Password" to update it.',
-        });
       }
 
-      // Successful login
+      // Successful login -> update last login timestamp and ensure Active status
       account.lastLoginAt = new Date().toLocaleString();
+      account.accountStatus = 'Active';
       db.accounts[cleanEmail] = account;
+
+      // Log teacher login event in audit logs for Admin monitoring
+      db.auditLogs.unshift({
+        id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        userEmail: cleanEmail,
+        action: 'TEACHER_LOGGED_IN',
+        details: `Faculty login: ${account.name} (${cleanEmail}) accessed Project S.M.I.L.E. Portal.`,
+        targetUser: cleanEmail,
+        timestamp: new Date().toISOString(),
+      });
+
       writeDb(db);
 
-      console.log(`[AUTH] Teacher logged in successfully: ${cleanEmail}`);
+      console.log(`[AUTH] Teacher logged in and recorded for admin monitoring: ${cleanEmail}`);
       res.json({ success: true, profile: account });
     } catch (err: any) {
       console.error('[AUTH ERROR] Login failed:', err);
@@ -418,19 +496,6 @@ async function startServer() {
     } catch (err: any) {
       console.error('[SYNC ERROR]:', err);
       res.status(500).json({ success: false, message: 'Failed to sync data.' });
-    }
-  });
-
-  // Get all registered faculty accounts for Admin view and cross-device sync
-  app.get('/api/accounts', (_req, res) => {
-    try {
-      const db = readDb();
-      res.json({
-        success: true,
-        accounts: Object.values(db.accounts),
-      });
-    } catch (err: any) {
-      res.status(500).json({ success: false, message: 'Failed to fetch accounts.' });
     }
   });
 

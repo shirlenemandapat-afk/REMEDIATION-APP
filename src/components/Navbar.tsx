@@ -22,7 +22,6 @@ import {
   Database,
   Cloud,
   UserCheck,
-  ShieldCheck,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -523,8 +522,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
-                      {teacher.email === 'admin@projectsmile' || teacher.role === 'admin' ? (
+                    {(teacher.email === 'admin@projectsmile' || teacher.role === 'admin') && (
+                      <div className="flex items-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => {
@@ -539,23 +538,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                           <UserCheck className="w-3.5 h-3.5" />
                           Switch to Teacher View
                         </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const p = storage.switchActiveAccount('admin@projectsmile');
-                            onUpdateTeacher(p);
-                            setEditName(p.name);
-                            setEditTitle(p.title);
-                            setSaveSuccess('Switched to TLE Department Admin console.');
-                          }}
-                          className="px-2.5 py-1.5 text-[11px] font-bold bg-purple-900 hover:bg-purple-950 text-yellow-300 rounded-lg transition shadow-xs cursor-pointer flex items-center gap-1"
-                        >
-                          <ShieldCheck className="w-3.5 h-3.5" />
-                          Switch to Admin View
-                        </button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
 
                   <div>
