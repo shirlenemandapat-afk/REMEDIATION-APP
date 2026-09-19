@@ -762,7 +762,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                     <div className="pt-1">
                       <span className="text-[11px] font-bold text-slate-500 block mb-1">Quick Select from Remediation Programs:</span>
                       <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                        {Array.from(new Set(programs.map((p) => p.title))).map((title) => {
+                        {Array.from(new Set<string>(programs.map((p) => p.title))).map((title: string) => {
                           const isAlreadyAdded = newAssignedSubjects.includes(title);
                           return (
                             <button
@@ -949,7 +949,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                     <div className="pt-1">
                       <span className="text-[11px] font-bold text-slate-500 block mb-1">Quick Select from Remediation Programs:</span>
                       <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                        {Array.from(new Set(programs.map((p) => p.title))).map((title) => {
+                        {Array.from(new Set<string>(programs.map((p) => p.title))).map((title: string) => {
                           const isAlreadyAdded = editAssignedSubjects.includes(title);
                           return (
                             <button
@@ -1318,7 +1318,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                   <div className="pt-1">
                     <span className="text-[11px] font-bold text-slate-500 block mb-1">Quick Select from Remediation Programs:</span>
                     <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                      {Array.from(new Set(programs.map((p) => p.title))).map((title) => {
+                      {Array.from(new Set<string>(programs.map((p) => p.title))).map((title: string) => {
                         const isAlreadyAdded = selectedSubjects.includes(title);
                         return (
                           <button

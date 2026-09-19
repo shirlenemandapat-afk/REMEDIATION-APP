@@ -269,8 +269,19 @@ export interface SessionRecord {
 
 export type UserRole = 'admin' | 'school_head' | 'coordinator' | 'teacher';
 
-export const LEARNING_AREAS = [] as const;
-export type LearningArea = string;
+export const LEARNING_AREAS = [
+  'ICT - Computer Programming',
+  'ICT - Computer Systems Servicing',
+  'ICT - Technical Drafting',
+  'Food Preservation & Processing',
+  'Cookery & Bread/Pastry',
+  'Garments & Pattern Drafting',
+  'Electronics and Electricity Servicing',
+  'Health and Wellness Caregiving',
+  'Automotive & Small Engine Servicing',
+  'General TLE / TVL Exploratory',
+] as const;
+export type LearningArea = (typeof LEARNING_AREAS)[number] | string;
 
 export interface RemediationProgram {
   id: string;

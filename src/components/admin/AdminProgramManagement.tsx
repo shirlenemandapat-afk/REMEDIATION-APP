@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RemediationProgram, TeacherProfile } from '../../types';
+import { RemediationProgram, TeacherProfile, LEARNING_AREAS, LearningArea } from '../../types';
 import { storage } from '../../services/storage';
 import {
   BookOpen,
@@ -38,6 +38,7 @@ export const AdminProgramManagement: React.FC<AdminProgramManagementProps> = ({
   // Create Program Modal
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [title, setTitle] = useState('');
+  const [learningArea, setLearningArea] = useState<LearningArea>(LEARNING_AREAS[0] || 'ICT - Computer Programming');
   const [targetGradeLevel, setTargetGradeLevel] = useState('Grade 7 & 8');
   const [programObjectives, setProgramObjectives] = useState('');
   const [assignedTeacherEmails, setAssignedTeacherEmails] = useState<string[]>([]);
@@ -51,7 +52,7 @@ export const AdminProgramManagement: React.FC<AdminProgramManagementProps> = ({
   // Edit Program Modal
   const [editProgram, setEditProgram] = useState<RemediationProgram | null>(null);
   const [editTitle, setEditTitle] = useState('');
-  const [editLearningArea, setEditLearningArea] = useState<string>('');
+  const [editLearningArea, setEditLearningArea] = useState<string>(LEARNING_AREAS[0] || '');
   const [editTargetGradeLevel, setEditTargetGradeLevel] = useState('');
   const [editProgramObjectives, setEditProgramObjectives] = useState('');
   const [editAssignedTeacherEmails, setEditAssignedTeacherEmails] = useState<string[]>([]);
@@ -67,9 +68,10 @@ export const AdminProgramManagement: React.FC<AdminProgramManagementProps> = ({
 
   // Filtered Programs
   const filteredPrograms = programs.filter((p) => {
+    const area = p.learningArea || '';
     const matchesSearch =
       p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.learningArea.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      area.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.programObjectives.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesArea = areaFilter === 'all' || p.learningArea === areaFilter;
