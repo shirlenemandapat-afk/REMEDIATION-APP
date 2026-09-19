@@ -241,6 +241,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             currentAdmin={currentAdmin}
             programs={programs}
             teachers={teachers}
+            students={students}
             onRefresh={handleRefreshAll}
           />
         )}

@@ -22,6 +22,7 @@ interface AdminProgramManagementProps {
   currentAdmin: TeacherProfile;
   programs: RemediationProgram[];
   teachers: TeacherProfile[];
+  students: Student[];
   onRefresh: () => void;
 }
 
@@ -29,6 +30,7 @@ export const AdminProgramManagement: React.FC<AdminProgramManagementProps> = ({
   currentAdmin,
   programs,
   teachers,
+  students,
   onRefresh,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -264,24 +266,47 @@ export const AdminProgramManagement: React.FC<AdminProgramManagementProps> = ({
         {Object.keys(teachers.reduce((acc, t) => {
           (t.assignedSubjects || []).forEach(sub => {
             if (!acc[sub]) acc[sub] = [];
-            acc[sub].push(t.name);
+            acc[sub].push(t);
           });
           return acc;
-        }, {} as Record<string, string[]>)).map((area) => {
+        }, {} as Record<string, TeacherProfile[]>)).map((area) => {
           const programsInArea = filteredPrograms.filter(p => p.learningArea === area);
-          const teachersInArea = teachers.filter(t => t.assignedSubjects?.includes(area)).map(t => t.name);
+          const teachersInArea = teachers.filter(t => t.assignedSubjects?.includes(area));
 
           // Only display areas that have either programs or teachers assigned
           if (programsInArea.length === 0 && teachersInArea.length === 0) return null;
 
           return (
-            <div key={area} className="space-y-3">
-              <div className="bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-100 flex items-center justify-between">
-                <h3 className="text-sm font-extrabold text-emerald-900 uppercase tracking-wide">
-                  {area} Remediation
-                </h3>
-                <div className="text-[11px] font-semibold text-emerald-800 bg-white px-2 py-1 rounded-lg border border-emerald-200">
-                  Teachers: {teachersInArea.length > 0 ? teachersInArea.join(', ') : 'None assigned'}
+            <div key={area} className="space-y-4">
+              {/* Summary Card for the Subject Area */}
+              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-extrabold text-emerald-950">{area} Remediation Overview</h3>
+                    <span className="text-[10px] font-bold bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        {teachersInArea.length} Teachers Assigned
+                    </span>
+                </div>
+                
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white p-3 rounded-xl border border-emerald-100">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Assigned Faculty List</p>
+                    <p className="text-xs font-semibold text-slate-800 mt-1">{teachersInArea.length > 0 ? teachersInArea.map(t => t.name).join(', ') : 'None assigned'}</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl border border-emerald-100">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Enrollment per Teacher</p>
+                    <div className="mt-1 space-y-1">
+                      {teachersInArea.map(teacher => {
+                        const count = students.filter(s => s.teacherEmail === teacher.email && s.subject.includes(area)).length;
+                        return (
+                          <div key={teacher.email} className="flex justify-between text-[11px]">
+                            <span className="text-slate-700 font-medium">{teacher.name}</span>
+                            <span className="text-emerald-700 font-bold">{count} student{count === 1 ? '' : 's'}</span>
+                          </div>
+                        )
+                      })}
+                      {teachersInArea.length === 0 && <p className="text-xs text-slate-400 italic">No faculty assigned</p>}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -320,23 +345,30 @@ export const AdminProgramManagement: React.FC<AdminProgramManagementProps> = ({
                           </div>
                         </div>
 
-                        <div className="space-y-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="flex items-center gap-1 text-slate-500">
-                              <Calendar className="w-3.5 h-3.5 text-slate-400" /> Schedule:
-                            </span>
-                            <span className="font-semibold text-slate-800">{prog.scheduleDescription}</span>
-                          </div>
+                          <div className="space-y-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="flex items-center gap-1 text-slate-500">
+                                <Calendar className="w-3.5 h-3.5 text-slate-400" /> Schedule:
+                              </span>
+                              <span className="font-semibold text-slate-800">{prog.scheduleDescription}</span>
+                            </div>
 
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="flex items-center gap-1 text-slate-500">
-                              <Users className="w-3.5 h-3.5 text-slate-400" /> Assigned Faculty:
-                            </span>
-                            <span className="font-semibold text-slate-800 text-right truncate max-w-[180px]">
-                              {prog.assignedTeacherNames?.join(', ') || 'None assigned'}
-                            </span>
+                            <div className="space-y-1">
+                              <span className="flex items-center gap-1 text-slate-500 text-[11px]">
+                                <Users className="w-3.5 h-3.5 text-slate-400" /> Faculty & Student Load:
+                              </span>
+                              {prog.assignedTeacherEmails.map((email) => {
+                                const teacherName = teachers.find(t => t.email === email)?.name || email;
+                                const studentCount = students.filter(s => s.teacherEmail === email && s.subject.includes(prog.learningArea || '')).length;
+                                return (
+                                  <div key={email} className="flex justify-between text-[10px] pl-4 font-medium text-slate-700">
+                                    <span>{teacherName}</span>
+                                    <span className="bg-slate-100 px-1.5 rounded">{studentCount} students</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
                       </div>
                     );
                   })}
