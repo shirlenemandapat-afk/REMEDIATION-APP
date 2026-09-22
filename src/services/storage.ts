@@ -23,7 +23,7 @@ import {
   INITIAL_ANNOUNCEMENTS,
   DEFAULT_SYSTEM_SETTINGS,
 } from '../data/mockData';
-import { supabaseService } from './supabase';
+import { supabaseService, saveSupabaseConfig, isSupabaseConfigured } from './supabase';
 
 const STORAGE_KEYS = {
   TEACHER: 'remediation_app_teacher',
@@ -1002,19 +1002,30 @@ export const storage = {
     }
   },
 
-  // Server data synchronization helper
-  async syncFromServer(): Promise<void> {
+  // Server data synchronization helper (Bi-directional multi-device cloud synchronization)
+  async syncFromServer(forTeacherEmail?: string): Promise<{ success: boolean; students: Student[]; sessions: SessionRecord[] }> {
+    const activeEmail = (forTeacherEmail || this.getActiveUserEmail() || '').toLowerCase().trim();
+
     try {
       const res = await fetch('/api/sync/all');
       if (res.ok) {
         const result = await res.json();
         if (result.success && result.data) {
           const { accounts, students, sessions, programs, classes, announcements, auditLogs, systemSettings } = result.data;
+          
+          if (systemSettings) {
+            localStorage.setItem(STORAGE_KEYS.SYSTEM_SETTINGS, JSON.stringify(systemSettings));
+            if (systemSettings.supabaseConfig && systemSettings.supabaseConfig.url && systemSettings.supabaseConfig.anonKey) {
+              saveSupabaseConfig(systemSettings.supabaseConfig, false);
+            }
+          }
+
           if (accounts && Object.keys(accounts).length > 0) {
             const local = this.getRegisteredAccounts();
             const merged = { ...local, ...accounts };
             this.saveRegisteredAccounts(merged);
           }
+
           if (Array.isArray(students) && students.length > 0) {
             const localStudents = this.getAllStudents();
             const studentMap = new Map();
@@ -1023,6 +1034,7 @@ export const storage = {
             const mergedStudents = Array.from(studentMap.values());
             localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(mergedStudents));
           }
+
           if (Array.isArray(sessions) && sessions.length > 0) {
             const localSessions = this.getAllSessions();
             const sessionMap = new Map();
@@ -1030,7 +1042,27 @@ export const storage = {
             sessions.forEach((s: SessionRecord) => sessionMap.set(s.id, s));
             const mergedSessions = Array.from(sessionMap.values());
             localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(mergedSessions));
+
+            // If local device had new sessions not yet on the server, push them back
+            if (localSessions.length > sessions.length) {
+              fetch('/api/sessions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessions: mergedSessions }),
+              }).catch(() => {});
+            }
+          } else if (sessions && sessions.length === 0) {
+            // Server database is empty or freshly initialized, push local sessions to server
+            const localSessions = this.getAllSessions();
+            if (localSessions.length > 0) {
+              fetch('/api/sessions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessions: localSessions }),
+              }).catch(() => {});
+            }
           }
+
           if (Array.isArray(programs) && programs.length > 0) {
             localStorage.setItem(STORAGE_KEYS.PROGRAMS, JSON.stringify(programs));
           }
@@ -1047,9 +1079,6 @@ export const storage = {
             auditLogs.forEach((l: any) => logMap.set(l.id, l));
             const mergedLogs = Array.from(logMap.values());
             localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(mergedLogs));
-          }
-          if (systemSettings) {
-            localStorage.setItem(STORAGE_KEYS.SYSTEM_SETTINGS, JSON.stringify(systemSettings));
           }
         }
       }
@@ -1085,23 +1114,51 @@ export const storage = {
         console.warn('Sync /api/accounts notice:', err);
       }
 
-      // Also check Supabase for any registered teacher profiles if configured
-      try {
-        const cloudTeachers = await supabaseService.fetchAllTeachers();
-        if (cloudTeachers && cloudTeachers.length > 0) {
-          const accounts = this.getRegisteredAccounts();
-          cloudTeachers.forEach((t) => {
-            const norm = t.email.toLowerCase();
-            accounts[norm] = { ...(accounts[norm] || {}), ...t, isPasswordSet: true };
-          });
-          this.saveRegisteredAccounts(accounts);
+      // Also check Supabase for any registered teacher profiles, students, and sessions if configured
+      if (isSupabaseConfigured()) {
+        try {
+          const cloudData = await supabaseService.fetchAll(activeEmail);
+          if (cloudData) {
+            if (cloudData.students && cloudData.students.length > 0) {
+              const localStudents = this.getAllStudents();
+              const studentMap = new Map();
+              localStudents.forEach((s) => studentMap.set(s.id, s));
+              cloudData.students.forEach((s: Student) => studentMap.set(s.id, s));
+              const merged = Array.from(studentMap.values());
+              localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(merged));
+            }
+            if (cloudData.sessions && cloudData.sessions.length > 0) {
+              const localSessions = this.getAllSessions();
+              const sessionMap = new Map();
+              localSessions.forEach((s) => sessionMap.set(s.id, s));
+              cloudData.sessions.forEach((s: SessionRecord) => sessionMap.set(s.id, s));
+              const mergedSessions = Array.from(sessionMap.values());
+              localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(mergedSessions));
+            }
+          }
+
+          const cloudTeachers = await supabaseService.fetchAllTeachers();
+          if (cloudTeachers && cloudTeachers.length > 0) {
+            const accounts = this.getRegisteredAccounts();
+            cloudTeachers.forEach((t) => {
+              const norm = t.email.toLowerCase();
+              accounts[norm] = { ...(accounts[norm] || {}), ...t, isPasswordSet: true };
+            });
+            this.saveRegisteredAccounts(accounts);
+          }
+        } catch (e) {
+          // Supabase sync optional
         }
-      } catch (e) {
-        // Supabase sync optional
       }
     } catch (e) {
       console.warn('Server sync skipped (offline mode):', e);
     }
+
+    return {
+      success: true,
+      students: this.getStudents(forTeacherEmail),
+      sessions: this.getSessions(forTeacherEmail),
+    };
   },
 
   // Setup/Register password for teacher on first login or profile update
@@ -1721,11 +1778,16 @@ export const storage = {
     const allSessions = this.getAllSessions().filter((sess) => sess.studentId !== studentId);
     localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(allSessions));
 
+    fetch(`/api/students/${studentId}`, { method: 'DELETE' }).catch(() => {});
     fetch('/api/sync/all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ students: allStudents, sessions: allSessions }),
     }).catch((e) => console.warn('Background sync delete student notice:', e));
+
+    if (isSupabaseConfigured()) {
+      supabaseService.deleteStudent(studentId).catch(() => {});
+    }
   },
 
   deleteAllArchived(): void {
@@ -1839,17 +1901,18 @@ export const storage = {
       }
     }
 
-    // Sync to server
+    // Sync to server endpoints
     try {
-      const lightweightSessions = combined.map((s) => ({
-        ...s,
-        movs: s.movs?.map((m) => ({ ...m, dataUrl: '' })),
-        assessmentTool: s.assessmentTool ? { ...s.assessmentTool, dataUrl: '' } : undefined,
-      }));
+      fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessions: combined }),
+      }).catch((e) => console.warn('Server sessions sync notice:', e));
+
       fetch('/api/sync/all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessions: lightweightSessions }),
+        body: JSON.stringify({ sessions: combined }),
       }).catch((e) => console.warn('Background sync sessions notice:', e));
     } catch (err) {
       console.warn('Silent sessions sync notice:', err);
@@ -1869,6 +1932,18 @@ export const storage = {
     allSessions.unshift(newSession);
     this.saveSessions(allSessions);
 
+    // Instant dedicated sync to server
+    fetch('/api/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session: newSession }),
+    }).catch(() => {});
+
+    // Instant sync to Supabase if connected
+    if (isSupabaseConfigured()) {
+      supabaseService.upsertSession(newSession).catch(() => {});
+    }
+
     // Automatically update student's status or baseline progress if score is high
     const allStudents = this.getAllStudents();
     const studentIndex = allStudents.findIndex((s) => s.id === sessionData.studentId);
@@ -1887,8 +1962,25 @@ export const storage = {
   },
 
   deleteSession(sessionId: string): void {
-    const sessions = this.getSessions().filter((s) => s.id !== sessionId);
-    this.saveSessions(sessions);
+    const all = this.getAllSessions().filter((s) => s.id !== sessionId);
+    try {
+      localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(all));
+    } catch (e) {
+      console.warn('Error saving local sessions after delete:', e);
+    }
+
+    // Delete from server
+    fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' }).catch(() => {});
+    fetch('/api/sync/all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessions: all }),
+    }).catch(() => {});
+
+    // Delete from Supabase if configured
+    if (isSupabaseConfigured()) {
+      supabaseService.deleteSession(sessionId).catch(() => {});
+    }
   },
 
   // Clear roster and session logs (starts with 0 students)

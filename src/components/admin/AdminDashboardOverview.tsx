@@ -154,25 +154,25 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({
           </p>
         </div>
 
-        {/* Card 3: Active Remediation Classes */}
+        {/* Card 3: Active Remediation Programs */}
         <div
-          onClick={() => navigate('classes')}
+          onClick={() => navigate('programs')}
           className="p-5 bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition cursor-pointer group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Active Classes</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Remediation Programs</span>
             <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700 group-hover:scale-105 transition">
-              <CalendarCheck className="w-5 h-5" />
+              <BookOpen className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-slate-800">{activeClasses.length}</span>
+            <span className="text-3xl font-black text-slate-800">{activePrograms.length}</span>
             <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">
-              {activePrograms.length} Programs
+              {programs.length} Registered
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-            <span>Weekly scheduled labs & drills</span>
+            <span>By Subject Learning Area</span>
             <ArrowUpRight className="w-3.5 h-3.5 ml-auto text-blue-600 opacity-0 group-hover:opacity-100 transition" />
           </p>
         </div>
@@ -315,8 +315,8 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({
                 <span className="text-sm font-black text-emerald-900">{attendanceRate}%</span>
               </div>
               <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-100">
-                <span className="text-xs font-semibold text-amber-800">Scheduled Weekly Labs</span>
-                <span className="text-sm font-black text-amber-900">{activeClasses.length} Groups</span>
+                <span className="text-xs font-semibold text-amber-800">Remediation Programs</span>
+                <span className="text-sm font-black text-amber-900">{activePrograms.length} Active</span>
               </div>
             </div>
           </div>

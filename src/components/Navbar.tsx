@@ -22,6 +22,7 @@ import {
   Database,
   Cloud,
   UserCheck,
+  RefreshCw,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -32,6 +33,8 @@ interface NavbarProps {
   onSelectSection: (section: string) => void;
   sectionsList: string[];
   onOpenSupabaseModal?: () => void;
+  onManualSync?: () => void;
+  isSyncing?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -42,6 +45,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectSection,
   sectionsList,
   onOpenSupabaseModal,
+  onManualSync,
+  isSyncing,
 }) => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'signatories' | 'teacher' | 'school'>('signatories');
@@ -211,6 +216,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ))}
               </select>
             </div>
+
+            {/* Cross-Device Cloud Sync Button */}
+            {onManualSync && (
+              <button
+                onClick={onManualSync}
+                disabled={isSyncing}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-emerald-200 hover:text-white bg-emerald-900/80 hover:bg-emerald-800 border border-emerald-700/80 transition shadow-xs text-xs font-semibold cursor-pointer ${
+                  isSyncing ? 'opacity-70 cursor-not-allowed' : ''
+                }`}
+                title="Synchronize session logs and data across devices"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-amber-300 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span className="hidden xl:inline">{isSyncing ? 'Syncing...' : 'Sync Devices'}</span>
+              </button>
+            )}
 
             {/* Teacher / Admin Profile & Signatories Button */}
             <button

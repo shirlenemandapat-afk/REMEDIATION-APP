@@ -72,6 +72,8 @@ export default function App() {
   const [parentLetterStudent, setParentLetterStudent] = useState<Student | null>(null);
   const [anecdotalReportStudent, setAnecdotalReportStudent] = useState<Student | null>(null);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
 
   // Toast Notification State
   const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'info' | 'warning' } | null>(null);
@@ -92,61 +94,99 @@ export default function App() {
     onConfirm: () => {},
   });
 
+  // Cross-device manual sync handler
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    try {
+      const activeEmail = teacher?.email || storage.getActiveUserEmail();
+      const res = await storage.syncFromServer(activeEmail);
+      if (res && res.success) {
+        setStudents(res.students);
+        setSessions(res.sessions);
+        setTeacher(storage.getTeacherProfile());
+        setLastSyncTime(new Date());
+        showToast(
+          `Sync complete: Loaded ${res.sessions.length} session logs and ${res.students.length} students across devices.`,
+          'success'
+        );
+      }
+    } catch (err) {
+      console.warn('Sync failed:', err);
+      showToast('Device sync notice: Connected with local cache.', 'info');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   // Load initial state on boot + Server API sync + Supabase sync
   useEffect(() => {
-    // Initial server sync
-    storage.syncFromServer().then(() => {
-      const loggedIn = storage.isLoggedIn();
-      setIsLoggedIn(loggedIn);
-      if (loggedIn) {
-        const localTeacher = storage.getTeacherProfile();
-        setTeacher(localTeacher);
-        setStudents(storage.getStudents(localTeacher.email));
-        setSessions(storage.getSessions(localTeacher.email));
-      }
-    });
-
     const loggedIn = storage.isLoggedIn();
     setIsLoggedIn(loggedIn);
     if (loggedIn) {
       const localTeacher = storage.getTeacherProfile();
-      const localStudents = storage.getStudents(localTeacher.email);
-      const localSessions = storage.getSessions(localTeacher.email);
       setTeacher(localTeacher);
-      setStudents(localStudents);
-      setSessions(localSessions);
-
-      // If Supabase is configured in environment, sync cloud data
-      if (isSupabaseConfigured()) {
-        const config = getSupabaseConfig();
-        if (config.autoSync) {
-          supabaseService.fetchAll(localTeacher.email).then((cloudData) => {
-            if (cloudData) {
-              if (cloudData.students && cloudData.students.length > 0) {
-                // Cloud has data -> update local state
-                setStudents(cloudData.students);
-                storage.saveStudents(cloudData.students, localTeacher.email);
-                if (cloudData.sessions) {
-                  setSessions(cloudData.sessions);
-                  storage.saveSessions(cloudData.sessions, localTeacher.email);
-                }
-                if (cloudData.teacher && localTeacher.email && cloudData.teacher.email.toLowerCase() === localTeacher.email.toLowerCase()) {
-                  setTeacher(cloudData.teacher);
-                  storage.saveTeacherProfile(cloudData.teacher);
-                }
-              } else if (localStudents.length > 0) {
-                // Cloud is empty -> auto-populate Supabase with existing local roster
-                console.log('Populating empty Supabase tables with local records...');
-                supabaseService.pushAll(localTeacher, localStudents, localSessions);
-              }
-            }
-          }).catch((err) => {
-            console.warn('Silent cloud sync initial check:', err);
-          });
-        }
-      }
+      setStudents(storage.getStudents(localTeacher.email));
+      setSessions(storage.getSessions(localTeacher.email));
     }
+
+    // Initial server sync
+    storage.syncFromServer().then((res) => {
+      const isNowLoggedIn = storage.isLoggedIn();
+      setIsLoggedIn(isNowLoggedIn);
+      if (isNowLoggedIn) {
+        const localTeacher = storage.getTeacherProfile();
+        setTeacher(localTeacher);
+        if (res && res.students && res.sessions) {
+          setStudents(res.students);
+          setSessions(res.sessions);
+        } else {
+          setStudents(storage.getStudents(localTeacher.email));
+          setSessions(storage.getSessions(localTeacher.email));
+        }
+        setLastSyncTime(new Date());
+      }
+    });
   }, []);
+
+  // Multi-Device Auto-Sync: Listen for tab focus/visibility and background poll every 20 seconds
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const pullUpdates = async () => {
+      const activeEmail = teacher?.email || storage.getActiveUserEmail();
+      if (!activeEmail) return;
+      try {
+        const res = await storage.syncFromServer(activeEmail);
+        if (res && res.success) {
+          setStudents(res.students);
+          setSessions(res.sessions);
+          setLastSyncTime(new Date());
+        }
+      } catch (e) {
+        // silent background sync
+      }
+    };
+
+    const handleFocus = () => {
+      pullUpdates();
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        pullUpdates();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    const intervalId = setInterval(pullUpdates, 20000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(intervalId);
+    };
+  }, [isLoggedIn, teacher?.email]);
 
   const refreshData = () => {
     const currentTeacher = storage.getTeacherProfile();
@@ -155,13 +195,9 @@ export default function App() {
     setSessions(storage.getSessions(currentTeacher.email));
   };
 
-  const handleLoginSuccess = (profile: TeacherProfile) => {
+  const handleLoginSuccess = async (profile: TeacherProfile) => {
     storage.setActiveUserEmail(profile.email);
-    const localStudents = storage.getStudents(profile.email);
-    const localSessions = storage.getSessions(profile.email);
     setTeacher(profile);
-    setStudents(localStudents);
-    setSessions(localSessions);
     setIsLoggedIn(true);
 
     if (profile.role === 'admin' || profile.email === 'admin@projectsmile') {
@@ -170,27 +206,23 @@ export default function App() {
       setActiveTab('students');
     }
 
-    if (isSupabaseConfigured()) {
-      supabaseService.upsertTeacher(profile);
-      supabaseService.fetchAll(profile.email).then((cloudData) => {
-        if (cloudData) {
-          if (cloudData.students && cloudData.students.length > 0) {
-            setStudents(cloudData.students);
-            storage.saveStudents(cloudData.students, profile.email);
-            if (cloudData.sessions) {
-              setSessions(cloudData.sessions);
-              storage.saveSessions(cloudData.sessions, profile.email);
-            }
-            if (cloudData.teacher && profile.email && cloudData.teacher.email.toLowerCase() === profile.email.toLowerCase()) {
-              setTeacher(cloudData.teacher);
-              storage.saveTeacherProfile(cloudData.teacher);
-            }
-          } else if (localStudents.length > 0) {
-            console.log('Pushing local data to freshly connected Supabase on login...');
-            supabaseService.pushAll(profile, localStudents, localSessions);
-          }
-        }
-      }).catch((e) => console.warn('Supabase cloud fetch on login:', e));
+    // Immediately synchronize server database & Supabase records for this account
+    setIsSyncing(true);
+    try {
+      const res = await storage.syncFromServer(profile.email);
+      if (res && res.success) {
+        setStudents(res.students);
+        setSessions(res.sessions);
+        setLastSyncTime(new Date());
+      } else {
+        setStudents(storage.getStudents(profile.email));
+        setSessions(storage.getSessions(profile.email));
+      }
+    } catch (e) {
+      setStudents(storage.getStudents(profile.email));
+      setSessions(storage.getSessions(profile.email));
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -374,6 +406,8 @@ export default function App() {
         selectedSection={selectedSection}
         onSelectSection={setSelectedSection}
         sectionsList={sectionsList}
+        onManualSync={handleManualSync}
+        isSyncing={isSyncing}
       />
 
       {/* Main Dashboard Container */}
@@ -579,6 +613,9 @@ export default function App() {
             onDeleteSession={handleRequestDeleteSession}
             onViewMOV={(url, title) => setViewMovUrl({ url, title })}
             onSelectStudent={(stud) => setViewStudent(stud)}
+            onManualSync={handleManualSync}
+            isSyncing={isSyncing}
+            lastSyncTime={lastSyncTime}
           />
         )}
 

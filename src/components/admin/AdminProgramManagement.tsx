@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RemediationProgram, TeacherProfile, LEARNING_AREAS, LearningArea } from '../../types';
+import { RemediationProgram, TeacherProfile, LEARNING_AREAS, LearningArea, Student } from '../../types';
 import { storage } from '../../services/storage';
 import {
   BookOpen,

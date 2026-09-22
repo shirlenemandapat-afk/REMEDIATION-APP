@@ -453,6 +453,157 @@ async function startServer() {
     });
   });
 
+  // Dedicated Sessions Endpoints for Real-Time Cross-Device Synchronization
+  app.get('/api/sessions', (req, res) => {
+    try {
+      const db = readDb();
+      const teacherEmail = (req.query.teacherEmail as string || '').toLowerCase().trim();
+      let list = db.sessions || [];
+      if (teacherEmail && !teacherEmail.includes('admin') && teacherEmail !== 'shirlene.mandapat@depedqc.ph') {
+        list = list.filter((s: any) => {
+          if (s.teacherEmail) return s.teacherEmail.toLowerCase() === teacherEmail;
+          return false;
+        });
+      }
+      res.json({ success: true, sessions: list });
+    } catch (err: any) {
+      console.error('[GET /api/sessions ERROR]:', err);
+      res.status(500).json({ success: false, message: 'Failed to fetch sessions.' });
+    }
+  });
+
+  app.post('/api/sessions', (req, res) => {
+    try {
+      const db = readDb();
+      const payload = req.body;
+      const incoming: any[] = Array.isArray(payload)
+        ? payload
+        : payload.sessions && Array.isArray(payload.sessions)
+        ? payload.sessions
+        : payload.session
+        ? [payload.session]
+        : [payload];
+
+      const validIncoming = incoming.filter((s) => s && s.id && s.studentId);
+      if (validIncoming.length === 0) {
+        return res.status(400).json({ success: false, message: 'Invalid session payload.' });
+      }
+
+      const sessionMap = new Map();
+      (db.sessions || []).forEach((s: any) => sessionMap.set(s.id, s));
+      validIncoming.forEach((s: any) => sessionMap.set(s.id, s));
+      db.sessions = Array.from(sessionMap.values());
+
+      writeDb(db);
+      console.log(`[SYNC SUCCESS]: Upserted ${validIncoming.length} session(s). Total on server: ${db.sessions.length}`);
+      res.json({ success: true, count: validIncoming.length, sessions: db.sessions });
+    } catch (err: any) {
+      console.error('[POST /api/sessions ERROR]:', err);
+      res.status(500).json({ success: false, message: 'Failed to save session.' });
+    }
+  });
+
+  app.delete('/api/sessions/:id', (req, res) => {
+    try {
+      const db = readDb();
+      const targetId = req.params.id;
+      const initialCount = (db.sessions || []).length;
+      db.sessions = (db.sessions || []).filter((s: any) => s.id !== targetId);
+      writeDb(db);
+      console.log(`[DELETE SESSION]: Removed ${targetId}. Count: ${initialCount} -> ${db.sessions.length}`);
+      res.json({ success: true, message: 'Session deleted from server.' });
+    } catch (err: any) {
+      console.error('[DELETE /api/sessions/:id ERROR]:', err);
+      res.status(500).json({ success: false, message: 'Failed to delete session.' });
+    }
+  });
+
+  // Dedicated Students Endpoints for Cross-Device Sync
+  app.get('/api/students', (_req, res) => {
+    try {
+      const db = readDb();
+      res.json({ success: true, students: db.students || [] });
+    } catch (err: any) {
+      console.error('[GET /api/students ERROR]:', err);
+      res.status(500).json({ success: false, message: 'Failed to fetch students.' });
+    }
+  });
+
+  app.post('/api/students', (req, res) => {
+    try {
+      const db = readDb();
+      const payload = req.body;
+      const incoming: any[] = Array.isArray(payload)
+        ? payload
+        : payload.students && Array.isArray(payload.students)
+        ? payload.students
+        : payload.student
+        ? [payload.student]
+        : [payload];
+
+      const validIncoming = incoming.filter((s) => s && s.id && s.lastName);
+      if (validIncoming.length === 0) {
+        return res.status(400).json({ success: false, message: 'Invalid student payload.' });
+      }
+
+      const studentMap = new Map();
+      (db.students || []).forEach((s: any) => studentMap.set(s.id, s));
+      validIncoming.forEach((s: any) => studentMap.set(s.id, s));
+      db.students = Array.from(studentMap.values());
+
+      writeDb(db);
+      res.json({ success: true, count: validIncoming.length, students: db.students });
+    } catch (err: any) {
+      console.error('[POST /api/students ERROR]:', err);
+      res.status(500).json({ success: false, message: 'Failed to save student.' });
+    }
+  });
+
+  app.delete('/api/students/:id', (req, res) => {
+    try {
+      const db = readDb();
+      const targetId = req.params.id;
+      db.students = (db.students || []).filter((s: any) => s.id !== targetId);
+      // Cascade delete sessions for this student
+      db.sessions = (db.sessions || []).filter((s: any) => s.studentId !== targetId);
+      writeDb(db);
+      res.json({ success: true, message: 'Student and associated sessions deleted from server.' });
+    } catch (err: any) {
+      console.error('[DELETE /api/students/:id ERROR]:', err);
+      res.status(500).json({ success: false, message: 'Failed to delete student.' });
+    }
+  });
+
+  // Supabase Configuration Sync Across Devices
+  app.get('/api/config/supabase', (_req, res) => {
+    try {
+      const db = readDb();
+      res.json({ success: true, config: db.systemSettings?.supabaseConfig || null });
+    } catch (err: any) {
+      console.error('[GET /api/config/supabase ERROR]:', err);
+      res.status(500).json({ success: false, message: 'Failed to fetch config.' });
+    }
+  });
+
+  app.post('/api/config/supabase', (req, res) => {
+    try {
+      const db = readDb();
+      const { url, anonKey, autoSync } = req.body;
+      db.systemSettings = db.systemSettings || {};
+      db.systemSettings.supabaseConfig = {
+        url: (url || '').trim(),
+        anonKey: (anonKey || '').trim(),
+        autoSync: autoSync !== false,
+      };
+      writeDb(db);
+      console.log('[CONFIG SYNC]: Supabase credentials synchronized on server.');
+      res.json({ success: true, message: 'Supabase configuration saved on server.' });
+    } catch (err: any) {
+      console.error('[POST /api/config/supabase ERROR]:', err);
+      res.status(500).json({ success: false, message: 'Failed to save config.' });
+    }
+  });
+
   app.post('/api/sync/all', (req, res) => {
     try {
       const { accounts, students, sessions, programs, classes, announcements, auditLogs, systemSettings } = req.body;

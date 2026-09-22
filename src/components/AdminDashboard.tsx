@@ -13,7 +13,6 @@ import { SchoolLogo } from './SchoolLogo';
 import { AdminDashboardOverview } from './admin/AdminDashboardOverview';
 import { AdminUserManagement } from './admin/AdminUserManagement';
 import { AdminProgramManagement } from './admin/AdminProgramManagement';
-import { AdminClassScheduleManagement } from './admin/AdminClassScheduleManagement';
 import { AdminStudentMonitoring } from './admin/AdminStudentMonitoring';
 import { AdminTeacherReports } from './admin/AdminTeacherReports';
 import { AdminAnalyticsReports } from './admin/AdminAnalyticsReports';
@@ -24,7 +23,6 @@ import {
   LayoutDashboard,
   Users,
   BookOpen,
-  CalendarCheck,
   GraduationCap,
   FileCheck2,
   TrendingUp,
@@ -41,7 +39,6 @@ export type AdminActiveTab =
   | 'overview'
   | 'users'
   | 'programs'
-  | 'classes'
   | 'students'
   | 'reports'
   | 'analytics'
@@ -108,7 +105,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     { id: 'overview' as AdminActiveTab, label: 'Dashboard Overview', icon: LayoutDashboard, badge: null },
     { id: 'users' as AdminActiveTab, label: 'User & Faculty Management', icon: Users, badge: teachers.length },
     { id: 'programs' as AdminActiveTab, label: 'Remediation Programs', icon: BookOpen, badge: programs.length },
-    { id: 'classes' as AdminActiveTab, label: 'Class & Schedule', icon: CalendarCheck, badge: classes.length },
     { id: 'students' as AdminActiveTab, label: 'Student Progress Monitoring', icon: GraduationCap, badge: null },
     { id: 'reports' as AdminActiveTab, label: 'Teacher Reports & MOVs', icon: FileCheck2, badge: null },
     { id: 'analytics' as AdminActiveTab, label: 'Analytics & Reports', icon: TrendingUp, badge: null },
@@ -239,17 +235,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {activeTab === 'programs' && (
           <AdminProgramManagement
             currentAdmin={currentAdmin}
-            programs={programs}
-            teachers={teachers}
-            students={students}
-            onRefresh={handleRefreshAll}
-          />
-        )}
-
-        {activeTab === 'classes' && (
-          <AdminClassScheduleManagement
-            currentAdmin={currentAdmin}
-            classes={classes}
             programs={programs}
             teachers={teachers}
             students={students}

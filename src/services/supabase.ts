@@ -63,14 +63,28 @@ export function getSupabaseConfig(): SupabaseConfig {
   };
 }
 
-export function saveSupabaseConfig(config: SupabaseConfig): void {
+export function saveSupabaseConfig(config: SupabaseConfig, syncToServer: boolean = true): void {
   localStorage.setItem(SUPABASE_CONFIG_KEY, JSON.stringify(config));
   _supabaseClient = null; // Reset singleton
+  if (syncToServer) {
+    fetch('/api/config/supabase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    }).catch((e) => console.warn('Supabase config server sync notice:', e));
+  }
 }
 
-export function clearSupabaseConfig(): void {
+export function clearSupabaseConfig(syncToServer: boolean = true): void {
   localStorage.removeItem(SUPABASE_CONFIG_KEY);
   _supabaseClient = null;
+  if (syncToServer) {
+    fetch('/api/config/supabase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: '', anonKey: '', autoSync: false }),
+    }).catch(() => {});
+  }
 }
 
 let _supabaseClient: SupabaseClient | null = null;
@@ -139,6 +153,7 @@ CREATE TABLE IF NOT EXISTS students (
   parent_contact TEXT,
   schedule_details TEXT,
   notes TEXT,
+  teacher_email TEXT,
   is_archived BOOLEAN DEFAULT FALSE,
   archived_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -166,9 +181,14 @@ CREATE TABLE IF NOT EXISTS session_records (
   remarks TEXT DEFAULT '',
   movs JSONB DEFAULT '[]'::jsonb,
   assessment_tool JSONB,
+  teacher_email TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Idempotent column additions for existing Supabase databases
+ALTER TABLE students ADD COLUMN IF NOT EXISTS teacher_email TEXT;
+ALTER TABLE session_records ADD COLUMN IF NOT EXISTS teacher_email TEXT;
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE teacher_profiles ENABLE ROW LEVEL SECURITY;
@@ -323,7 +343,7 @@ export const supabaseService = {
           if (sess.teacherEmail) {
             return sess.teacherEmail.toLowerCase() === normEmail;
           }
-          return myStudentIds.has(sess.studentId);
+          return myStudentIds.has(sess.studentId) || normEmail === 'shirlene.mandapat@depedqc.ph';
         });
       }
 
@@ -526,7 +546,7 @@ export const supabaseService = {
     const client = getSupabaseClient();
     if (!client) return;
     try {
-      const { error } = await client.from('session_records').upsert({
+      const payload: any = {
         id: session.id,
         student_id: session.studentId,
         student_name: session.studentName,
@@ -550,8 +570,18 @@ export const supabaseService = {
         teacher_email: session.teacherEmail || teacherEmail || null,
         created_at: session.createdAt,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' });
-      if (error) console.warn('Supabase upsertSession notice:', error.message || error);
+      };
+
+      const { error } = await client.from('session_records').upsert(payload, { onConflict: 'id' });
+      if (error) {
+        if (error.message && error.message.includes('teacher_email')) {
+          delete payload.teacher_email;
+          const retry = await client.from('session_records').upsert(payload, { onConflict: 'id' });
+          if (retry.error) console.warn('Supabase upsertSession retry notice:', retry.error.message);
+        } else {
+          console.warn('Supabase upsertSession notice:', error.message || error);
+        }
+      }
     } catch (e: any) {
       console.warn('Supabase upsertSession skipped:', e?.message || e);
     }
