@@ -217,21 +217,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               </select>
             </div>
 
-            {/* Cross-Device Cloud Sync Button */}
-            {onManualSync && (
-              <button
-                onClick={onManualSync}
-                disabled={isSyncing}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-emerald-200 hover:text-white bg-emerald-900/80 hover:bg-emerald-800 border border-emerald-700/80 transition shadow-xs text-xs font-semibold cursor-pointer ${
-                  isSyncing ? 'opacity-70 cursor-not-allowed' : ''
-                }`}
-                title="Synchronize session logs and data across devices"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 text-amber-300 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span className="hidden xl:inline">{isSyncing ? 'Syncing...' : 'Sync Devices'}</span>
-              </button>
-            )}
-
             {/* Teacher / Admin Profile & Signatories Button */}
             <button
               onClick={handleOpenModal}
@@ -613,6 +598,30 @@ export const Navbar: React.FC<NavbarProps> = ({
                       Minimum 4 characters required if updating password.
                     </p>
                   </div>
+
+                  {onOpenSupabaseModal && (
+                    <div className="pt-3 border-t border-slate-200">
+                      <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <Database className="w-4 h-4 text-emerald-700 shrink-0" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">Supabase Cloud Database</p>
+                            <p className="text-[11px] text-slate-500">Configure cloud database URL, keys, and sync across laptops.</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowProfileModal(false);
+                            onOpenSupabaseModal();
+                          }}
+                          className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer shrink-0"
+                        >
+                          Open Database Hub
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

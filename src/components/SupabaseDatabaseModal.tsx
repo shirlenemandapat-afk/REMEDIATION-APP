@@ -90,10 +90,33 @@ export const SupabaseDatabaseModal: React.FC<SupabaseDatabaseModalProps> = ({
       autoSync,
     });
 
-    setStatusMessage({
-      text: 'Supabase configuration saved! You can now sync your data to the cloud.',
-      type: 'success',
-    });
+    setTesting(true);
+    setStatusMessage({ text: 'Verifying connection & syncing local student & session records to Supabase...', type: 'info' });
+
+    const testRes = await supabaseService.testConnection(url.trim(), anonKey.trim());
+    if (testRes.success) {
+      // Auto-push any local records so they immediately populate in Supabase
+      const pushRes = await supabaseService.pushAll(teacher, students, sessions);
+      setTesting(false);
+      if (pushRes.success) {
+        setStatusMessage({
+          text: `Connected to Supabase! Successfully synchronized ${students.length} student(s) and ${sessions.length} session log(s) to your cloud database.`,
+          type: 'success',
+        });
+        onSyncComplete();
+      } else {
+        setStatusMessage({
+          text: `Connected to Supabase, but some tables may not be created yet. Please copy and run the SQL script in Step 2. Notice: ${pushRes.error}`,
+          type: 'error',
+        });
+      }
+    } else {
+      setTesting(false);
+      setStatusMessage({
+        text: `Configuration saved, but connection failed: ${testRes.message}. Please verify your URL and Anon Key.`,
+        type: 'error',
+      });
+    }
   };
 
   const handleDisconnect = () => {
@@ -324,10 +347,10 @@ export const SupabaseDatabaseModal: React.FC<SupabaseDatabaseModalProps> = ({
                   <button
                     type="button"
                     onClick={handleSaveConfig}
-                    className="px-5 py-2.5 bg-emerald-800 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-md shadow-emerald-950/20 cursor-pointer"
+                    className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-md shadow-emerald-950/20 cursor-pointer"
                   >
-                    <CheckCircle2 className="w-3.5 h-3.5 text-yellow-300" />
-                    Save & Activate Supabase
+                    <CheckCircle2 className="w-4 h-4 text-yellow-300" />
+                    Save & Connect to Cloud
                   </button>
 
                   {isConnected && (

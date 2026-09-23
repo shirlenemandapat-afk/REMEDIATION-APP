@@ -28,12 +28,14 @@ interface AdminSystemSettingsProps {
   currentAdmin: TeacherProfile;
   settings: SystemSettings;
   onRefresh: () => void;
+  onOpenSupabaseModal?: () => void;
 }
 
 export const AdminSystemSettings: React.FC<AdminSystemSettingsProps> = ({
   currentAdmin,
   settings,
   onRefresh,
+  onOpenSupabaseModal,
 }) => {
   const safeSettings = settings || storage.getSettings();
   const [academicYear, setAcademicYear] = useState(safeSettings?.academicYear || safeSettings?.schoolYear || '2025-2026');
@@ -432,8 +434,33 @@ export const AdminSystemSettings: React.FC<AdminSystemSettingsProps> = ({
           <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5 text-xs">
             <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">
               <Database className="w-4 h-4 text-blue-700" />
-              Database Backup & Restore
+              Database Backup & Cloud Sync
             </h3>
+
+            {onOpenSupabaseModal && (
+              <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-emerald-950 flex items-center gap-1.5">
+                    <Database className="w-3.5 h-3.5 text-emerald-700" />
+                    Supabase Cloud Database
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-200 text-emerald-900 rounded-full">
+                    Active
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Configure your cloud project URL, Anon API key, and test or synchronize records across all devices.
+                </p>
+                <button
+                  type="button"
+                  onClick={onOpenSupabaseModal}
+                  className="w-full py-2 px-3 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-lg text-xs transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <Database className="w-3.5 h-3.5 text-yellow-300" />
+                  Open Supabase Cloud Database Hub
+                </button>
+              </div>
+            )}
 
             <div className="space-y-2">
               <p className="text-slate-600 leading-relaxed">

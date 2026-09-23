@@ -51,6 +51,7 @@ interface AdminDashboardProps {
   sessions: SessionRecord[];
   onRefreshData: () => void;
   onSelectStudent?: (student: Student) => void;
+  onOpenSupabaseModal?: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -59,6 +60,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   sessions,
   onRefreshData,
   onSelectStudent,
+  onOpenSupabaseModal,
 }) => {
   const [activeTab, setActiveTab] = useState<AdminActiveTab>('overview');
 
@@ -282,6 +284,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             currentAdmin={currentAdmin}
             settings={settings}
             onRefresh={handleRefreshAll}
+            onOpenSupabaseModal={onOpenSupabaseModal}
           />
         )}
       </div>

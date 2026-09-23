@@ -66,20 +66,6 @@ export const SessionLogList: React.FC<SessionLogListProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {onManualSync && (
-            <button
-              onClick={onManualSync}
-              disabled={isSyncing}
-              className={`px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-300 shadow-xs cursor-pointer ${
-                isSyncing ? 'opacity-70 cursor-not-allowed' : ''
-              }`}
-              title={lastSyncTime ? `Last synced at ${lastSyncTime.toLocaleTimeString()}` : 'Sync session logs across devices'}
-            >
-              <RefreshCw className={`w-3.5 h-3.5 text-slate-600 ${isSyncing ? 'animate-spin text-emerald-700' : ''}`} />
-              <span>{isSyncing ? 'Syncing...' : 'Sync Devices'}</span>
-            </button>
-          )}
-
           <button
             onClick={() => onOpenAddSession()}
             className="px-4 py-2.5 bg-emerald-800 hover:bg-emerald-700 text-yellow-300 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm border border-emerald-900 cursor-pointer"

@@ -23,7 +23,7 @@ import {
   INITIAL_ANNOUNCEMENTS,
   DEFAULT_SYSTEM_SETTINGS,
 } from '../data/mockData';
-import { supabaseService, saveSupabaseConfig, isSupabaseConfigured } from './supabase';
+import { supabaseService, saveSupabaseConfig, isSupabaseConfigured, syncSupabaseConfigFromRemote } from './supabase';
 
 const STORAGE_KEYS = {
   TEACHER: 'remediation_app_teacher',
@@ -973,6 +973,11 @@ export const storage = {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ accounts: { [norm]: profile } }),
         }).catch(() => {});
+
+        // Instant sync to Supabase if configured
+        if (isSupabaseConfigured()) {
+          supabaseService.upsertTeacher(profile).catch(() => {});
+        }
       }
     } catch (e) {
       console.error('Error saving teacher profile', e);
@@ -1006,13 +1011,23 @@ export const storage = {
   async syncFromServer(forTeacherEmail?: string): Promise<{ success: boolean; students: Student[]; sessions: SessionRecord[] }> {
     const activeEmail = (forTeacherEmail || this.getActiveUserEmail() || '').toLowerCase().trim();
 
+    // 0. Automatically sync Supabase credentials from server so new devices immediately connect
     try {
-      const res = await fetch('/api/sync/all');
+      await syncSupabaseConfigFromRemote();
+    } catch (cfgErr) {
+      console.warn('Config sync notice:', cfgErr);
+    }
+
+    try {
+      // 1. Fetch teacher data or full sync dataset from persistent server
+      const syncUrl = activeEmail ? `/api/teacher/data?email=${encodeURIComponent(activeEmail)}` : '/api/sync/all';
+      const res = await fetch(syncUrl);
+
       if (res.ok) {
         const result = await res.json();
-        if (result.success && result.data) {
-          const { accounts, students, sessions, programs, classes, announcements, auditLogs, systemSettings } = result.data;
-          
+        if (result.success) {
+          const { profile, accounts, students, sessions, programs, classes, announcements, auditLogs, systemSettings } = result.data || result;
+
           if (systemSettings) {
             localStorage.setItem(STORAGE_KEYS.SYSTEM_SETTINGS, JSON.stringify(systemSettings));
             if (systemSettings.supabaseConfig && systemSettings.supabaseConfig.url && systemSettings.supabaseConfig.anonKey) {
@@ -1026,40 +1041,61 @@ export const storage = {
             this.saveRegisteredAccounts(merged);
           }
 
-          if (Array.isArray(students) && students.length > 0) {
-            const localStudents = this.getAllStudents();
-            const studentMap = new Map();
-            localStudents.forEach((s) => studentMap.set(s.id, s));
-            students.forEach((s: Student) => studentMap.set(s.id, s));
-            const mergedStudents = Array.from(studentMap.values());
-            localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(mergedStudents));
+          // If a dedicated profile was returned for the active teacher, sync it locally
+          if (profile && activeEmail) {
+            const localAccounts = this.getRegisteredAccounts();
+            localAccounts[activeEmail] = {
+              ...(localAccounts[activeEmail] || {}),
+              ...profile,
+              isPasswordSet: true,
+            };
+            this.saveRegisteredAccounts(localAccounts);
+            localStorage.setItem(STORAGE_KEYS.TEACHER, JSON.stringify(localAccounts[activeEmail]));
           }
 
-          if (Array.isArray(sessions) && sessions.length > 0) {
-            const localSessions = this.getAllSessions();
-            const sessionMap = new Map();
-            localSessions.forEach((s) => sessionMap.set(s.id, s));
-            sessions.forEach((s: SessionRecord) => sessionMap.set(s.id, s));
-            const mergedSessions = Array.from(sessionMap.values());
-            localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(mergedSessions));
-
-            // If local device had new sessions not yet on the server, push them back
-            if (localSessions.length > sessions.length) {
-              fetch('/api/sessions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sessions: mergedSessions }),
-              }).catch(() => {});
+          // Authoritative Synchronization for Students
+          if (Array.isArray(students)) {
+            if (!activeEmail || this.isAdminEmail(activeEmail)) {
+              // Admin or global sync: adopt full server student dataset
+              localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+            } else {
+              // Teacher sync: update this teacher's slice with server's exact records
+              const allExisting = this.getAllStudents();
+              const otherTeachersStudents = allExisting.filter((s) => {
+                const sEmail = (s.teacherEmail || 'shirlene.mandapat@depedqc.ph').toLowerCase().trim();
+                return sEmail !== activeEmail;
+              });
+              const taggedServerStudents = students.map((s: Student) => ({
+                ...s,
+                teacherEmail: s.teacherEmail || activeEmail,
+              }));
+              const combinedStudents = [...taggedServerStudents, ...otherTeachersStudents];
+              localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(combinedStudents));
             }
-          } else if (sessions && sessions.length === 0) {
-            // Server database is empty or freshly initialized, push local sessions to server
-            const localSessions = this.getAllSessions();
-            if (localSessions.length > 0) {
-              fetch('/api/sessions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sessions: localSessions }),
-              }).catch(() => {});
+          }
+
+          // Authoritative Synchronization for Sessions
+          if (Array.isArray(sessions)) {
+            if (!activeEmail || this.isAdminEmail(activeEmail)) {
+              // Admin or global sync: adopt full server session dataset
+              localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+            } else {
+              // Teacher sync: update this teacher's slice with server's exact records
+              const allExisting = this.getAllSessions();
+              const myStudents = this.getStudents(activeEmail);
+              const myStudentIdSet = new Set(myStudents.map((s) => s.id));
+
+              const otherTeachersSessions = allExisting.filter((sess) => {
+                const sEmail = (sess.teacherEmail || '').toLowerCase().trim();
+                if (sEmail) return sEmail !== activeEmail;
+                return !myStudentIdSet.has(sess.studentId);
+              });
+              const taggedServerSessions = sessions.map((sess: SessionRecord) => ({
+                ...sess,
+                teacherEmail: sess.teacherEmail || activeEmail,
+              }));
+              const combinedSessions = [...taggedServerSessions, ...otherTeachersSessions];
+              localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(combinedSessions));
             }
           }
 
@@ -1114,27 +1150,45 @@ export const storage = {
         console.warn('Sync /api/accounts notice:', err);
       }
 
-      // Also check Supabase for any registered teacher profiles, students, and sessions if configured
+      // Bi-Directional Supabase Cloud Synchronization
       if (isSupabaseConfigured()) {
         try {
           const cloudData = await supabaseService.fetchAll(activeEmail);
           if (cloudData) {
-            if (cloudData.students && cloudData.students.length > 0) {
-              const localStudents = this.getAllStudents();
-              const studentMap = new Map();
-              localStudents.forEach((s) => studentMap.set(s.id, s));
-              cloudData.students.forEach((s: Student) => studentMap.set(s.id, s));
-              const merged = Array.from(studentMap.values());
-              localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(merged));
+            const localStudents = this.getAllStudents();
+            const studentMap = new Map();
+            localStudents.forEach((s) => studentMap.set(s.id, s));
+            (cloudData.students || []).forEach((s: Student) => studentMap.set(s.id, s));
+            const mergedStudents = Array.from(studentMap.values());
+            localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(mergedStudents));
+
+            const localSessions = this.getAllSessions();
+            const sessionMap = new Map();
+            localSessions.forEach((s) => sessionMap.set(s.id, s));
+            (cloudData.sessions || []).forEach((s: SessionRecord) => sessionMap.set(s.id, s));
+            const mergedSessions = Array.from(sessionMap.values());
+            localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(mergedSessions));
+
+            // Push any local students missing in Supabase
+            const cloudStudentIdSet = new Set((cloudData.students || []).map((s) => s.id));
+            const missingStudentsInCloud = mergedStudents.filter((s) => !cloudStudentIdSet.has(s.id));
+            for (const st of missingStudentsInCloud) {
+              await supabaseService.upsertStudent(st, activeEmail);
             }
-            if (cloudData.sessions && cloudData.sessions.length > 0) {
-              const localSessions = this.getAllSessions();
-              const sessionMap = new Map();
-              localSessions.forEach((s) => sessionMap.set(s.id, s));
-              cloudData.sessions.forEach((s: SessionRecord) => sessionMap.set(s.id, s));
-              const mergedSessions = Array.from(sessionMap.values());
-              localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(mergedSessions));
+
+            // Push any local sessions missing in Supabase
+            const cloudSessionIdSet = new Set((cloudData.sessions || []).map((s) => s.id));
+            const missingSessionsInCloud = mergedSessions.filter((s) => !cloudSessionIdSet.has(s.id));
+            for (const sess of missingSessionsInCloud) {
+              await supabaseService.upsertSession(sess, activeEmail);
             }
+
+            // Keep server database updated with merged records
+            fetch('/api/sync/all', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ students: mergedStudents, sessions: mergedSessions }),
+            }).catch(() => {});
           }
 
           const cloudTeachers = await supabaseService.fetchAllTeachers();
@@ -1326,6 +1380,11 @@ export const storage = {
           `Faculty login: ${profile.name} (${cleanEmail}) accessed Project S.M.I.L.E. Portal.`,
           cleanEmail
         );
+
+        // Propagate Supabase credentials so this device immediately connects to cloud database
+        if (json.supabaseConfig && json.supabaseConfig.url && json.supabaseConfig.anonKey) {
+          saveSupabaseConfig(json.supabaseConfig, false);
+        }
 
         // Background sync to ensure all teacher accounts and rosters are aligned
         this.syncFromServer().catch(() => {});
@@ -1642,11 +1701,27 @@ export const storage = {
     }
 
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(combined));
+    
+    // Sync to dedicated teacher data endpoint & full sync endpoint
+    fetch('/api/teacher/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: activeEmail, students: combined }),
+    }).catch(() => {});
+
     fetch('/api/sync/all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ students: combined }),
     }).catch((e) => console.warn('Background sync students notice:', e));
+
+    // Instant automatic push to Supabase in background
+    if (isSupabaseConfigured()) {
+      const targetTeacherEmail = activeEmail || 'shirlene.mandapat@depedqc.ph';
+      students.forEach((s) => {
+        supabaseService.upsertStudent(s, s.teacherEmail || targetTeacherEmail).catch(() => {});
+      });
+    }
   },
 
   addStudent(studentData: Omit<Student, 'id' | 'enrolledDate' | 'status'> & { status?: Student['status']; teacherEmail?: string }): Student {
@@ -1667,6 +1742,14 @@ export const storage = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ students: allStudents }),
     }).catch((e) => console.warn('Background sync students notice:', e));
+    fetch('/api/students', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ student: newStudent }),
+    }).catch(() => {});
+    if (isSupabaseConfigured()) {
+      supabaseService.upsertStudent(newStudent, teacherEmail).catch((e) => console.warn('Supabase upsertStudent notice:', e));
+    }
     return newStudent;
   },
 
@@ -1681,6 +1764,14 @@ export const storage = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ students: allStudents }),
       }).catch((e) => console.warn('Background sync students notice:', e));
+      fetch('/api/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student }),
+      }).catch(() => {});
+      if (isSupabaseConfigured()) {
+        supabaseService.upsertStudent(student, student.teacherEmail).catch(() => {});
+      }
     }
   },
 
@@ -1696,6 +1787,9 @@ export const storage = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ students: allStudents }),
       }).catch((e) => console.warn('Background sync students notice:', e));
+      if (isSupabaseConfigured()) {
+        supabaseService.upsertStudent(allStudents[index], allStudents[index].teacherEmail).catch(() => {});
+      }
     }
   },
 
@@ -1711,6 +1805,9 @@ export const storage = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ students: allStudents }),
       }).catch((e) => console.warn('Background sync students notice:', e));
+      if (isSupabaseConfigured()) {
+        supabaseService.upsertStudent(allStudents[index], allStudents[index].teacherEmail).catch(() => {});
+      }
     }
   },
 
@@ -1728,6 +1825,11 @@ export const storage = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ students: updated }),
     }).catch((e) => console.warn('Background sync students notice:', e));
+    if (isSupabaseConfigured()) {
+      updated.filter((s) => s.section === sectionName || `${s.gradeLevel} - ${s.section}` === sectionName).forEach((s) => {
+        supabaseService.upsertStudent(s, s.teacherEmail).catch(() => {});
+      });
+    }
   },
 
   unarchiveSection(sectionName: string): void {
@@ -1746,6 +1848,11 @@ export const storage = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ students: updated }),
     }).catch((e) => console.warn('Background sync students notice:', e));
+    if (isSupabaseConfigured()) {
+      updated.filter((s) => s.section === sectionName || `${s.gradeLevel} - ${s.section}` === sectionName).forEach((s) => {
+        supabaseService.upsertStudent(s, s.teacherEmail).catch(() => {});
+      });
+    }
   },
 
   deleteSection(sectionName: string): void {
@@ -1763,11 +1870,26 @@ export const storage = {
     const allSessions = this.getAllSessions().filter((sess) => !targetStudentIds.includes(sess.studentId));
     localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(allSessions));
 
+    const activeEmail = this.getActiveUserEmail();
+    if (activeEmail) {
+      fetch('/api/teacher/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: activeEmail, students: remainingStudents, sessions: allSessions }),
+      }).catch(() => {});
+    }
+
     fetch('/api/sync/all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ students: remainingStudents, sessions: allSessions }),
     }).catch((e) => console.warn('Background sync delete section notice:', e));
+
+    if (isSupabaseConfigured()) {
+      targetStudentIds.forEach((id) => {
+        supabaseService.deleteStudent(id).catch(() => {});
+      });
+    }
   },
 
   deleteStudent(studentId: string): void {
@@ -1777,6 +1899,15 @@ export const storage = {
     // Also delete associated sessions
     const allSessions = this.getAllSessions().filter((sess) => sess.studentId !== studentId);
     localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(allSessions));
+
+    const activeEmail = this.getActiveUserEmail();
+    if (activeEmail) {
+      fetch('/api/teacher/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: activeEmail, students: allStudents, sessions: allSessions }),
+      }).catch(() => {});
+    }
 
     fetch(`/api/students/${studentId}`, { method: 'DELETE' }).catch(() => {});
     fetch('/api/sync/all', {
@@ -1800,11 +1931,26 @@ export const storage = {
     const allSessions = this.getAllSessions().filter((sess) => !archivedIds.includes(sess.studentId));
     localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(allSessions));
 
+    const activeEmail = this.getActiveUserEmail();
+    if (activeEmail) {
+      fetch('/api/teacher/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: activeEmail, students: remaining, sessions: allSessions }),
+      }).catch(() => {});
+    }
+
     fetch('/api/sync/all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ students: remaining, sessions: allSessions }),
     }).catch((e) => console.warn('Background sync delete archived notice:', e));
+
+    if (isSupabaseConfigured()) {
+      archivedIds.forEach((id) => {
+        supabaseService.deleteStudent(id).catch(() => {});
+      });
+    }
   },
 
   // --- SESSIONS ---
@@ -1903,6 +2049,14 @@ export const storage = {
 
     // Sync to server endpoints
     try {
+      if (activeEmail) {
+        fetch('/api/teacher/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: activeEmail, sessions: combined }),
+        }).catch(() => {});
+      }
+
       fetch('/api/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1914,6 +2068,14 @@ export const storage = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessions: combined }),
       }).catch((e) => console.warn('Background sync sessions notice:', e));
+
+      // Instant automatic push to Supabase in background
+      if (isSupabaseConfigured()) {
+        const targetTeacherEmail = activeEmail || 'shirlene.mandapat@depedqc.ph';
+        sessions.forEach((sess) => {
+          supabaseService.upsertSession(sess, sess.teacherEmail || targetTeacherEmail).catch(() => {});
+        });
+      }
     } catch (err) {
       console.warn('Silent sessions sync notice:', err);
     }
@@ -1941,7 +2103,7 @@ export const storage = {
 
     // Instant sync to Supabase if connected
     if (isSupabaseConfigured()) {
-      supabaseService.upsertSession(newSession).catch(() => {});
+      supabaseService.upsertSession(newSession, teacherEmail).catch(() => {});
     }
 
     // Automatically update student's status or baseline progress if score is high

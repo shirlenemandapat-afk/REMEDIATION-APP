@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Server-side persistent storage file path
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -137,6 +138,118 @@ function writeDb(db: AppDbState): void {
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
   } catch (err) {
     console.error('Error writing smile_db.json:', err);
+  }
+}
+
+// Server-side Supabase Relay Client Helper
+function getServerSupabaseClient(db?: AppDbState): SupabaseClient | null {
+  try {
+    const currentDb = db || readDb();
+    const cfg = currentDb.systemSettings?.supabaseConfig;
+    const url = (cfg?.url || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '').trim();
+    const key = (cfg?.anonKey || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '').trim();
+    if (url && key && url.startsWith('http') && key.length > 20) {
+      return createClient(url, key);
+    }
+  } catch (e) {
+    console.warn('[SERVER SUPABASE] Init skipped:', e);
+  }
+  return null;
+}
+
+// Automatically relay single or array of students to Supabase in background
+async function relayStudentsToSupabase(students: any[], defaultTeacherEmail?: string) {
+  const client = getServerSupabaseClient();
+  if (!client || !Array.isArray(students) || students.length === 0) return;
+  for (const s of students) {
+    if (!s || !s.id) continue;
+    try {
+      const payload: any = {
+        id: s.id,
+        last_name: s.lastName || s.last_name || 'Student',
+        first_name: s.firstName || s.first_name || 'Learner',
+        middle_initial: s.middleInitial || s.middle_initial || '',
+        grade_level: s.gradeLevel || s.grade_level || 'Grade 7',
+        section: s.section || 'General',
+        subject: s.subject || 'TLE',
+        program_type: s.programType || s.program_type || 'Remediation',
+        baseline_score: Number(s.baselineScore ?? s.baseline_score ?? 0),
+        focus_topic: s.focusTopic || s.focus_topic || '',
+        enrolled_date: s.enrolledDate || s.enrolled_date || new Date().toISOString().split('T')[0],
+        status: s.status || 'Progressing',
+        parent_name: s.parentName || s.parent_name || null,
+        parent_contact: s.parentContact || s.parent_contact || null,
+        schedule_details: s.scheduleDetails || s.schedule_details || null,
+        notes: s.notes || null,
+        is_archived: Boolean(s.isArchived ?? s.is_archived),
+        archived_at: s.archivedAt || s.archived_at || null,
+        teacher_email: s.teacherEmail || s.teacher_email || defaultTeacherEmail || null,
+        updated_at: new Date().toISOString(),
+      };
+      await client.from('students').upsert(payload, { onConflict: 'id' });
+    } catch (err: any) {
+      console.warn(`[SUPABASE RELAY NOTICE] Student ${s.id}:`, err?.message || err);
+    }
+  }
+}
+
+// Automatically relay single or array of sessions to Supabase in background
+async function relaySessionsToSupabase(sessions: any[], defaultTeacherEmail?: string) {
+  const client = getServerSupabaseClient();
+  if (!client || !Array.isArray(sessions) || sessions.length === 0) return;
+  for (const sess of sessions) {
+    if (!sess || !sess.id) continue;
+    try {
+      // Ensure student exists first so foreign key is satisfied
+      const stId = sess.studentId || sess.student_id;
+      if (stId) {
+        await client.from('students').upsert(
+          {
+            id: stId,
+            last_name: (sess.studentName || sess.student_name || 'Student').split(' ')[0] || 'Student',
+            first_name: (sess.studentName || sess.student_name || '').split(' ').slice(1).join(' ') || 'Learner',
+            grade_level: sess.gradeLevel || sess.grade_level || 'Grade 7',
+            section: sess.section || 'General',
+            subject: sess.subject || 'TLE',
+            program_type: sess.programType || sess.program_type || 'Remediation',
+            enrolled_date: sess.date || new Date().toISOString().split('T')[0],
+            status: 'Progressing',
+            baseline_score: 0,
+            teacher_email: sess.teacherEmail || sess.teacher_email || defaultTeacherEmail || null,
+          },
+          { onConflict: 'id' }
+        );
+      }
+
+      const payload: any = {
+        id: sess.id,
+        student_id: sess.studentId || sess.student_id,
+        student_name: sess.studentName || sess.student_name,
+        section: sess.section,
+        grade_level: sess.gradeLevel || sess.grade_level,
+        subject: sess.subject,
+        program_type: sess.programType || sess.program_type,
+        date: sess.date,
+        focus_competency: sess.focusCompetency || sess.focus_competency,
+        activity_type: sess.activityType || sess.activity_type,
+        activity_types: sess.activityTypes || sess.activity_types || [sess.activityType || sess.activity_type],
+        intervention: sess.intervention,
+        interventions: sess.interventions || [sess.intervention],
+        raw_score: Number(sess.rawScore ?? sess.raw_score ?? 0),
+        total_items: Number(sess.totalItems ?? sess.total_items ?? 20),
+        score: Number(sess.score ?? 0),
+        mastery_level: sess.masteryLevel || sess.mastery_level,
+        remarks: sess.remarks || '',
+        movs: sess.movs || [],
+        assessment_tool: sess.assessmentTool || sess.assessment_tool || null,
+        teacher_email: sess.teacherEmail || sess.teacher_email || defaultTeacherEmail || null,
+        created_at: sess.createdAt || sess.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      await client.from('session_records').upsert(payload, { onConflict: 'id' });
+    } catch (err: any) {
+      console.warn(`[SUPABASE RELAY NOTICE] Session ${sess.id}:`, err?.message || err);
+    }
   }
 }
 
@@ -328,7 +441,7 @@ async function startServer() {
 
         writeDb(db);
         console.log(`[AUTH] Teacher auto-accounted on login for admin monitoring: ${cleanEmail}`);
-        return res.json({ success: true, profile: account, isNewAccount: true });
+        return res.json({ success: true, profile: account, isNewAccount: true, supabaseConfig: db.systemSettings?.supabaseConfig || null });
       }
 
       // Check password match
@@ -372,7 +485,7 @@ async function startServer() {
       writeDb(db);
 
       console.log(`[AUTH] Teacher logged in and recorded for admin monitoring: ${cleanEmail}`);
-      res.json({ success: true, profile: account });
+      res.json({ success: true, profile: account, supabaseConfig: db.systemSettings?.supabaseConfig || null });
     } catch (err: any) {
       console.error('[AUTH ERROR] Login failed:', err);
       res.status(500).json({ success: false, message: 'Server error processing login.' });
@@ -435,6 +548,137 @@ async function startServer() {
     }
   });
 
+  // Dedicated Teacher Account Synchronized Data API
+  app.get('/api/teacher/data', (req, res) => {
+    try {
+      const db = readDb();
+      const rawEmail = (req.query.email as string || '').trim().toLowerCase();
+      const isAdmin = rawEmail === 'admin@projectsmile' || rawEmail.includes('admin') || db.accounts[rawEmail]?.role === 'admin';
+
+      const profile = db.accounts[rawEmail] || null;
+
+      let matchedStudents: any[] = [];
+      let matchedSessions: any[] = [];
+
+      if (isAdmin || !rawEmail) {
+        matchedStudents = db.students || [];
+        matchedSessions = db.sessions || [];
+      } else {
+        matchedStudents = (db.students || []).filter((s: any) => {
+          const sEmail = (s.teacherEmail || s.teacher_email || '').toLowerCase().trim();
+          if (sEmail) return sEmail === rawEmail;
+          // Legacy support: if student has no teacherEmail and requesting teacher is Shirlene
+          return rawEmail === 'shirlene.mandapat@depedqc.ph';
+        });
+
+        const studentIdSet = new Set(matchedStudents.map((s) => s.id));
+
+        matchedSessions = (db.sessions || []).filter((sess: any) => {
+          const sEmail = (sess.teacherEmail || sess.teacher_email || '').toLowerCase().trim();
+          if (sEmail) return sEmail === rawEmail;
+          return studentIdSet.has(sess.studentId) || (rawEmail === 'shirlene.mandapat@depedqc.ph' && !sEmail);
+        });
+      }
+
+      res.json({
+        success: true,
+        email: rawEmail,
+        profile,
+        students: matchedStudents,
+        sessions: matchedSessions,
+        programs: db.programs || [],
+        classes: db.classes || [],
+        announcements: db.announcements || [],
+        systemSettings: db.systemSettings,
+      });
+    } catch (err: any) {
+      console.error('[GET /api/teacher/data ERROR]:', err);
+      res.status(500).json({ success: false, message: 'Failed to fetch teacher dataset.' });
+    }
+  });
+
+  // Dedicated Teacher Save / Sync Endpoint
+  app.post('/api/teacher/data', (req, res) => {
+    try {
+      const db = readDb();
+      const { email, students, sessions, profile } = req.body;
+      const cleanEmail = (email || '').trim().toLowerCase();
+
+      if (!cleanEmail) {
+        return res.status(400).json({ success: false, message: 'Teacher email is required.' });
+      }
+
+      // Update profile if provided
+      if (profile && typeof profile === 'object') {
+        db.accounts[cleanEmail] = {
+          ...(db.accounts[cleanEmail] || {}),
+          ...profile,
+          email: cleanEmail,
+        };
+      }
+
+      const isAdmin = cleanEmail === 'admin@projectsmile' || cleanEmail.includes('admin') || db.accounts[cleanEmail]?.role === 'admin';
+
+      // Update students
+      if (Array.isArray(students)) {
+        if (isAdmin) {
+          db.students = students;
+        } else {
+          // Keep other teachers' students intact
+          const otherStudents = (db.students || []).filter((s: any) => {
+            const sEmail = (s.teacherEmail || s.teacher_email || '').toLowerCase().trim();
+            if (sEmail) return sEmail !== cleanEmail;
+            return cleanEmail !== 'shirlene.mandapat@depedqc.ph';
+          });
+          const taggedIncoming = students.map((s: any) => ({
+            ...s,
+            teacherEmail: s.teacherEmail || cleanEmail,
+          }));
+          db.students = [...otherStudents, ...taggedIncoming];
+        }
+      }
+
+      // Update sessions
+      if (Array.isArray(sessions)) {
+        if (isAdmin) {
+          db.sessions = sessions;
+        } else {
+          const otherSessions = (db.sessions || []).filter((sess: any) => {
+            const sEmail = (sess.teacherEmail || sess.teacher_email || '').toLowerCase().trim();
+            if (sEmail) return sEmail !== cleanEmail;
+            return cleanEmail !== 'shirlene.mandapat@depedqc.ph';
+          });
+          const taggedIncomingSessions = sessions.map((sess: any) => ({
+            ...sess,
+            teacherEmail: sess.teacherEmail || cleanEmail,
+          }));
+          db.sessions = [...otherSessions, ...taggedIncomingSessions];
+        }
+      }
+
+      writeDb(db);
+      console.log(`[SYNC SUCCESS]: Synchronized teacher data for ${cleanEmail}. Total students: ${db.students.length}, sessions: ${db.sessions.length}`);
+
+      // Automatically relay changes to Supabase in background without requiring user manual trigger
+      if (Array.isArray(students) && students.length > 0) {
+        relayStudentsToSupabase(students, cleanEmail).catch(() => {});
+      }
+      if (Array.isArray(sessions) && sessions.length > 0) {
+        relaySessionsToSupabase(sessions, cleanEmail).catch(() => {});
+      }
+
+      res.json({
+        success: true,
+        message: 'Teacher data successfully synchronized across devices.',
+        students: db.students,
+        sessions: db.sessions,
+      });
+    } catch (err: any) {
+      console.error('[POST /api/teacher/data ERROR]:', err);
+      res.status(500).json({ success: false, message: 'Failed to sync teacher dataset.' });
+    }
+  });
+
   // Full Database Sync (GET: fetch all persistent server records; POST: merge records)
   app.get('/api/sync/all', (_req, res) => {
     const db = readDb();
@@ -484,7 +728,15 @@ async function startServer() {
         ? [payload.session]
         : [payload];
 
-      const validIncoming = incoming.filter((s) => s && s.id && s.studentId);
+      const validIncoming = incoming
+        .filter((s) => s && s.id && (s.studentId || s.student_id))
+        .map((s) => ({
+          ...s,
+          studentId: s.studentId || s.student_id,
+          studentName: s.studentName || s.student_name,
+          teacherEmail: s.teacherEmail || s.teacher_email || '',
+        }));
+
       if (validIncoming.length === 0) {
         return res.status(400).json({ success: false, message: 'Invalid session payload.' });
       }
@@ -496,6 +748,10 @@ async function startServer() {
 
       writeDb(db);
       console.log(`[SYNC SUCCESS]: Upserted ${validIncoming.length} session(s). Total on server: ${db.sessions.length}`);
+
+      // Auto-relay sessions to Supabase
+      relaySessionsToSupabase(validIncoming).catch(() => {});
+
       res.json({ success: true, count: validIncoming.length, sessions: db.sessions });
     } catch (err: any) {
       console.error('[POST /api/sessions ERROR]:', err);
@@ -511,6 +767,13 @@ async function startServer() {
       db.sessions = (db.sessions || []).filter((s: any) => s.id !== targetId);
       writeDb(db);
       console.log(`[DELETE SESSION]: Removed ${targetId}. Count: ${initialCount} -> ${db.sessions.length}`);
+
+      // Auto-delete from Supabase if configured
+      const client = getServerSupabaseClient(db);
+      if (client) {
+        Promise.resolve(client.from('session_records').delete().eq('id', targetId)).catch(() => {});
+      }
+
       res.json({ success: true, message: 'Session deleted from server.' });
     } catch (err: any) {
       console.error('[DELETE /api/sessions/:id ERROR]:', err);
@@ -541,7 +804,15 @@ async function startServer() {
         ? [payload.student]
         : [payload];
 
-      const validIncoming = incoming.filter((s) => s && s.id && s.lastName);
+      const validIncoming = incoming
+        .filter((s) => s && s.id && (s.lastName || s.last_name))
+        .map((s) => ({
+          ...s,
+          lastName: s.lastName || s.last_name,
+          firstName: s.firstName || s.first_name || '',
+          teacherEmail: s.teacherEmail || s.teacher_email || '',
+        }));
+
       if (validIncoming.length === 0) {
         return res.status(400).json({ success: false, message: 'Invalid student payload.' });
       }
@@ -552,6 +823,10 @@ async function startServer() {
       db.students = Array.from(studentMap.values());
 
       writeDb(db);
+
+      // Auto-relay enrolled / updated students to Supabase
+      relayStudentsToSupabase(validIncoming).catch(() => {});
+
       res.json({ success: true, count: validIncoming.length, students: db.students });
     } catch (err: any) {
       console.error('[POST /api/students ERROR]:', err);
@@ -567,6 +842,14 @@ async function startServer() {
       // Cascade delete sessions for this student
       db.sessions = (db.sessions || []).filter((s: any) => s.studentId !== targetId);
       writeDb(db);
+
+      // Auto-delete from Supabase if configured
+      const client = getServerSupabaseClient(db);
+      if (client) {
+        Promise.resolve(client.from('session_records').delete().eq('student_id', targetId)).catch(() => {});
+        Promise.resolve(client.from('students').delete().eq('id', targetId)).catch(() => {});
+      }
+
       res.json({ success: true, message: 'Student and associated sessions deleted from server.' });
     } catch (err: any) {
       console.error('[DELETE /api/students/:id ERROR]:', err);
@@ -578,7 +861,15 @@ async function startServer() {
   app.get('/api/config/supabase', (_req, res) => {
     try {
       const db = readDb();
-      res.json({ success: true, config: db.systemSettings?.supabaseConfig || null });
+      let config = db.systemSettings?.supabaseConfig || null;
+      if ((!config || !config.url) && (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL)) {
+        config = {
+          url: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '',
+          anonKey: process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '',
+          autoSync: true,
+        };
+      }
+      res.json({ success: true, config });
     } catch (err: any) {
       console.error('[GET /api/config/supabase ERROR]:', err);
       res.status(500).json({ success: false, message: 'Failed to fetch config.' });

@@ -245,12 +245,12 @@ export default function App() {
   );
 
   // Student Enrollment
-  const handleEnrollStudent = (
+  const handleEnrollStudent = async (
     studentData: Omit<Student, 'id' | 'enrolledDate' | 'status'>
   ) => {
     const newStudent = storage.addStudent(studentData);
     if (isSupabaseConfigured()) {
-      supabaseService.upsertStudent(newStudent);
+      await supabaseService.upsertStudent(newStudent, teacher.email);
     }
     refreshData();
     setParentLetterStudent(newStudent);
@@ -348,10 +348,10 @@ export default function App() {
   };
 
   // Session CRUD
-  const handleAddSession = (sessionData: Omit<SessionRecord, 'id' | 'createdAt'>) => {
+  const handleAddSession = async (sessionData: Omit<SessionRecord, 'id' | 'createdAt'>) => {
     const saved = storage.addSession(sessionData);
     if (isSupabaseConfigured()) {
-      supabaseService.upsertSession(saved);
+      await supabaseService.upsertSession(saved, teacher.email);
     }
     refreshData();
     showToast(`Daily session log saved for ${sessionData.studentName} (${sessionData.score}% Mastery)!`, 'success');
@@ -408,6 +408,7 @@ export default function App() {
         sectionsList={sectionsList}
         onManualSync={handleManualSync}
         isSyncing={isSyncing}
+        onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
       />
 
       {/* Main Dashboard Container */}
@@ -578,6 +579,7 @@ export default function App() {
             sessions={storage.getAllSessions()}
             onRefreshData={refreshData}
             onSelectStudent={(stud) => setViewStudent(stud)}
+            onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
           />
         )}
 

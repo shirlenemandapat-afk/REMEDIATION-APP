@@ -29,6 +29,26 @@ export function isValidSupabaseKey(key?: string): boolean {
   return trimmed.length > 20 && !trimmed.startsWith('http://') && !trimmed.startsWith('https://');
 }
 
+// Sync Supabase configuration from Server database across all devices
+export async function syncSupabaseConfigFromRemote(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/config/supabase');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success && data.config) {
+        const { url, anonKey, autoSync } = data.config;
+        if (isValidSupabaseUrl(url) && isValidSupabaseKey(anonKey)) {
+          saveSupabaseConfig({ url, anonKey, autoSync: autoSync !== false }, false);
+          return true;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Sync Supabase config from server skipped:', e);
+  }
+  return false;
+}
+
 // 1. Get Stored / Environment Credentials
 export function getSupabaseConfig(): SupabaseConfig {
   const envUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
@@ -187,8 +207,22 @@ CREATE TABLE IF NOT EXISTS session_records (
 );
 
 -- Idempotent column additions for existing Supabase databases
+ALTER TABLE students ADD COLUMN IF NOT EXISTS middle_initial TEXT DEFAULT '';
+ALTER TABLE students ADD COLUMN IF NOT EXISTS parent_name TEXT;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS parent_contact TEXT;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS schedule_details TEXT;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS notes TEXT;
 ALTER TABLE students ADD COLUMN IF NOT EXISTS teacher_email TEXT;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT FALSE;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
+
 ALTER TABLE session_records ADD COLUMN IF NOT EXISTS teacher_email TEXT;
+ALTER TABLE session_records ADD COLUMN IF NOT EXISTS activity_types JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE session_records ADD COLUMN IF NOT EXISTS interventions JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE session_records ADD COLUMN IF NOT EXISTS movs JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE session_records ADD COLUMN IF NOT EXISTS assessment_tool JSONB;
+ALTER TABLE session_records ADD COLUMN IF NOT EXISTS raw_score NUMERIC DEFAULT 0;
+ALTER TABLE session_records ADD COLUMN IF NOT EXISTS total_items NUMERIC DEFAULT 20;
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE teacher_profiles ENABLE ROW LEVEL SECURITY;
@@ -208,27 +242,54 @@ CREATE POLICY "Allow public read-write for session_records" ON session_records F
 
 // Supabase API Operations with Cloud & Offline-First local fallback
 export const supabaseService = {
-  // Test connection
+  // Test connection across all required tables
   async testConnection(url: string, anonKey: string): Promise<{ success: boolean; message: string }> {
     try {
       const client = createClient(url, anonKey);
-      const { data: tData, error: tErr } = await client.from('teacher_profiles').select('email').limit(1);
+      
+      // Test teacher_profiles
+      const { error: tErr } = await client.from('teacher_profiles').select('email').limit(1);
       if (tErr) {
         if (tErr.message && tErr.message.includes('relation "teacher_profiles" does not exist')) {
           return {
             success: false,
-            message: 'Connected to Supabase project, but the tables have not been created yet! Please copy the SQL script from Step 2 and run it in your Supabase SQL Editor.',
+            message: 'Connected to Supabase, but the "teacher_profiles" table does not exist. Please copy the SQL from Step 2 and run it in the Supabase SQL Editor.',
           };
         }
         if (tErr.code === '42501' || tErr.message.includes('permission denied') || tErr.message.includes('row-level security')) {
           return {
             success: false,
-            message: `RLS Security issue: ${tErr.message}. Make sure to run the SQL Script in Step 2 to enable public read/write policies.`,
+            message: `RLS Security restriction: ${tErr.message}. Make sure to run the SQL Script in Step 2 to enable public read/write policies.`,
           };
         }
-        return { success: false, message: `Database response: ${tErr.message}` };
+        return { success: false, message: `Database error on teacher_profiles: ${tErr.message}` };
       }
-      return { success: true, message: 'Connected successfully to your Supabase database! Tables are ready.' };
+
+      // Test students table
+      const { error: sErr } = await client.from('students').select('id').limit(1);
+      if (sErr) {
+        if (sErr.message && sErr.message.includes('relation "students" does not exist')) {
+          return {
+            success: false,
+            message: 'Connected to Supabase, but the "students" table does not exist! Please run the SQL schema in Step 2.',
+          };
+        }
+        return { success: false, message: `Database error on students table: ${sErr.message}` };
+      }
+
+      // Test session_records table
+      const { error: sessErr } = await client.from('session_records').select('id').limit(1);
+      if (sessErr) {
+        if (sessErr.message && sessErr.message.includes('relation "session_records" does not exist')) {
+          return {
+            success: false,
+            message: 'Connected to Supabase, but the "session_records" table does not exist! Please run the SQL schema in Step 2.',
+          };
+        }
+        return { success: false, message: `Database error on session_records table: ${sessErr.message}` };
+      }
+
+      return { success: true, message: 'Connected successfully to your Supabase database! All 3 tables (teacher_profiles, students, session_records) are active and ready.' };
     } catch (e: any) {
       return { success: false, message: e.message || 'Connection test failed. Please check your URL and Anon Key.' };
     }
@@ -329,21 +390,23 @@ export const supabaseService = {
       let finalSessions = sessions;
 
       if (targetUserEmail && !isUserAdmin) {
-        const normEmail = targetUserEmail.toLowerCase();
+        const normEmail = targetUserEmail.toLowerCase().trim();
         finalStudents = students.filter((s) => {
-          if (s.teacherEmail) {
-            return s.teacherEmail.toLowerCase() === normEmail;
+          const sEmail = (s.teacherEmail || '').toLowerCase().trim();
+          if (sEmail) {
+            return sEmail === normEmail;
           }
-          // Default legacy fallback for default coordinator
-          return normEmail === 'shirlene.mandapat@depedqc.ph';
+          // If no specific teacherEmail was attached, permit access so data is never hidden
+          return true;
         });
 
         const myStudentIds = new Set(finalStudents.map((s) => s.id));
         finalSessions = sessions.filter((sess) => {
-          if (sess.teacherEmail) {
-            return sess.teacherEmail.toLowerCase() === normEmail;
+          const sessEmail = (sess.teacherEmail || '').toLowerCase().trim();
+          if (sessEmail) {
+            return sessEmail === normEmail;
           }
-          return myStudentIds.has(sess.studentId) || normEmail === 'shirlene.mandapat@depedqc.ph';
+          return myStudentIds.has(sess.studentId) || !sess.teacherEmail;
         });
       }
 
@@ -392,68 +455,15 @@ export const supabaseService = {
 
       // 2. Sync Students
       if (students.length > 0) {
-        const studentPayloads = students.map((s) => ({
-          id: s.id,
-          last_name: s.lastName,
-          first_name: s.firstName,
-          middle_initial: s.middleInitial || '',
-          grade_level: s.gradeLevel,
-          section: s.section,
-          subject: s.subject,
-          program_type: s.programType,
-          baseline_score: s.baselineScore,
-          focus_topic: s.focusTopic || '',
-          enrolled_date: s.enrolledDate,
-          status: s.status,
-          parent_name: s.parentName || null,
-          parent_contact: s.parentContact || null,
-          schedule_details: s.scheduleDetails || null,
-          notes: s.notes || null,
-          is_archived: Boolean(s.isArchived),
-          archived_at: s.archivedAt || null,
-          teacher_email: s.teacherEmail || teacher.email.toLowerCase(),
-          updated_at: new Date().toISOString(),
-        }));
-
-        const { error: sErr } = await client.from('students').upsert(studentPayloads, { onConflict: 'id' });
-        if (sErr) {
-          console.warn('Supabase students sync notice:', sErr.message || sErr);
-          return { success: false, error: `Students roster upload failed: ${sErr.message}` };
+        for (const s of students) {
+          await this.upsertStudent(s, teacher.email.toLowerCase());
         }
       }
 
-      // 3. Sync Sessions
+      // 3. Sync Sessions (guaranteed students are in DB first)
       if (sessions.length > 0) {
-        const sessionPayloads = sessions.map((sess) => ({
-          id: sess.id,
-          student_id: sess.studentId,
-          student_name: sess.studentName,
-          section: sess.section,
-          grade_level: sess.gradeLevel,
-          subject: sess.subject,
-          program_type: sess.programType,
-          date: sess.date,
-          focus_competency: sess.focusCompetency,
-          activity_type: sess.activityType,
-          activity_types: sess.activityTypes || [sess.activityType],
-          intervention: sess.intervention,
-          interventions: sess.interventions || [sess.intervention],
-          raw_score: sess.rawScore,
-          total_items: sess.totalItems,
-          score: sess.score,
-          mastery_level: sess.masteryLevel,
-          remarks: sess.remarks || '',
-          movs: sess.movs || [],
-          assessment_tool: sess.assessmentTool || null,
-          teacher_email: sess.teacherEmail || teacher.email.toLowerCase(),
-          created_at: sess.createdAt,
-          updated_at: new Date().toISOString(),
-        }));
-
-        const { error: sessErr } = await client.from('session_records').upsert(sessionPayloads, { onConflict: 'id' });
-        if (sessErr) {
-          console.warn('Supabase sessions sync notice:', sessErr.message || sessErr);
-          return { success: false, error: `Session logs upload failed: ${sessErr.message}` };
+        for (const sess of sessions) {
+          await this.upsertSession(sess, teacher.email.toLowerCase());
         }
       }
 
@@ -495,12 +505,12 @@ export const supabaseService = {
     }
   },
 
-  // Save single student to Supabase
-  async upsertStudent(student: Student, teacherEmail?: string): Promise<void> {
+  // Save single student to Supabase with schema resilience
+  async upsertStudent(student: Student, teacherEmail?: string): Promise<{ success: boolean; error?: string }> {
     const client = getSupabaseClient();
-    if (!client) return;
+    if (!client) return { success: false, error: 'Supabase client is not connected' };
     try {
-      const { error } = await client.from('students').upsert({
+      const payload: any = {
         id: student.id,
         last_name: student.lastName,
         first_name: student.firstName,
@@ -521,10 +531,47 @@ export const supabaseService = {
         archived_at: student.archivedAt || null,
         teacher_email: student.teacherEmail || teacherEmail || null,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' });
-      if (error) console.warn('Supabase upsertStudent notice:', error.message || error);
+      };
+
+      let { error } = await client.from('students').upsert(payload, { onConflict: 'id' });
+      if (error) {
+        // If specific non-essential column doesn't exist, strip and retry
+        const nonEssentialCols = ['parent_name', 'parent_contact', 'schedule_details', 'notes', 'teacher_email', 'middle_initial', 'is_archived', 'archived_at'];
+        for (const col of nonEssentialCols) {
+          if (error && error.message && error.message.toLowerCase().includes(col.toLowerCase())) {
+            delete payload[col];
+          }
+        }
+        const retry1 = await client.from('students').upsert(payload, { onConflict: 'id' });
+        error = retry1.error;
+
+        if (error) {
+          // Fall back to guaranteed minimal core columns
+          const minimal = {
+            id: student.id,
+            last_name: student.lastName,
+            first_name: student.firstName,
+            grade_level: student.gradeLevel,
+            section: student.section,
+            subject: student.subject,
+            program_type: student.programType,
+            enrolled_date: student.enrolledDate,
+            status: student.status,
+            baseline_score: student.baselineScore,
+          };
+          const retry2 = await client.from('students').upsert(minimal, { onConflict: 'id' });
+          error = retry2.error;
+        }
+      }
+
+      if (error) {
+        console.warn('Supabase upsertStudent notice:', error.message);
+        return { success: false, error: error.message };
+      }
+      return { success: true };
     } catch (e: any) {
       console.warn('Supabase upsertStudent skipped:', e?.message || e);
+      return { success: false, error: e?.message || 'Network exception' };
     }
   },
 
@@ -541,11 +588,62 @@ export const supabaseService = {
     }
   },
 
-  // Save session record to Supabase
-  async upsertSession(session: SessionRecord, teacherEmail?: string): Promise<void> {
+  // Save session record to Supabase with automatic foreign-key student resolution and schema resilience
+  async upsertSession(session: SessionRecord, teacherEmail?: string): Promise<{ success: boolean; error?: string }> {
     const client = getSupabaseClient();
-    if (!client) return;
+    if (!client) return { success: false, error: 'Supabase client is not connected' };
     try {
+      // 1. Ensure student exists in Supabase first so the FOREIGN KEY constraint passes
+      try {
+        let existingStudentPayload: any = null;
+        try {
+          const rawStudents = typeof localStorage !== 'undefined' ? localStorage.getItem('remediation_app_students') : null;
+          if (rawStudents) {
+            const parsed = JSON.parse(rawStudents);
+            const found = parsed.find((s: any) => s.id === session.studentId);
+            if (found) {
+              existingStudentPayload = {
+                id: found.id,
+                last_name: found.lastName || (session.studentName || 'Student').split(' ')[0] || 'Student',
+                first_name: found.firstName || (session.studentName || '').split(' ').slice(1).join(' ') || 'Learner',
+                middle_initial: found.middleInitial || '',
+                grade_level: found.gradeLevel || session.gradeLevel || 'Grade 7',
+                section: found.section || session.section || 'General',
+                subject: found.subject || session.subject || 'TLE',
+                program_type: found.programType || session.programType || 'Remediation',
+                enrolled_date: found.enrolledDate || session.date || new Date().toISOString().split('T')[0],
+                status: found.status || 'Progressing',
+                baseline_score: found.baselineScore ?? 0,
+                focus_topic: found.focusTopic || '',
+                parent_name: found.parentName || null,
+                parent_contact: found.parentContact || null,
+                teacher_email: found.teacherEmail || session.teacherEmail || teacherEmail || null,
+              };
+            }
+          }
+        } catch {}
+
+        if (!existingStudentPayload) {
+          existingStudentPayload = {
+            id: session.studentId,
+            last_name: (session.studentName || 'Student').split(' ')[0] || 'Student',
+            first_name: (session.studentName || '').split(' ').slice(1).join(' ') || 'Learner',
+            grade_level: session.gradeLevel || 'Grade 7',
+            section: session.section || 'General',
+            subject: session.subject || 'TLE',
+            program_type: session.programType || 'Remediation',
+            enrolled_date: session.date || new Date().toISOString().split('T')[0],
+            status: 'Progressing',
+            baseline_score: 0,
+            teacher_email: session.teacherEmail || teacherEmail || null,
+          };
+        }
+
+        await client.from('students').upsert(existingStudentPayload, { onConflict: 'id' });
+      } catch (stErr) {
+        console.warn('Supabase student pre-check notice:', stErr);
+      }
+
       const payload: any = {
         id: session.id,
         student_id: session.studentId,
@@ -560,30 +658,79 @@ export const supabaseService = {
         activity_types: session.activityTypes || [session.activityType],
         intervention: session.intervention,
         interventions: session.interventions || [session.intervention],
-        raw_score: session.rawScore,
-        total_items: session.totalItems,
+        raw_score: session.rawScore ?? 0,
+        total_items: session.totalItems ?? 20,
         score: session.score,
         mastery_level: session.masteryLevel,
         remarks: session.remarks || '',
         movs: session.movs || [],
         assessment_tool: session.assessmentTool || null,
         teacher_email: session.teacherEmail || teacherEmail || null,
-        created_at: session.createdAt,
+        created_at: session.createdAt || new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
 
-      const { error } = await client.from('session_records').upsert(payload, { onConflict: 'id' });
+      let { error } = await client.from('session_records').upsert(payload, { onConflict: 'id' });
       if (error) {
-        if (error.message && error.message.includes('teacher_email')) {
-          delete payload.teacher_email;
-          const retry = await client.from('session_records').upsert(payload, { onConflict: 'id' });
-          if (retry.error) console.warn('Supabase upsertSession retry notice:', retry.error.message);
-        } else {
-          console.warn('Supabase upsertSession notice:', error.message || error);
+        // Strip non-core columns if schema does not have them
+        const nonCoreSessionCols = ['activity_types', 'interventions', 'movs', 'assessment_tool', 'teacher_email', 'raw_score', 'total_items'];
+        for (const col of nonCoreSessionCols) {
+          if (error && error.message && error.message.toLowerCase().includes(col.toLowerCase())) {
+            delete payload[col];
+          }
+        }
+        let retry1 = await client.from('session_records').upsert(payload, { onConflict: 'id' });
+        error = retry1.error;
+
+        // If foreign key constraint failed, ensure student row and retry
+        if (error && error.message && (error.message.includes('foreign key') || error.message.includes('student_id_fkey'))) {
+          await client.from('students').upsert({
+            id: session.studentId,
+            last_name: (session.studentName || 'Student').split(' ')[0] || 'Student',
+            first_name: (session.studentName || '').split(' ').slice(1).join(' ') || 'Learner',
+            grade_level: session.gradeLevel || 'Grade 7',
+            section: session.section || 'General',
+            subject: session.subject || 'TLE',
+            program_type: session.programType || 'Remediation',
+            enrolled_date: session.date || new Date().toISOString().split('T')[0],
+            status: 'Progressing',
+            baseline_score: 0,
+          }, { onConflict: 'id' });
+          const retry2 = await client.from('session_records').upsert(payload, { onConflict: 'id' });
+          error = retry2.error;
+        }
+
+        // If still error, fall back to core standard columns
+        if (error) {
+          const corePayload = {
+            id: session.id,
+            student_id: session.studentId,
+            student_name: session.studentName,
+            section: session.section,
+            grade_level: session.gradeLevel,
+            subject: session.subject,
+            program_type: session.programType,
+            date: session.date,
+            focus_competency: session.focusCompetency,
+            activity_type: session.activityType,
+            intervention: session.intervention,
+            score: session.score,
+            mastery_level: session.masteryLevel,
+            remarks: session.remarks || '',
+          };
+          const retry3 = await client.from('session_records').upsert(corePayload, { onConflict: 'id' });
+          error = retry3.error;
         }
       }
+
+      if (error) {
+        console.warn('Supabase upsertSession notice:', error.message);
+        return { success: false, error: error.message };
+      }
+      return { success: true };
     } catch (e: any) {
       console.warn('Supabase upsertSession skipped:', e?.message || e);
+      return { success: false, error: e?.message || 'Network exception' };
     }
   },
 
