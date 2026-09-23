@@ -122,6 +122,7 @@ export default function App() {
   useEffect(() => {
     const loggedIn = storage.isLoggedIn();
     setIsLoggedIn(loggedIn);
+    const activeEmail = storage.getActiveUserEmail();
     if (loggedIn) {
       const localTeacher = storage.getTeacherProfile();
       setTeacher(localTeacher);
@@ -129,8 +130,8 @@ export default function App() {
       setSessions(storage.getSessions(localTeacher.email));
     }
 
-    // Initial server sync
-    storage.syncFromServer().then((res) => {
+    // Initial server & Supabase cloud sync
+    storage.syncFromServer(activeEmail).then((res) => {
       const isNowLoggedIn = storage.isLoggedIn();
       setIsLoggedIn(isNowLoggedIn);
       if (isNowLoggedIn) {
@@ -178,11 +179,13 @@ export default function App() {
     };
 
     window.addEventListener('focus', handleFocus);
+    window.addEventListener('pageshow', handleFocus);
     document.addEventListener('visibilitychange', handleVisibility);
-    const intervalId = setInterval(pullUpdates, 20000);
+    const intervalId = setInterval(pullUpdates, 10000);
 
     return () => {
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('pageshow', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibility);
       clearInterval(intervalId);
     };

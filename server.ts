@@ -193,6 +193,119 @@ async function relayStudentsToSupabase(students: any[], defaultTeacherEmail?: st
   }
 }
 
+// Automatically pull all latest records from Supabase into server state
+async function pullLatestFromSupabase(db: AppDbState): Promise<boolean> {
+  const client = getServerSupabaseClient(db);
+  if (!client) return false;
+  try {
+    const [studentsRes, sessionsRes, teachersRes] = await Promise.all([
+      client.from('students').select('*'),
+      client.from('session_records').select('*'),
+      client.from('teacher_profiles').select('*'),
+    ]);
+
+    let changed = false;
+
+    if (Array.isArray(teachersRes.data) && teachersRes.data.length > 0) {
+      teachersRes.data.forEach((t: any) => {
+        if (t && t.email) {
+          const norm = t.email.toLowerCase().trim();
+          db.accounts[norm] = {
+            ...(db.accounts[norm] || {}),
+            email: t.email,
+            name: t.name || db.accounts[norm]?.name,
+            title: t.title || db.accounts[norm]?.title,
+            schoolName: t.school_name || db.accounts[norm]?.schoolName,
+            division: t.division || db.accounts[norm]?.division,
+            region: t.region || db.accounts[norm]?.region,
+            academicYear: t.academic_year || db.accounts[norm]?.academicYear,
+            department: t.department || db.accounts[norm]?.department,
+            masterTeacherName: t.master_teacher_name || db.accounts[norm]?.masterTeacherName,
+            masterTeacherPosition: t.master_teacher_position || db.accounts[norm]?.masterTeacherPosition,
+            headTeacherName: t.head_teacher_name || db.accounts[norm]?.headTeacherName,
+            headTeacherPosition: t.head_teacher_position || db.accounts[norm]?.headTeacherPosition,
+            principalName: t.principal_name || db.accounts[norm]?.principalName,
+            principalPosition: t.principal_position || db.accounts[norm]?.principalPosition,
+            isPasswordSet: true,
+          };
+          changed = true;
+        }
+      });
+    }
+
+    if (Array.isArray(studentsRes.data) && studentsRes.data.length > 0) {
+      const studentMap = new Map();
+      (db.students || []).forEach((s: any) => studentMap.set(s.id, s));
+      studentsRes.data.forEach((s: any) => {
+        studentMap.set(s.id, {
+          id: s.id,
+          lastName: s.last_name || 'Student',
+          firstName: s.first_name || 'Learner',
+          middleInitial: s.middle_initial || '',
+          gradeLevel: s.grade_level || 'Grade 7',
+          section: s.section || 'General',
+          subject: s.subject || 'TLE',
+          programType: s.program_type || 'Remediation',
+          baselineScore: Number(s.baseline_score) || 0,
+          focusTopic: s.focus_topic || '',
+          enrolledDate: s.enrolled_date || new Date().toISOString().split('T')[0],
+          status: s.status || 'Progressing',
+          parentName: s.parent_name || undefined,
+          parentContact: s.parent_contact || undefined,
+          scheduleDetails: s.schedule_details || undefined,
+          notes: s.notes || undefined,
+          isArchived: Boolean(s.is_archived),
+          archivedAt: s.archived_at || undefined,
+          teacherEmail: s.teacher_email || 'shirlene.mandapat@depedqc.ph',
+        });
+      });
+      db.students = Array.from(studentMap.values());
+      changed = true;
+    }
+
+    if (Array.isArray(sessionsRes.data) && sessionsRes.data.length > 0) {
+      const sessionMap = new Map();
+      (db.sessions || []).forEach((sess: any) => sessionMap.set(sess.id, sess));
+      sessionsRes.data.forEach((sess: any) => {
+        sessionMap.set(sess.id, {
+          id: sess.id,
+          studentId: sess.student_id,
+          studentName: sess.student_name,
+          section: sess.section,
+          gradeLevel: sess.grade_level,
+          subject: sess.subject,
+          programType: sess.program_type,
+          date: sess.date,
+          focusCompetency: sess.focus_competency,
+          activityType: sess.activity_type,
+          activityTypes: Array.isArray(sess.activity_types) ? sess.activity_types : [sess.activity_type],
+          intervention: sess.intervention,
+          interventions: Array.isArray(sess.interventions) ? sess.interventions : [sess.intervention],
+          rawScore: Number(sess.raw_score ?? sess.score ?? 0),
+          totalItems: Number(sess.total_items) || 20,
+          score: Number(sess.score) || 0,
+          masteryLevel: sess.mastery_level || (Number(sess.score) >= 85 ? 'Mastered' : Number(sess.score) >= 75 ? 'Moving Towards Mastery' : 'Average Mastery'),
+          remarks: sess.remarks || '',
+          movs: Array.isArray(sess.movs) ? sess.movs : [],
+          assessmentTool: sess.assessment_tool || undefined,
+          createdAt: sess.created_at || new Date().toISOString(),
+          teacherEmail: sess.teacher_email || 'shirlene.mandapat@depedqc.ph',
+        });
+      });
+      db.sessions = Array.from(sessionMap.values());
+      changed = true;
+    }
+
+    if (changed) {
+      writeDb(db);
+    }
+    return true;
+  } catch (err) {
+    console.warn('[SUPABASE PULL WARNING]:', err);
+    return false;
+  }
+}
+
 // Automatically relay single or array of sessions to Supabase in background
 async function relaySessionsToSupabase(sessions: any[], defaultTeacherEmail?: string) {
   const client = getServerSupabaseClient();
@@ -259,8 +372,16 @@ async function startServer() {
 
   app.use(express.json({ limit: '20mb' }));
 
-  // Initialize DB on boot
-  readDb();
+  // Initialize DB on boot and auto-relay all historical students/sessions to Supabase
+  const initialDb = readDb();
+  setTimeout(() => {
+    if (initialDb.students && initialDb.students.length > 0) {
+      relayStudentsToSupabase(initialDb.students).catch(() => {});
+    }
+    if (initialDb.sessions && initialDb.sessions.length > 0) {
+      relaySessionsToSupabase(initialDb.sessions).catch(() => {});
+    }
+  }, 1500);
 
   // --- API ROUTES ---
 
@@ -549,9 +670,12 @@ async function startServer() {
   });
 
   // Dedicated Teacher Account Synchronized Data API
-  app.get('/api/teacher/data', (req, res) => {
+  app.get('/api/teacher/data', async (req, res) => {
     try {
       const db = readDb();
+      // Ensure server DB is synchronized with the absolute latest Supabase state
+      await pullLatestFromSupabase(db);
+
       const rawEmail = (req.query.email as string || '').trim().toLowerCase();
       const isAdmin = rawEmail === 'admin@projectsmile' || rawEmail.includes('admin') || db.accounts[rawEmail]?.role === 'admin';
 
@@ -567,7 +691,7 @@ async function startServer() {
         matchedStudents = (db.students || []).filter((s: any) => {
           const sEmail = (s.teacherEmail || s.teacher_email || '').toLowerCase().trim();
           if (sEmail) return sEmail === rawEmail;
-          // Legacy support: if student has no teacherEmail and requesting teacher is Shirlene
+          // Primary teacher fallback
           return rawEmail === 'shirlene.mandapat@depedqc.ph';
         });
 
@@ -680,8 +804,9 @@ async function startServer() {
   });
 
   // Full Database Sync (GET: fetch all persistent server records; POST: merge records)
-  app.get('/api/sync/all', (_req, res) => {
+  app.get('/api/sync/all', async (_req, res) => {
     const db = readDb();
+    await pullLatestFromSupabase(db);
     res.json({
       success: true,
       data: {
@@ -698,9 +823,10 @@ async function startServer() {
   });
 
   // Dedicated Sessions Endpoints for Real-Time Cross-Device Synchronization
-  app.get('/api/sessions', (req, res) => {
+  app.get('/api/sessions', async (req, res) => {
     try {
       const db = readDb();
+      await pullLatestFromSupabase(db);
       const teacherEmail = (req.query.teacherEmail as string || '').toLowerCase().trim();
       let list = db.sessions || [];
       if (teacherEmail && !teacherEmail.includes('admin') && teacherEmail !== 'shirlene.mandapat@depedqc.ph') {
