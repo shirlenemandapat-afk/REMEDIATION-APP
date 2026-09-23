@@ -7,6 +7,7 @@ interface SessionLogListProps {
   students: Student[];
   onOpenAddSession: (studentId?: string) => void;
   onDeleteSession: (sessionId: string) => void;
+  onEditSession?: (session: SessionRecord) => void;
   onViewMOV: (movUrl: string, title: string) => void;
   onSelectStudent: (student: Student) => void;
   onEditStudent?: (student: Student) => void;
@@ -20,6 +21,7 @@ export const SessionLogList: React.FC<SessionLogListProps> = ({
   students,
   onOpenAddSession,
   onDeleteSession,
+  onEditSession,
   onViewMOV,
   onSelectStudent,
   onEditStudent,
@@ -161,9 +163,22 @@ export const SessionLogList: React.FC<SessionLogListProps> = ({
                     <span className="text-xs font-black text-emerald-950 bg-emerald-100 px-2.5 py-0.5 rounded-lg border border-emerald-300">
                       {sess.score}% &bull; {mastery.description}
                     </span>
+
+                    {onEditSession && (
+                      <button
+                        type="button"
+                        onClick={() => onEditSession(sess)}
+                        className="px-3 py-1 bg-amber-50/80 hover:bg-amber-100 text-amber-950 border border-amber-300 hover:border-amber-400 rounded-full text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                        title="Edit Session Details & MOVs"
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-amber-800" />
+                        Edit
+                      </button>
+                    )}
+
                     <button
                       onClick={() => onDeleteSession(sess.id)}
-                      className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                      className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition cursor-pointer"
                       title="Delete Session Entry"
                     >
                       <Trash2 className="w-4 h-4" />

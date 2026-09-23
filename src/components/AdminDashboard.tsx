@@ -66,6 +66,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Local state for loaded entities
   const [teachers, setTeachers] = useState<TeacherProfile[]>(() => storage.getAllTeachers());
+  const [liveStudents, setLiveStudents] = useState<Student[]>(() => students && students.length > 0 ? students : storage.getAllStudents());
+  const [liveSessions, setLiveSessions] = useState<SessionRecord[]>(() => sessions && sessions.length > 0 ? sessions : storage.getAllSessions());
   const [programs, setPrograms] = useState<RemediationProgram[]>(() => storage.getPrograms());
   const [classes, setClasses] = useState<RemediationClass[]>(() => storage.getRemediationClasses());
   const [announcements, setAnnouncements] = useState<SystemAnnouncement[]>(() => storage.getAnnouncements());
@@ -74,20 +76,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // Sync state when props change
+  useEffect(() => {
+    if (students && students.length > 0) {
+      setLiveStudents(students);
+    }
+  }, [students]);
+
+  useEffect(() => {
+    if (sessions && sessions.length > 0) {
+      setLiveSessions(sessions);
+    }
+  }, [sessions]);
+
   const handleRefreshAll = async () => {
     setIsSyncing(true);
     try {
-      // Force sync teachers first to ensure dashboard has latest data
+      // 1. Force authoritative sync from server & Supabase for admin view
+      const syncRes = await storage.syncFromServer(currentAdmin.email || 'admin@projectsmile');
+      if (syncRes && syncRes.success) {
+        if (syncRes.students) setLiveStudents(syncRes.students);
+        if (syncRes.sessions) setLiveSessions(syncRes.sessions);
+      } else {
+        setLiveStudents(storage.getAllStudents());
+        setLiveSessions(storage.getAllSessions());
+      }
+
+      // 2. Refresh teachers
       const freshTeachers = await storage.fetchAllTeachersFromServer();
       setTeachers(freshTeachers);
       
+      // 3. Refresh remaining entities
       setPrograms(storage.getPrograms());
       setClasses(storage.getRemediationClasses());
       setAnnouncements(storage.getAnnouncements());
       setSettings(storage.getSettings());
       setAuditLogs(storage.getAuditLogs());
+      
       onRefreshData();
-      console.log('Admin dashboard refreshed successfully.');
+      console.log('Admin dashboard live data synchronized successfully.');
     } catch (error) {
       console.error('Error refreshing admin dashboard:', error);
     } finally {
@@ -98,8 +125,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   useEffect(() => {
     handleRefreshAll();
     
-    // Set up auto-polling every 30 seconds
-    const interval = setInterval(handleRefreshAll, 30000);
+    // Set up real-time auto-polling every 12 seconds
+    const interval = setInterval(handleRefreshAll, 12000);
     return () => clearInterval(interval);
   }, []);
 
@@ -212,8 +239,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {activeTab === 'overview' && (
           <AdminDashboardOverview
             currentAdmin={currentAdmin}
-            students={students}
-            sessions={sessions}
+            students={liveStudents}
+            sessions={liveSessions}
             programs={programs}
             classes={classes}
             teachers={teachers}
@@ -239,15 +266,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             currentAdmin={currentAdmin}
             programs={programs}
             teachers={teachers}
-            students={students}
+            students={liveStudents}
             onRefresh={handleRefreshAll}
           />
         )}
 
         {activeTab === 'students' && (
           <AdminStudentMonitoring
-            students={students}
-            sessions={sessions}
+            students={liveStudents}
+            sessions={liveSessions}
+            teachers={teachers}
             onSelectStudent={onSelectStudent}
           />
         )}
@@ -256,16 +284,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <AdminTeacherReports
             currentAdmin={currentAdmin}
             teachers={teachers}
-            sessions={sessions}
-            students={students}
+            sessions={liveSessions}
+            students={liveStudents}
             onRefresh={handleRefreshAll}
           />
         )}
 
         {activeTab === 'analytics' && (
           <AdminAnalyticsReports
-            students={students}
-            sessions={sessions}
+            students={liveStudents}
+            sessions={liveSessions}
             programs={programs}
             teachers={teachers}
           />

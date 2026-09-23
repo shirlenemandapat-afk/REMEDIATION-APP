@@ -35,6 +35,8 @@ interface StudentDetailModalProps {
   onOpenAddSession: (studentId: string) => void;
   onViewMOV: (movUrl: string, title: string) => void;
   onEditStudent?: (student: Student) => void;
+  onEditSession?: (session: SessionRecord) => void;
+  onDeleteSession?: (sessionId: string) => void;
   onOpenParentLetter?: (student: Student) => void;
   onOpenAnecdotalReport?: (student: Student) => void;
   onDeleteStudent?: (student: Student) => void;
@@ -50,6 +52,8 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
   onOpenAddSession,
   onViewMOV,
   onEditStudent,
+  onEditSession,
+  onDeleteSession,
   onOpenParentLetter,
   onOpenAnecdotalReport,
   onDeleteStudent,
@@ -356,6 +360,29 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                           <span className="font-black text-xs text-emerald-900 bg-emerald-100 px-2.5 py-1 rounded-md border border-emerald-300">
                             {sess.score}% &bull; {sessMastery.description}
                           </span>
+
+                          {onEditSession && (
+                            <button
+                              type="button"
+                              onClick={() => onEditSession(sess)}
+                              className="px-3 py-1 bg-amber-50/80 hover:bg-amber-100 text-amber-950 border border-amber-300 hover:border-amber-400 rounded-full text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                              title="Edit this session"
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-amber-800" />
+                              Edit
+                            </button>
+                          )}
+
+                          {onDeleteSession && (
+                            <button
+                              type="button"
+                              onClick={() => onDeleteSession(sess.id)}
+                              className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition cursor-pointer"
+                              title="Delete this session"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
 

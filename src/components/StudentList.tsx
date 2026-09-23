@@ -26,6 +26,7 @@ interface StudentListProps {
   onOpenAddSession: (studentId: string) => void;
   onSelectStudent: (student: Student) => void;
   onEditStudent: (student: Student) => void;
+  onEditSession?: (session: SessionRecord) => void;
   onDeleteStudent: (student: Student) => void;
   onArchiveStudent: (student: Student) => void;
   selectedSection: string;
@@ -43,6 +44,7 @@ export const StudentList: React.FC<StudentListProps> = ({
   onOpenAddSession,
   onSelectStudent,
   onEditStudent,
+  onEditSession,
   onDeleteStudent,
   onArchiveStudent,
   selectedSection,
@@ -287,7 +289,7 @@ export const StudentList: React.FC<StudentListProps> = ({
                   </div>
                 </div>
 
-                {/* Card Actions Footer with Progress, Edit, Session, Archive, and Delete */}
+                {/* Card Actions Footer with Progress Graph, Edit Sessions, Add Session, Archive, and Delete */}
                 <div className="bg-slate-50/80 p-3 border-t border-slate-100 flex items-center justify-between gap-1.5 flex-wrap">
                   <div className="flex items-center gap-1.5">
                     <button
@@ -300,14 +302,25 @@ export const StudentList: React.FC<StudentListProps> = ({
                       Graph
                     </button>
 
+                    {/* Edit Session(s) Button */}
                     <button
                       type="button"
-                      onClick={() => onEditStudent(student)}
-                      className="px-2.5 py-1.5 bg-white hover:bg-amber-50 text-amber-900 border border-amber-200 hover:border-amber-400 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer"
-                      title="Edit Student Profile & Details"
+                      onClick={() => {
+                        if (studentSessions.length > 0 && onEditSession) {
+                          onEditSession(studentSessions[0]);
+                        } else {
+                          onOpenAddSession(student.id);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-amber-50/80 hover:bg-amber-100 text-amber-950 border border-amber-300 hover:border-amber-400 rounded-full text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                      title={studentSessions.length > 0 ? `Edit previously logged sessions (${studentSessions.length} total)` : "Log First Remediation Session"}
                     >
-                      <Pencil className="w-3.5 h-3.5 text-amber-700" />
-                      Edit
+                      <Pencil className="w-3.5 h-3.5 text-amber-800" />
+                      {studentSessions.length > 0 ? (
+                        <span>Edit {studentSessions.length > 1 ? `(${studentSessions.length})` : 'Session'}</span>
+                      ) : (
+                        <span>Log Session</span>
+                      )}
                     </button>
                   </div>
 
@@ -319,7 +332,7 @@ export const StudentList: React.FC<StudentListProps> = ({
                       title="Add Daily Anecdotal Session"
                     >
                       <PlusCircle className="w-3.5 h-3.5 text-yellow-300" />
-                      Session
+                      + Session
                     </button>
 
                     {/* Archive Action Button */}

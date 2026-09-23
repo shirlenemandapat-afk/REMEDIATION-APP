@@ -42,17 +42,28 @@ export const AdminTeacherReports: React.FC<AdminTeacherReportsProps> = ({
   const teacherStats = teachers.map((teacher) => {
     const tEmailNorm = (teacher.email || '').toLowerCase().trim();
 
-    // Filter sessions matching this teacher either directly by student.teacherEmail or by assigned subjects
+    // Filter sessions matching this teacher either directly by session teacherEmail, student.teacherEmail, or assigned subjects
     const teacherSessions = sessions.filter((s) => {
       const student = students.find((st) => st.id === s.studentId);
-      const isEmailMatch = Boolean(
+      const isDirectSessionEmailMatch = Boolean(
+        s.teacherEmail && s.teacherEmail.toLowerCase().trim() === tEmailNorm
+      );
+      const isStudentEmailMatch = Boolean(
         student?.teacherEmail &&
         student.teacherEmail.toLowerCase().trim() === tEmailNorm
       );
       const isSubjMatch = Boolean(
-        teacher.assignedSubjects?.some((sub) => student?.subject === sub)
+        teacher.assignedSubjects &&
+        teacher.assignedSubjects.length > 0 &&
+        teacher.assignedSubjects.some((sub) => (s.subject || student?.subject) === sub)
       );
-      return isEmailMatch || isSubjMatch;
+      const isDefaultFallback = Boolean(
+        tEmailNorm === 'shirlene.mandapat@depedqc.ph' &&
+        !s.teacherEmail &&
+        (!student || !student.teacherEmail)
+      );
+
+      return isDirectSessionEmailMatch || isStudentEmailMatch || isSubjMatch || isDefaultFallback;
     });
 
     const movCount = teacherSessions.reduce((acc, s) => acc + (s.movs?.length || 0), 0);
@@ -75,6 +86,28 @@ export const AdminTeacherReports: React.FC<AdminTeacherReportsProps> = ({
       statusFilter === 'all' || item.submissionStatus === statusFilter;
 
     return matchesSearch && matchesStatus;
+  });
+
+  // Detailed Sessions Log Filter for Administrator
+  const [drilldownTeacherFilter, setDrilldownTeacherFilter] = useState<string>('all');
+  const [drilldownSearch, setDrilldownSearch] = useState<string>('');
+
+  const filteredDrilldownSessions = sessions.filter((sess) => {
+    const student = students.find((st) => st.id === sess.studentId);
+    const sessTeacherEmail = (sess.teacherEmail || student?.teacherEmail || 'shirlene.mandapat@depedqc.ph').toLowerCase().trim();
+    
+    const matchesTeacher =
+      drilldownTeacherFilter === 'all' || sessTeacherEmail === drilldownTeacherFilter.toLowerCase().trim();
+
+    const matchesSearch =
+      !drilldownSearch.trim() ||
+      (sess.studentName || '').toLowerCase().includes(drilldownSearch.toLowerCase()) ||
+      (sess.focusCompetency || '').toLowerCase().includes(drilldownSearch.toLowerCase()) ||
+      (sess.subject || '').toLowerCase().includes(drilldownSearch.toLowerCase()) ||
+      (sess.remarks || '').toLowerCase().includes(drilldownSearch.toLowerCase()) ||
+      sessTeacherEmail.includes(drilldownSearch.toLowerCase());
+
+    return matchesTeacher && matchesSearch;
   });
 
   // All session logs with MOVs for verification gallery
@@ -222,7 +255,14 @@ export const AdminTeacherReports: React.FC<AdminTeacherReportsProps> = ({
                     </td>
 
                     <td className="px-4 py-4 text-center">
-                      <span className="font-bold text-slate-800">{item.sessionCount} Sessions</span>
+                      <button
+                        type="button"
+                        onClick={() => setDrilldownTeacherFilter(item.teacher.email)}
+                        className="font-bold text-emerald-800 hover:text-emerald-950 underline cursor-pointer"
+                        title="Click to view sessions logged by this teacher"
+                      >
+                        {item.sessionCount} Sessions
+                      </button>
                     </td>
 
                     <td className="px-4 py-4 text-center">
@@ -265,6 +305,158 @@ export const AdminTeacherReports: React.FC<AdminTeacherReportsProps> = ({
                 <tr>
                   <td colSpan={6} className="py-10 text-center text-xs text-slate-400">
                     No faculty found matching the filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Synchronized Faculty Remediation Session Logs Table */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden space-y-0">
+        <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50">
+          <div>
+            <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+              <Clock className="w-4 h-4 text-emerald-700" />
+              Faculty Remediation Session Logs ({filteredDrilldownSessions.length} Synchronized Records)
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Live synchronized individual session logs submitted by teachers across all learning areas and sections.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={drilldownTeacherFilter}
+              onChange={(e) => setDrilldownTeacherFilter(e.target.value)}
+              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 font-semibold focus:outline-none shadow-2xs"
+            >
+              <option value="all">All Faculty Members ({sessions.length} total sessions)</option>
+              {teachers.map((t) => (
+                <option key={t.email} value={t.email}>
+                  {t.name} ({t.email})
+                </option>
+              ))}
+            </select>
+
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={drilldownSearch}
+                onChange={(e) => setDrilldownSearch(e.target.value)}
+                placeholder="Search student, competency, remarks..."
+                className="pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none w-56 shadow-2xs"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto max-h-[500px]">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-100/90 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px] sticky top-0 z-10">
+              <tr>
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3">Logged By Teacher</th>
+                <th className="px-4 py-3">Student & Section</th>
+                <th className="px-4 py-3">Learning Area / Subject</th>
+                <th className="px-4 py-3">Focus Competency</th>
+                <th className="px-4 py-3 text-center">Score & Mastery</th>
+                <th className="px-4 py-3 text-center">MOVs</th>
+                <th className="px-4 py-3 text-right">Remarks & Verification</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 font-medium">
+              {filteredDrilldownSessions.map((sess) => {
+                const student = students.find((st) => st.id === sess.studentId);
+                const teacherObj = teachers.find(
+                  (t) => (t.email || '').toLowerCase().trim() === (sess.teacherEmail || student?.teacherEmail || '').toLowerCase().trim()
+                );
+                const teacherDisplayName = teacherObj ? teacherObj.name : (sess.teacherEmail || student?.teacherEmail || 'Department Faculty');
+
+                return (
+                  <tr key={sess.id} className="hover:bg-emerald-50/40 transition">
+                    <td className="px-4 py-3.5 font-mono text-slate-700 whitespace-nowrap font-bold">
+                      {sess.date}
+                    </td>
+
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <p className="font-bold text-slate-900">{teacherDisplayName}</p>
+                      <p className="text-[10px] text-slate-500 font-mono">{sess.teacherEmail || student?.teacherEmail || 'shirlene.mandapat@depedqc.ph'}</p>
+                    </td>
+
+                    <td className="px-4 py-3.5">
+                      <p className="font-bold text-slate-900">{sess.studentName || (student ? `${student.lastName}, ${student.firstName}` : 'Student')}</p>
+                      <p className="text-[11px] text-slate-500">{sess.gradeLevel} - {sess.section}</p>
+                    </td>
+
+                    <td className="px-4 py-3.5">
+                      <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold">
+                        {sess.subject || student?.subject || 'TLE'}
+                      </span>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{sess.programType || student?.programType || 'Remediation'}</p>
+                    </td>
+
+                    <td className="px-4 py-3.5 max-w-xs">
+                      <p className="font-semibold text-slate-800 line-clamp-2">{sess.focusCompetency}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5 truncate">
+                        {sess.interventions?.join(', ') || sess.intervention || 'Individual Drill'}
+                      </p>
+                    </td>
+
+                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                      <div className="inline-flex flex-col items-center">
+                        <span className="font-mono font-bold text-slate-900">
+                          {sess.rawScore}/{sess.totalItems || 20} ({sess.score}%)
+                        </span>
+                        <span
+                          className={`mt-0.5 px-2 py-0.2 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                            sess.score >= 85
+                              ? 'bg-emerald-100 text-emerald-900'
+                              : sess.score >= 75
+                              ? 'bg-teal-100 text-teal-900'
+                              : 'bg-amber-100 text-amber-900'
+                          }`}
+                        >
+                          {sess.masteryLevel || (sess.score >= 75 ? 'Mastered' : 'Needs Practice')}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td className="px-4 py-3.5 text-center">
+                      {sess.movs && sess.movs.length > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setViewingMovModal(sess)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-[11px] transition cursor-pointer border border-blue-200"
+                        >
+                          <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
+                          {sess.movs.length} MOVs
+                        </button>
+                      ) : (
+                        <span className="text-[11px] text-slate-400 italic">None</span>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-3.5 text-right">
+                      {sess.remarks ? (
+                        <span className="text-xs text-slate-700 italic max-w-xs inline-block text-left line-clamp-2">
+                          "{sess.remarks}"
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400 italic">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {filteredDrilldownSessions.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-xs text-slate-400">
+                    <Clock className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    No session logs found matching the selected filters.
                   </td>
                 </tr>
               )}

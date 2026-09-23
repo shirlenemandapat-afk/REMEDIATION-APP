@@ -13,6 +13,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { EnrollStudentModal } from './components/EnrollStudentModal';
 import { EditStudentModal } from './components/EditStudentModal';
 import { AddSessionModal } from './components/AddSessionModal';
+import { EditSessionModal } from './components/EditSessionModal';
 import { StudentDetailModal } from './components/StudentDetailModal';
 import { MOVViewerModal } from './components/MOVViewerModal';
 import { ParentCommunicationLetterModal } from './components/ParentCommunicationLetterModal';
@@ -66,6 +67,7 @@ export default function App() {
   // Modal Controls
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState<boolean>(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [editingSession, setEditingSession] = useState<SessionRecord | null>(null);
   const [isAddSessionModalOpen, setIsAddSessionModalOpen] = useState<boolean>(false);
   const [addSessionStudentId, setAddSessionStudentId] = useState<string | undefined>(undefined);
   const [viewStudent, setViewStudent] = useState<Student | null>(null);
@@ -381,6 +383,19 @@ export default function App() {
     }
   };
 
+  const handleUpdateSession = async (updatedSession: SessionRecord) => {
+    storage.updateSession(updatedSession);
+    if (isSupabaseConfigured()) {
+      await supabaseService.upsertSession(updatedSession, teacher.email);
+    }
+    refreshData();
+    showToast(`Session record for ${updatedSession.studentName} has been updated successfully!`, 'success');
+    if (viewStudent && viewStudent.id === updatedSession.studentId) {
+      const updated = storage.getStudents().find((s) => s.id === updatedSession.studentId);
+      if (updated) setViewStudent(updated);
+    }
+  };
+
   const handleRequestDeleteSession = (sessionId: string) => {
     const targetSession = sessions.find((s) => s.id === sessionId);
     setConfirmConfig({
@@ -590,8 +605,8 @@ export default function App() {
         {activeTab === 'admin-portal' && (
           <AdminDashboard
             currentAdmin={teacher}
-            students={storage.getAllStudents()}
-            sessions={storage.getAllSessions()}
+            students={students && students.length > 0 ? students : storage.getAllStudents()}
+            sessions={sessions && sessions.length > 0 ? sessions : storage.getAllSessions()}
             onRefreshData={refreshData}
             onSelectStudent={(stud) => setViewStudent(stud)}
             onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
@@ -609,6 +624,7 @@ export default function App() {
             }}
             onSelectStudent={(stud) => setViewStudent(stud)}
             onEditStudent={(stud) => setEditingStudent(stud)}
+            onEditSession={(sess) => setEditingSession(sess)}
             onDeleteStudent={handleRequestDeleteStudent}
             onArchiveStudent={handleRequestArchiveStudent}
             selectedSection={selectedSection}
@@ -629,6 +645,7 @@ export default function App() {
               setIsAddSessionModalOpen(true);
             }}
             onDeleteSession={handleRequestDeleteSession}
+            onEditSession={(sess) => setEditingSession(sess)}
             onViewMOV={(url, title) => setViewMovUrl({ url, title })}
             onSelectStudent={(stud) => setViewStudent(stud)}
             onEditStudent={(stud) => setEditingStudent(stud)}
@@ -730,12 +747,30 @@ export default function App() {
         }}
         onViewMOV={(url, title) => setViewMovUrl({ url, title })}
         onEditStudent={(stud) => setEditingStudent(stud)}
+        onEditSession={(sess) => setEditingSession(sess)}
+        onDeleteSession={(sessId) => handleRequestDeleteSession(sessId)}
         onOpenParentLetter={(stud) => setParentLetterStudent(stud)}
         onOpenAnecdotalReport={(stud) => setAnecdotalReportStudent(stud)}
         onDeleteStudent={(stud) => handleRequestDeleteStudent(stud)}
         onArchiveStudent={(stud) => handleRequestArchiveStudent(stud)}
         onUnarchiveStudent={(stud) => handleRequestUnarchiveStudent(stud.id)}
       />
+
+      {editingSession && (
+        <EditSessionModal
+          isOpen={!!editingSession}
+          onClose={() => setEditingSession(null)}
+          session={editingSession}
+          students={students}
+          allSessions={sessions}
+          onUpdateSession={handleUpdateSession}
+          onDeleteSession={(sessId) => {
+            handleRequestDeleteSession(sessId);
+            setEditingSession(null);
+          }}
+          onViewMOV={(url, title) => setViewMovUrl({ url, title })}
+        />
+      )}
 
       {editingStudent && (
         <EditStudentModal

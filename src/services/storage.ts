@@ -2154,6 +2154,29 @@ export const storage = {
     return newSession;
   },
 
+  updateSession(session: SessionRecord): void {
+    const all = this.getAllSessions();
+    const index = all.findIndex((s) => s.id === session.id);
+    if (index !== -1) {
+      all[index] = session;
+      this.saveSessions(all);
+
+      // Automatically update student's status if score changed
+      const allStudents = this.getAllStudents();
+      const studentIndex = allStudents.findIndex((s) => s.id === session.studentId);
+      if (studentIndex !== -1) {
+        const student = allStudents[studentIndex];
+        if (session.score >= 80 && student.status !== 'Mastered / Promoted') {
+          student.status = 'Mastered / Promoted';
+        } else if (session.score >= 60 && student.status === 'Needs Remediation') {
+          student.status = 'Progressing';
+        }
+        allStudents[studentIndex] = student;
+        this.saveStudents(allStudents);
+      }
+    }
+  },
+
   deleteSession(sessionId: string): void {
     const all = this.getAllSessions().filter((s) => s.id !== sessionId);
     try {
