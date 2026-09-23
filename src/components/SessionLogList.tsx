@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SessionRecord, Student, interpretMasteryLevel } from '../types';
-import { Calendar, Search, Filter, Plus, FileText, Trash2, BookOpen, Paperclip, ChevronRight, RefreshCw, Cloud, Laptop } from 'lucide-react';
+import { Calendar, Search, Filter, Plus, FileText, Trash2, BookOpen, Paperclip, ChevronRight, RefreshCw, Cloud, Laptop, Pencil } from 'lucide-react';
 
 interface SessionLogListProps {
   sessions: SessionRecord[];
@@ -9,6 +9,7 @@ interface SessionLogListProps {
   onDeleteSession: (sessionId: string) => void;
   onViewMOV: (movUrl: string, title: string) => void;
   onSelectStudent: (student: Student) => void;
+  onEditStudent?: (student: Student) => void;
   onManualSync?: () => void;
   isSyncing?: boolean;
   lastSyncTime?: Date;
@@ -21,6 +22,7 @@ export const SessionLogList: React.FC<SessionLogListProps> = ({
   onDeleteSession,
   onViewMOV,
   onSelectStudent,
+  onEditStudent,
   onManualSync,
   isSyncing,
   lastSyncTime,
@@ -120,13 +122,25 @@ export const SessionLogList: React.FC<SessionLogListProps> = ({
                 {/* Session Header */}
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
                   <div className="flex items-center gap-2.5 flex-wrap">
-                    <button
-                      onClick={() => studentObj && onSelectStudent(studentObj)}
-                      className="text-sm font-extrabold text-slate-900 hover:text-emerald-800 transition flex items-center gap-1 group"
-                    >
-                      <span>{sess.studentName}</span>
-                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-700 transition" />
-                    </button>
+                    {studentObj && onEditStudent ? (
+                      <button
+                        type="button"
+                        onClick={() => onEditStudent(studentObj)}
+                        className="text-sm font-extrabold text-slate-900 hover:text-emerald-800 hover:underline transition flex items-center gap-1.5 group cursor-pointer"
+                        title="Click to edit student profile/details"
+                      >
+                        <span>{sess.studentName}</span>
+                        <Pencil className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-700 opacity-60 group-hover:opacity-100 transition" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => studentObj && onSelectStudent(studentObj)}
+                        className="text-sm font-extrabold text-slate-900 hover:text-emerald-800 transition flex items-center gap-1 group"
+                      >
+                        <span>{sess.studentName}</span>
+                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-700 transition" />
+                      </button>
+                    )}
                     <span className="text-xs text-slate-500 font-medium">
                       ({sess.gradeLevel} - {sess.section} &bull; {sess.subject})
                     </span>

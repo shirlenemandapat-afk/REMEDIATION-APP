@@ -1759,16 +1759,47 @@ export const storage = {
     if (index !== -1) {
       allStudents[index] = student;
       localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(allStudents));
+
+      // Cascade updated name, section, grade, subject to associated sessions
+      const fullName = `${student.lastName}, ${student.firstName} ${student.middleInitial || ''}`.trim();
+      const allSessions = this.getAllSessions();
+      let sessionsUpdated = false;
+      const updatedSessions = allSessions.map((sess) => {
+        if (sess.studentId === student.id) {
+          sessionsUpdated = true;
+          return {
+            ...sess,
+            studentName: fullName,
+            section: student.section,
+            gradeLevel: student.gradeLevel,
+            subject: student.subject,
+            programType: student.programType,
+          };
+        }
+        return sess;
+      });
+
+      if (sessionsUpdated) {
+        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(updatedSessions));
+        fetch('/api/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessions: updatedSessions }),
+        }).catch(() => {});
+      }
+
       fetch('/api/sync/all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ students: allStudents }),
+        body: JSON.stringify({ students: allStudents, ...(sessionsUpdated ? { sessions: updatedSessions } : {}) }),
       }).catch((e) => console.warn('Background sync students notice:', e));
+      
       fetch('/api/students', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ student }),
       }).catch(() => {});
+
       if (isSupabaseConfigured()) {
         supabaseService.upsertStudent(student, student.teacherEmail).catch(() => {});
       }

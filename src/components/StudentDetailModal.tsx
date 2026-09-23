@@ -14,6 +14,7 @@ import {
   Archive,
   RotateCcw,
   Trash2,
+  Pencil,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -33,6 +34,7 @@ interface StudentDetailModalProps {
   sessions: SessionRecord[];
   onOpenAddSession: (studentId: string) => void;
   onViewMOV: (movUrl: string, title: string) => void;
+  onEditStudent?: (student: Student) => void;
   onOpenParentLetter?: (student: Student) => void;
   onOpenAnecdotalReport?: (student: Student) => void;
   onDeleteStudent?: (student: Student) => void;
@@ -47,6 +49,7 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
   sessions,
   onOpenAddSession,
   onViewMOV,
+  onEditStudent,
   onOpenParentLetter,
   onOpenAnecdotalReport,
   onDeleteStudent,
@@ -108,11 +111,30 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                 {student.gradeLevel} - {student.section} &bull; {student.subject}
               </span>
             </div>
-            <h2 className="text-2xl font-black tracking-tight text-white font-serif">
-              {student.lastName}, {student.firstName} {student.middleInitial}
-            </h2>
+            <div className="flex items-center gap-2">
+              {onEditStudent ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onEditStudent(student);
+                  }}
+                  className="text-left group/edit cursor-pointer"
+                  title="Click to edit student profile/details"
+                >
+                  <h2 className="text-2xl font-black tracking-tight text-white font-serif group-hover/edit:text-yellow-300 transition flex items-center gap-2">
+                    <span>{student.lastName}, {student.firstName} {student.middleInitial}</span>
+                    <Pencil className="w-4 h-4 text-emerald-300 opacity-70 group-hover/edit:opacity-100 transition shrink-0" />
+                  </h2>
+                </button>
+              ) : (
+                <h2 className="text-2xl font-black tracking-tight text-white font-serif">
+                  {student.lastName}, {student.firstName} {student.middleInitial}
+                </h2>
+              )}
+            </div>
             <p className="text-xs text-emerald-100/90 mt-1">
-              Target Competency: <span className="font-bold text-yellow-300">{student.focusTopic}</span>
+              Target Competency: <span className="font-bold text-yellow-300">{student.focusTopic || 'General TLE Competency'}</span>
             </p>
             {student.parentName && (
               <p className="text-[11px] text-emerald-300 mt-0.5">
@@ -122,6 +144,20 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {onEditStudent && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onEditStudent(student);
+                }}
+                className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-emerald-950 rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-sm border border-amber-300 cursor-pointer active:scale-95"
+                title="Edit Student Profile & Details"
+              >
+                <Pencil className="w-3.5 h-3.5 text-emerald-950" />
+                Edit Profile
+              </button>
+            )}
             {onOpenParentLetter && (
               <button
                 onClick={() => onOpenParentLetter(student)}

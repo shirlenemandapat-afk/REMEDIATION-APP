@@ -11,6 +11,7 @@ import { NarrativeReportGenerator } from './components/NarrativeReportGenerator'
 import { ArchiveManagement } from './components/ArchiveManagement';
 import { AdminDashboard } from './components/AdminDashboard';
 import { EnrollStudentModal } from './components/EnrollStudentModal';
+import { EditStudentModal } from './components/EditStudentModal';
 import { AddSessionModal } from './components/AddSessionModal';
 import { StudentDetailModal } from './components/StudentDetailModal';
 import { MOVViewerModal } from './components/MOVViewerModal';
@@ -64,6 +65,7 @@ export default function App() {
 
   // Modal Controls
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState<boolean>(false);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [isAddSessionModalOpen, setIsAddSessionModalOpen] = useState<boolean>(false);
   const [addSessionStudentId, setAddSessionStudentId] = useState<string | undefined>(undefined);
   const [viewStudent, setViewStudent] = useState<Student | null>(null);
@@ -256,6 +258,22 @@ export default function App() {
     }
     refreshData();
     setParentLetterStudent(newStudent);
+  };
+
+  // Student Profile / Details Update Execution
+  const handleUpdateStudent = async (updatedStudent: Student) => {
+    storage.updateStudent(updatedStudent);
+    if (isSupabaseConfigured()) {
+      await supabaseService.upsertStudent(updatedStudent, teacher.email);
+    }
+    refreshData();
+    if (viewStudent && viewStudent.id === updatedStudent.id) {
+      setViewStudent(updatedStudent);
+    }
+    showToast(
+      `Student profile for ${updatedStudent.lastName}, ${updatedStudent.firstName} has been updated successfully.`,
+      'success'
+    );
   };
 
   // Student Deletion Execution
@@ -590,6 +608,7 @@ export default function App() {
               setIsAddSessionModalOpen(true);
             }}
             onSelectStudent={(stud) => setViewStudent(stud)}
+            onEditStudent={(stud) => setEditingStudent(stud)}
             onDeleteStudent={handleRequestDeleteStudent}
             onArchiveStudent={handleRequestArchiveStudent}
             selectedSection={selectedSection}
@@ -612,6 +631,7 @@ export default function App() {
             onDeleteSession={handleRequestDeleteSession}
             onViewMOV={(url, title) => setViewMovUrl({ url, title })}
             onSelectStudent={(stud) => setViewStudent(stud)}
+            onEditStudent={(stud) => setEditingStudent(stud)}
             onManualSync={handleManualSync}
             isSyncing={isSyncing}
             lastSyncTime={lastSyncTime}
@@ -709,12 +729,24 @@ export default function App() {
           setIsAddSessionModalOpen(true);
         }}
         onViewMOV={(url, title) => setViewMovUrl({ url, title })}
+        onEditStudent={(stud) => setEditingStudent(stud)}
         onOpenParentLetter={(stud) => setParentLetterStudent(stud)}
         onOpenAnecdotalReport={(stud) => setAnecdotalReportStudent(stud)}
         onDeleteStudent={(stud) => handleRequestDeleteStudent(stud)}
         onArchiveStudent={(stud) => handleRequestArchiveStudent(stud)}
         onUnarchiveStudent={(stud) => handleRequestUnarchiveStudent(stud.id)}
       />
+
+      {editingStudent && (
+        <EditStudentModal
+          isOpen={!!editingStudent}
+          onClose={() => setEditingStudent(null)}
+          student={editingStudent}
+          onUpdateStudent={handleUpdateStudent}
+          onDeleteStudent={(stud) => handleRequestDeleteStudent(stud)}
+          onArchiveStudent={(stud) => handleRequestArchiveStudent(stud)}
+        />
+      )}
 
       {parentLetterStudent && (
         <ParentCommunicationLetterModal

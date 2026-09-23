@@ -16,6 +16,7 @@ import {
   Archive,
   FolderArchive,
   Layers,
+  Pencil,
 } from 'lucide-react';
 
 interface StudentListProps {
@@ -24,6 +25,7 @@ interface StudentListProps {
   onOpenEnrollModal: () => void;
   onOpenAddSession: (studentId: string) => void;
   onSelectStudent: (student: Student) => void;
+  onEditStudent: (student: Student) => void;
   onDeleteStudent: (student: Student) => void;
   onArchiveStudent: (student: Student) => void;
   selectedSection: string;
@@ -40,6 +42,7 @@ export const StudentList: React.FC<StudentListProps> = ({
   onOpenEnrollModal,
   onOpenAddSession,
   onSelectStudent,
+  onEditStudent,
   onDeleteStudent,
   onArchiveStudent,
   selectedSection,
@@ -200,21 +203,30 @@ export const StudentList: React.FC<StudentListProps> = ({
                 <div className="p-4 space-y-3">
                   {/* Top Header info */}
                   <div className="flex items-start justify-between gap-2">
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 mb-1 border border-amber-300">
                         {student.programType}
                       </span>
-                      <h3 className="font-extrabold text-sm text-slate-900 tracking-tight group-hover:text-emerald-900 transition">
-                        {student.lastName}, {student.firstName} {student.middleInitial}
-                      </h3>
-                      <p className="text-xs text-slate-500 font-medium">
+                      {/* Clickable Student Name to Edit Profile / Details */}
+                      <button
+                        type="button"
+                        onClick={() => onEditStudent(student)}
+                        className="text-left group/name block w-full cursor-pointer"
+                        title="Click to edit student profile/details"
+                      >
+                        <h3 className="font-extrabold text-sm text-slate-900 tracking-tight group-hover/name:text-emerald-800 group-hover/name:underline transition flex items-center gap-1.5">
+                          <span>{student.lastName}, {student.firstName} {student.middleInitial}</span>
+                          <Pencil className="w-3.5 h-3.5 text-slate-400 group-hover/name:text-emerald-700 opacity-60 group-hover/name:opacity-100 transition shrink-0" />
+                        </h3>
+                      </button>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">
                         {student.gradeLevel} - {student.section} &bull;{' '}
                         <span className="font-semibold text-emerald-800">{student.subject}</span>
                       </p>
                     </div>
 
                     <span
-                      className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold text-center whitespace-nowrap border ${
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold text-center whitespace-nowrap border shrink-0 ${
                         student.status === 'Mastered / Promoted'
                           ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                           : student.status === 'Progressing'
@@ -230,7 +242,7 @@ export const StudentList: React.FC<StudentListProps> = ({
                   <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs space-y-1.5">
                     <p className="text-slate-600 font-medium truncate">
                       <span className="font-bold text-slate-800">Target Competency: </span>
-                      {student.focusTopic}
+                      {student.focusTopic || <span className="text-slate-400 italic">Identified during session</span>}
                     </p>
                     <div className="grid grid-cols-3 gap-1 pt-1 border-t border-slate-200/80 font-semibold text-[11px] text-center">
                       <div className="bg-white p-1 rounded-md border border-slate-200">
@@ -275,16 +287,29 @@ export const StudentList: React.FC<StudentListProps> = ({
                   </div>
                 </div>
 
-                {/* Card Actions Footer with Progress, Session, Archive, and Delete */}
+                {/* Card Actions Footer with Progress, Edit, Session, Archive, and Delete */}
                 <div className="bg-slate-50/80 p-3 border-t border-slate-100 flex items-center justify-between gap-1.5 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => onSelectStudent(student)}
-                    className="px-3 py-1.5 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-200 hover:border-emerald-400 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer"
-                  >
-                    <TrendingUp className="w-3.5 h-3.5 text-emerald-700" />
-                    Progress Graph
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => onSelectStudent(student)}
+                      className="px-2.5 py-1.5 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-200 hover:border-emerald-400 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer"
+                      title="View Student Progress & Graph"
+                    >
+                      <TrendingUp className="w-3.5 h-3.5 text-emerald-700" />
+                      Graph
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => onEditStudent(student)}
+                      className="px-2.5 py-1.5 bg-white hover:bg-amber-50 text-amber-900 border border-amber-200 hover:border-amber-400 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer"
+                      title="Edit Student Profile & Details"
+                    >
+                      <Pencil className="w-3.5 h-3.5 text-amber-700" />
+                      Edit
+                    </button>
+                  </div>
 
                   <div className="flex items-center gap-1">
                     <button
