@@ -198,9 +198,10 @@ async function pullLatestFromSupabase(db: AppDbState): Promise<boolean> {
   const client = getServerSupabaseClient(db);
   if (!client) return false;
   try {
-    const [studentsRes, sessionsRes, teachersRes] = await Promise.all([
+    const [studentsRes, sessionsRes, altSessionsRes, teachersRes] = await Promise.all([
       client.from('students').select('*'),
       client.from('session_records').select('*'),
+      client.from('sessions').select('*'),
       client.from('teacher_profiles').select('*'),
     ]);
 
@@ -235,10 +236,10 @@ async function pullLatestFromSupabase(db: AppDbState): Promise<boolean> {
 
     if (Array.isArray(studentsRes.data) && studentsRes.data.length > 0) {
       const studentMap = new Map();
-      (db.students || []).forEach((s: any) => studentMap.set(s.id, s));
+      (db.students || []).forEach((s: any) => studentMap.set(String(s.id), s));
       studentsRes.data.forEach((s: any) => {
-        studentMap.set(s.id, {
-          id: s.id,
+        studentMap.set(String(s.id), {
+          id: String(s.id),
           lastName: s.last_name || 'Student',
           firstName: s.first_name || 'Learner',
           middleInitial: s.middle_initial || '',
@@ -263,37 +264,75 @@ async function pullLatestFromSupabase(db: AppDbState): Promise<boolean> {
       changed = true;
     }
 
+    // Merge sessions from session_records AND sessions tables
+    const rawSessionsData: any[] = [];
     if (Array.isArray(sessionsRes.data) && sessionsRes.data.length > 0) {
+      rawSessionsData.push(...sessionsRes.data);
+    }
+    if (Array.isArray(altSessionsRes.data) && altSessionsRes.data.length > 0) {
+      rawSessionsData.push(...altSessionsRes.data);
+    }
+
+    if (rawSessionsData.length > 0) {
       const sessionMap = new Map();
-      (db.sessions || []).forEach((sess: any) => sessionMap.set(sess.id, sess));
-      sessionsRes.data.forEach((sess: any) => {
-        sessionMap.set(sess.id, {
-          id: sess.id,
-          studentId: sess.student_id,
-          studentName: sess.student_name,
-          section: sess.section,
-          gradeLevel: sess.grade_level,
-          subject: sess.subject,
-          programType: sess.program_type,
-          date: sess.date,
-          focusCompetency: sess.focus_competency,
-          activityType: sess.activity_type,
-          activityTypes: Array.isArray(sess.activity_types) ? sess.activity_types : [sess.activity_type],
-          intervention: sess.intervention,
-          interventions: Array.isArray(sess.interventions) ? sess.interventions : [sess.intervention],
-          rawScore: Number(sess.raw_score ?? sess.score ?? 0),
-          totalItems: Number(sess.total_items) || 20,
-          score: Number(sess.score) || 0,
-          masteryLevel: sess.mastery_level || (Number(sess.score) >= 85 ? 'Mastered' : Number(sess.score) >= 75 ? 'Moving Towards Mastery' : 'Average Mastery'),
+      (db.sessions || []).forEach((sess: any) => sessionMap.set(String(sess.id), sess));
+      rawSessionsData.forEach((sess: any) => {
+        const sessId = String(sess.id);
+        sessionMap.set(sessId, {
+          id: sessId,
+          studentId: String(sess.student_id || sess.studentId || ''),
+          studentName: sess.student_name || sess.studentName || 'Student',
+          section: sess.section || 'General',
+          gradeLevel: sess.grade_level || sess.gradeLevel || 'Grade 7',
+          subject: sess.subject || sess.subject || 'TLE',
+          programType: sess.program_type || sess.programType || 'Remediation',
+          date: sess.date || new Date().toISOString().split('T')[0],
+          focusCompetency: sess.focus_competency || sess.focusCompetency || 'Fundamental Competency Drill',
+          activityType: sess.activity_type || sess.activityType || 'Remedial Hands-on Practice',
+          activityTypes: Array.isArray(sess.activity_types) ? sess.activity_types : [sess.activity_type || sess.activityType || 'Remedial Hands-on Practice'],
+          intervention: sess.intervention || sess.intervention || 'Task Simplification',
+          interventions: Array.isArray(sess.interventions) ? sess.interventions : [sess.intervention || sess.intervention || 'Task Simplification'],
+          rawScore: Number(sess.raw_score ?? sess.rawScore ?? sess.score ?? 0),
+          totalItems: Number(sess.total_items ?? sess.totalItems ?? 20) || 20,
+          score: Number(sess.score ?? 0),
+          masteryLevel: sess.mastery_level || sess.masteryLevel || (Number(sess.score) >= 85 ? 'Mastered' : Number(sess.score) >= 75 ? 'Moving Towards Mastery' : 'Average Mastery'),
           remarks: sess.remarks || '',
           movs: Array.isArray(sess.movs) ? sess.movs : [],
-          assessmentTool: sess.assessment_tool || undefined,
-          createdAt: sess.created_at || new Date().toISOString(),
-          teacherEmail: sess.teacher_email || 'shirlene.mandapat@depedqc.ph',
+          assessmentTool: sess.assessment_tool || sess.assessmentTool || undefined,
+          createdAt: sess.created_at || sess.createdAt || new Date().toISOString(),
+          teacherEmail: sess.teacher_email || sess.teacherEmail || '',
         });
       });
       db.sessions = Array.from(sessionMap.values());
       changed = true;
+
+      // Auto-synthesize any missing student records referenced by sessions so they always appear in admin view
+      const studentMap = new Map();
+      (db.students || []).forEach((s: any) => studentMap.set(String(s.id), s));
+      db.sessions.forEach((sess: any) => {
+        if (sess.studentId && !studentMap.has(sess.studentId)) {
+          const parts = (sess.studentName || 'Student Learner').split(',');
+          const lName = parts[0]?.trim() || 'Student';
+          const fName = parts[1]?.trim() || 'Learner';
+          studentMap.set(sess.studentId, {
+            id: sess.studentId,
+            lastName: lName,
+            firstName: fName,
+            middleInitial: '',
+            gradeLevel: sess.gradeLevel || 'Grade 7',
+            section: sess.section || 'General',
+            subject: sess.subject || 'TLE',
+            programType: sess.programType || 'Remediation',
+            baselineScore: 0,
+            focusTopic: sess.focusCompetency || '',
+            enrolledDate: sess.date || new Date().toISOString().split('T')[0],
+            status: 'Progressing',
+            teacherEmail: sess.teacherEmail || 'shirlene.mandapat@depedqc.ph',
+          });
+          changed = true;
+        }
+      });
+      db.students = Array.from(studentMap.values());
     }
 
     if (changed) {
@@ -335,23 +374,23 @@ async function relaySessionsToSupabase(sessions: any[], defaultTeacherEmail?: st
       }
 
       const payload: any = {
-        id: sess.id,
-        student_id: sess.studentId || sess.student_id,
+        id: String(sess.id),
+        student_id: String(sess.studentId || sess.student_id),
         student_name: sess.studentName || sess.student_name,
-        section: sess.section,
-        grade_level: sess.gradeLevel || sess.grade_level,
-        subject: sess.subject,
-        program_type: sess.programType || sess.program_type,
-        date: sess.date,
-        focus_competency: sess.focusCompetency || sess.focus_competency,
-        activity_type: sess.activityType || sess.activity_type,
-        activity_types: sess.activityTypes || sess.activity_types || [sess.activityType || sess.activity_type],
-        intervention: sess.intervention,
-        interventions: sess.interventions || [sess.intervention],
+        section: sess.section || 'General',
+        grade_level: sess.gradeLevel || sess.grade_level || 'Grade 7',
+        subject: sess.subject || sess.subject || 'TLE',
+        program_type: sess.programType || sess.program_type || 'Remediation',
+        date: sess.date || new Date().toISOString().split('T')[0],
+        focus_competency: sess.focusCompetency || sess.focus_competency || 'Competency Drill',
+        activity_type: sess.activityType || sess.activity_type || 'Remedial Practice',
+        activity_types: sess.activityTypes || sess.activity_types || [sess.activityType || sess.activity_type || 'Remedial Practice'],
+        intervention: sess.intervention || 'Task Simplification',
+        interventions: sess.interventions || [sess.intervention || 'Task Simplification'],
         raw_score: Number(sess.rawScore ?? sess.raw_score ?? 0),
         total_items: Number(sess.totalItems ?? sess.total_items ?? 20),
         score: Number(sess.score ?? 0),
-        mastery_level: sess.masteryLevel || sess.mastery_level,
+        mastery_level: sess.masteryLevel || sess.mastery_level || (Number(sess.score) >= 85 ? 'Mastered' : 'Progressing'),
         remarks: sess.remarks || '',
         movs: sess.movs || [],
         assessment_tool: sess.assessmentTool || sess.assessment_tool || null,
@@ -359,7 +398,13 @@ async function relaySessionsToSupabase(sessions: any[], defaultTeacherEmail?: st
         created_at: sess.createdAt || sess.created_at || new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      await client.from('session_records').upsert(payload, { onConflict: 'id' });
+
+      try {
+        await client.from('session_records').upsert(payload, { onConflict: 'id' });
+      } catch {}
+      try {
+        await client.from('sessions').upsert(payload, { onConflict: 'id' });
+      } catch {}
     } catch (err: any) {
       console.warn(`[SUPABASE RELAY NOTICE] Session ${sess.id}:`, err?.message || err);
     }
@@ -710,6 +755,8 @@ async function startServer() {
         profile,
         students: matchedStudents,
         sessions: matchedSessions,
+        allStudents: db.students || [],
+        allSessions: db.sessions || [],
         programs: db.programs || [],
         classes: db.classes || [],
         announcements: db.announcements || [],
@@ -743,40 +790,39 @@ async function startServer() {
 
       const isAdmin = cleanEmail === 'admin@projectsmile' || cleanEmail.includes('admin') || db.accounts[cleanEmail]?.role === 'admin';
 
-      // Update students
+      // Update students by map merge to never drop other teachers' students
       if (Array.isArray(students)) {
         if (isAdmin) {
           db.students = students;
         } else {
-          // Keep other teachers' students intact
-          const otherStudents = (db.students || []).filter((s: any) => {
-            const sEmail = (s.teacherEmail || s.teacher_email || '').toLowerCase().trim();
-            if (sEmail) return sEmail !== cleanEmail;
-            return cleanEmail !== 'shirlene.mandapat@depedqc.ph';
+          const studentMap = new Map();
+          (db.students || []).forEach((s: any) => studentMap.set(String(s.id), s));
+          students.forEach((s: any) => {
+            studentMap.set(String(s.id), {
+              ...s,
+              id: String(s.id),
+              teacherEmail: s.teacherEmail || cleanEmail,
+            });
           });
-          const taggedIncoming = students.map((s: any) => ({
-            ...s,
-            teacherEmail: s.teacherEmail || cleanEmail,
-          }));
-          db.students = [...otherStudents, ...taggedIncoming];
+          db.students = Array.from(studentMap.values());
         }
       }
 
-      // Update sessions
+      // Update sessions by map merge to never drop other teachers' sessions
       if (Array.isArray(sessions)) {
         if (isAdmin) {
           db.sessions = sessions;
         } else {
-          const otherSessions = (db.sessions || []).filter((sess: any) => {
-            const sEmail = (sess.teacherEmail || sess.teacher_email || '').toLowerCase().trim();
-            if (sEmail) return sEmail !== cleanEmail;
-            return cleanEmail !== 'shirlene.mandapat@depedqc.ph';
+          const sessionMap = new Map();
+          (db.sessions || []).forEach((sess: any) => sessionMap.set(String(sess.id), sess));
+          sessions.forEach((sess: any) => {
+            sessionMap.set(String(sess.id), {
+              ...sess,
+              id: String(sess.id),
+              teacherEmail: sess.teacherEmail || cleanEmail,
+            });
           });
-          const taggedIncomingSessions = sessions.map((sess: any) => ({
-            ...sess,
-            teacherEmail: sess.teacherEmail || cleanEmail,
-          }));
-          db.sessions = [...otherSessions, ...taggedIncomingSessions];
+          db.sessions = Array.from(sessionMap.values());
         }
       }
 

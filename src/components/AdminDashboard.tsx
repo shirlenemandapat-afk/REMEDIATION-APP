@@ -66,8 +66,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Local state for loaded entities
   const [teachers, setTeachers] = useState<TeacherProfile[]>(() => storage.getAllTeachers());
-  const [liveStudents, setLiveStudents] = useState<Student[]>(() => students && students.length > 0 ? students : storage.getAllStudents());
-  const [liveSessions, setLiveSessions] = useState<SessionRecord[]>(() => sessions && sessions.length > 0 ? sessions : storage.getAllSessions());
+  const [liveStudents, setLiveStudents] = useState<Student[]>(() => storage.getAllStudents());
+  const [liveSessions, setLiveSessions] = useState<SessionRecord[]>(() => storage.getAllSessions());
   const [programs, setPrograms] = useState<RemediationProgram[]>(() => storage.getPrograms());
   const [classes, setClasses] = useState<RemediationClass[]>(() => storage.getRemediationClasses());
   const [announcements, setAnnouncements] = useState<SystemAnnouncement[]>(() => storage.getAnnouncements());
@@ -76,31 +76,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Sync state when props change
+  // Keep admin view updated with complete school records
   useEffect(() => {
-    if (students && students.length > 0) {
-      setLiveStudents(students);
-    }
+    setLiveStudents(storage.getAllStudents());
   }, [students]);
 
   useEffect(() => {
-    if (sessions && sessions.length > 0) {
-      setLiveSessions(sessions);
-    }
+    setLiveSessions(storage.getAllSessions());
   }, [sessions]);
 
   const handleRefreshAll = async () => {
     setIsSyncing(true);
     try {
       // 1. Force authoritative sync from server & Supabase for admin view
-      const syncRes = await storage.syncFromServer(currentAdmin.email || 'admin@projectsmile');
-      if (syncRes && syncRes.success) {
-        if (syncRes.students) setLiveStudents(syncRes.students);
-        if (syncRes.sessions) setLiveSessions(syncRes.sessions);
-      } else {
-        setLiveStudents(storage.getAllStudents());
-        setLiveSessions(storage.getAllSessions());
-      }
+      await storage.syncFromServer(currentAdmin.email || 'admin@projectsmile');
+      setLiveStudents(storage.getAllStudents());
+      setLiveSessions(storage.getAllSessions());
 
       // 2. Refresh teachers
       const freshTeachers = await storage.fetchAllTeachersFromServer();

@@ -1026,7 +1026,19 @@ export const storage = {
       if (res.ok) {
         const result = await res.json();
         if (result.success) {
-          const { profile, accounts, students, sessions, programs, classes, announcements, auditLogs, systemSettings } = result.data || result;
+          const {
+            profile,
+            accounts,
+            students,
+            sessions,
+            allStudents,
+            allSessions,
+            programs,
+            classes,
+            announcements,
+            auditLogs,
+            systemSettings,
+          } = result.data || result;
 
           if (systemSettings) {
             localStorage.setItem(STORAGE_KEYS.SYSTEM_SETTINGS, JSON.stringify(systemSettings));
@@ -1054,49 +1066,29 @@ export const storage = {
           }
 
           // Authoritative Synchronization for Students
-          if (Array.isArray(students)) {
-            if (!activeEmail || this.isAdminEmail(activeEmail)) {
-              // Admin or global sync: adopt full server student dataset
-              localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
-            } else {
-              // Teacher sync: update this teacher's slice with server's exact records
-              const allExisting = this.getAllStudents();
-              const otherTeachersStudents = allExisting.filter((s) => {
-                const sEmail = (s.teacherEmail || 'shirlene.mandapat@depedqc.ph').toLowerCase().trim();
-                return sEmail !== activeEmail;
-              });
-              const taggedServerStudents = students.map((s: Student) => ({
-                ...s,
-                teacherEmail: s.teacherEmail || activeEmail,
-              }));
-              const combinedStudents = [...taggedServerStudents, ...otherTeachersStudents];
-              localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(combinedStudents));
-            }
+          if (Array.isArray(allStudents) && allStudents.length > 0) {
+            const studentMap = new Map();
+            this.getAllStudents().forEach((s) => studentMap.set(String(s.id), s));
+            allStudents.forEach((s: Student) => studentMap.set(String(s.id), s));
+            localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(Array.from(studentMap.values())));
+          } else if (Array.isArray(students)) {
+            const studentMap = new Map();
+            this.getAllStudents().forEach((s) => studentMap.set(String(s.id), s));
+            students.forEach((s: Student) => studentMap.set(String(s.id), s));
+            localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(Array.from(studentMap.values())));
           }
 
           // Authoritative Synchronization for Sessions
-          if (Array.isArray(sessions)) {
-            if (!activeEmail || this.isAdminEmail(activeEmail)) {
-              // Admin or global sync: adopt full server session dataset
-              localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
-            } else {
-              // Teacher sync: update this teacher's slice with server's exact records
-              const allExisting = this.getAllSessions();
-              const myStudents = this.getStudents(activeEmail);
-              const myStudentIdSet = new Set(myStudents.map((s) => s.id));
-
-              const otherTeachersSessions = allExisting.filter((sess) => {
-                const sEmail = (sess.teacherEmail || '').toLowerCase().trim();
-                if (sEmail) return sEmail !== activeEmail;
-                return !myStudentIdSet.has(sess.studentId);
-              });
-              const taggedServerSessions = sessions.map((sess: SessionRecord) => ({
-                ...sess,
-                teacherEmail: sess.teacherEmail || activeEmail,
-              }));
-              const combinedSessions = [...taggedServerSessions, ...otherTeachersSessions];
-              localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(combinedSessions));
-            }
+          if (Array.isArray(allSessions) && allSessions.length > 0) {
+            const sessionMap = new Map();
+            this.getAllSessions().forEach((sess) => sessionMap.set(String(sess.id), sess));
+            allSessions.forEach((sess: SessionRecord) => sessionMap.set(String(sess.id), sess));
+            localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(Array.from(sessionMap.values())));
+          } else if (Array.isArray(sessions)) {
+            const sessionMap = new Map();
+            this.getAllSessions().forEach((sess) => sessionMap.set(String(sess.id), sess));
+            sessions.forEach((sess: SessionRecord) => sessionMap.set(String(sess.id), sess));
+            localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(Array.from(sessionMap.values())));
           }
 
           if (Array.isArray(programs) && programs.length > 0) {
@@ -1681,24 +1673,16 @@ export const storage = {
 
   saveStudents(students: Student[], forTeacherEmail?: string): void {
     const activeEmail = (forTeacherEmail || this.getActiveUserEmail() || '').toLowerCase().trim();
-    const allExisting = this.getAllStudents();
-
-    let combined: Student[];
-    if (activeEmail && !this.isAdminEmail(activeEmail)) {
-      // Retain students from other teachers intact in database
-      const others = allExisting.filter((s) => {
-        const sEmail = (s.teacherEmail || 'shirlene.mandapat@depedqc.ph').toLowerCase();
-        return sEmail !== activeEmail;
-      });
-      // Tag saving students with this teacher's email
-      const tagged = students.map((s) => ({
+    const studentMap = new Map<string, Student>();
+    this.getAllStudents().forEach((s) => studentMap.set(String(s.id), s));
+    students.forEach((s) => {
+      studentMap.set(String(s.id), {
         ...s,
+        id: String(s.id),
         teacherEmail: s.teacherEmail || activeEmail,
-      }));
-      combined = [...tagged, ...others];
-    } else {
-      combined = students;
-    }
+      });
+    });
+    const combined = Array.from(studentMap.values());
 
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(combined));
     
@@ -2037,25 +2021,16 @@ export const storage = {
 
   saveSessions(sessions: SessionRecord[], forTeacherEmail?: string): void {
     const activeEmail = (forTeacherEmail || this.getActiveUserEmail() || '').toLowerCase().trim();
-    const allExisting = this.getAllSessions();
-
-    let combined: SessionRecord[];
-    if (activeEmail && !this.isAdminEmail(activeEmail)) {
-      const myStudents = this.getStudents(activeEmail);
-      const myStudentIdSet = new Set(myStudents.map((s) => s.id));
-      const others = allExisting.filter((sess) => {
-        const sEmail = (sess.teacherEmail || '').toLowerCase();
-        if (sEmail) return sEmail !== activeEmail;
-        return !myStudentIdSet.has(sess.studentId);
-      });
-      const tagged = sessions.map((s) => ({
+    const sessionMap = new Map<string, SessionRecord>();
+    this.getAllSessions().forEach((s) => sessionMap.set(String(s.id), s));
+    sessions.forEach((s) => {
+      sessionMap.set(String(s.id), {
         ...s,
+        id: String(s.id),
         teacherEmail: s.teacherEmail || activeEmail,
-      }));
-      combined = [...tagged, ...others];
-    } else {
-      combined = sessions;
-    }
+      });
+    });
+    const combined = Array.from(sessionMap.values());
 
     try {
       localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(combined));

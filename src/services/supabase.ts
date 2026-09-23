@@ -309,10 +309,11 @@ export const supabaseService = {
         ? client.from('teacher_profiles').select('*').eq('email', targetUserEmail).maybeSingle()
         : client.from('teacher_profiles').select('*').limit(1).maybeSingle();
 
-      const [teacherRes, studentsRes, sessionsRes] = await Promise.all([
+      const [teacherRes, studentsRes, sessionsRes, altSessionsRes] = await Promise.all([
         teacherQuery,
         client.from('students').select('*').order('last_name', { ascending: true }),
         client.from('session_records').select('*').order('date', { ascending: false }),
+        client.from('sessions').select('*').order('date', { ascending: false }),
       ]);
 
       let teacher: TeacherProfile | undefined;
@@ -337,80 +338,113 @@ export const supabaseService = {
         };
       }
 
-      const students: Student[] = (studentsRes.data || []).map((s: any) => ({
-        id: s.id,
-        lastName: s.last_name,
-        firstName: s.first_name,
-        middleInitial: s.middle_initial || '',
-        gradeLevel: s.grade_level,
-        section: s.section,
-        subject: s.subject,
-        programType: s.program_type,
-        baselineScore: Number(s.baseline_score) || 0,
-        focusTopic: s.focus_topic || '',
-        enrolledDate: s.enrolled_date,
-        status: s.status,
-        parentName: s.parent_name,
-        parentContact: s.parent_contact,
-        scheduleDetails: s.schedule_details,
-        notes: s.notes,
-        isArchived: Boolean(s.is_archived),
-        archivedAt: s.archived_at,
-        teacherEmail: s.teacher_email || '',
-      }));
+      const rawStudents = studentsRes.data || [];
+      const studentMap = new Map<string, Student>();
 
-      const sessions: SessionRecord[] = (sessionsRes.data || []).map((sess: any) => ({
-        id: sess.id,
-        studentId: sess.student_id,
-        studentName: sess.student_name,
-        section: sess.section,
-        gradeLevel: sess.grade_level,
-        subject: sess.subject,
-        programType: sess.program_type,
-        date: sess.date,
-        focusCompetency: sess.focus_competency,
-        activityType: sess.activity_type,
-        activityTypes: Array.isArray(sess.activity_types) ? sess.activity_types : [sess.activity_type],
-        intervention: sess.intervention,
-        interventions: Array.isArray(sess.interventions) ? sess.interventions : [sess.intervention],
-        rawScore: Number(sess.raw_score) || 0,
-        totalItems: Number(sess.total_items) || 20,
-        score: Number(sess.score) || 0,
-        masteryLevel: sess.mastery_level,
-        remarks: sess.remarks || '',
-        movs: Array.isArray(sess.movs) ? sess.movs : [],
-        assessmentTool: sess.assessment_tool || undefined,
-        createdAt: sess.created_at,
-        teacherEmail: sess.teacher_email || '',
-      }));
-
-      // Filter students by teacher_email if caller is a specific teacher (non-admin)
-      const isUserAdmin = targetUserEmail?.toLowerCase().includes('admin');
-      let finalStudents = students;
-      let finalSessions = sessions;
-
-      if (targetUserEmail && !isUserAdmin) {
-        const normEmail = targetUserEmail.toLowerCase().trim();
-        finalStudents = students.filter((s) => {
-          const sEmail = (s.teacherEmail || '').toLowerCase().trim();
-          if (sEmail) {
-            return sEmail === normEmail;
-          }
-          // If no specific teacherEmail was attached, permit access so data is never hidden
-          return true;
+      rawStudents.forEach((s: any) => {
+        const sid = String(s.id);
+        studentMap.set(sid, {
+          id: sid,
+          lastName: s.last_name || 'Student',
+          firstName: s.first_name || 'Learner',
+          middleInitial: s.middle_initial || '',
+          gradeLevel: s.grade_level || 'Grade 7',
+          section: s.section || 'General',
+          subject: s.subject || 'TLE',
+          programType: s.program_type || 'Remediation',
+          baselineScore: Number(s.baseline_score) || 0,
+          focusTopic: s.focus_topic || '',
+          enrolledDate: s.enrolled_date || new Date().toISOString().split('T')[0],
+          status: s.status || 'Progressing',
+          parentName: s.parent_name || undefined,
+          parentContact: s.parent_contact || undefined,
+          scheduleDetails: s.schedule_details || undefined,
+          notes: s.notes || undefined,
+          isArchived: Boolean(s.is_archived),
+          archivedAt: s.archived_at || undefined,
+          teacherEmail: s.teacher_email || '',
         });
+      });
 
-        const myStudentIds = new Set(finalStudents.map((s) => s.id));
-        finalSessions = sessions.filter((sess) => {
-          const sessEmail = (sess.teacherEmail || '').toLowerCase().trim();
-          if (sessEmail) {
-            return sessEmail === normEmail;
-          }
-          return myStudentIds.has(sess.studentId) || !sess.teacherEmail;
-        });
+      // Combine session_records and sessions data
+      const rawSessions: any[] = [];
+      if (Array.isArray(sessionsRes.data) && sessionsRes.data.length > 0) {
+        rawSessions.push(...sessionsRes.data);
+      }
+      if (Array.isArray(altSessionsRes.data) && altSessionsRes.data.length > 0) {
+        rawSessions.push(...altSessionsRes.data);
       }
 
-      return { teacher, students: finalStudents, sessions: finalSessions };
+      const sessionMap = new Map<string, SessionRecord>();
+
+      rawSessions.forEach((sess: any) => {
+        const sessId = String(sess.id);
+        const stId = String(sess.student_id || sess.studentId || '');
+        const sessObj: SessionRecord = {
+          id: sessId,
+          studentId: stId,
+          studentName: sess.student_name || sess.studentName || 'Student',
+          section: sess.section || 'General',
+          gradeLevel: sess.grade_level || sess.gradeLevel || 'Grade 7',
+          subject: sess.subject || sess.subject || 'TLE',
+          programType: sess.program_type || sess.programType || 'Remediation',
+          date: sess.date || new Date().toISOString().split('T')[0],
+          focusCompetency: sess.focus_competency || sess.focusCompetency || 'Competency Practice',
+          activityType: sess.activity_type || sess.activityType || 'Remedial Practice',
+          activityTypes: Array.isArray(sess.activity_types)
+            ? sess.activity_types
+            : Array.isArray(sess.activityTypes)
+            ? sess.activityTypes
+            : [sess.activity_type || sess.activityType || 'Remedial Practice'],
+          intervention: sess.intervention || 'Task Simplification',
+          interventions: Array.isArray(sess.interventions)
+            ? sess.interventions
+            : Array.isArray(sess.interventions)
+            ? sess.interventions
+            : [sess.intervention || 'Task Simplification'],
+          rawScore: Number(sess.raw_score ?? sess.rawScore ?? sess.score ?? 0),
+          totalItems: Number(sess.total_items ?? sess.totalItems ?? 20) || 20,
+          score: Number(sess.score ?? 0),
+          masteryLevel:
+            sess.mastery_level ||
+            sess.masteryLevel ||
+            (Number(sess.score) >= 85 ? 'Mastered' : Number(sess.score) >= 75 ? 'Moving Towards Mastery' : 'Average Mastery'),
+          remarks: sess.remarks || '',
+          movs: Array.isArray(sess.movs) ? sess.movs : [],
+          assessmentTool: sess.assessment_tool || sess.assessmentTool || undefined,
+          createdAt: sess.created_at || sess.createdAt || new Date().toISOString(),
+          teacherEmail: sess.teacher_email || sess.teacherEmail || '',
+        };
+
+        sessionMap.set(sessId, sessObj);
+
+        // Auto-synthesize student if not in students table so that student view and monitoring can find them
+        if (stId && !studentMap.has(stId)) {
+          const parts = (sessObj.studentName || 'Student Learner').split(',');
+          const lName = parts[0]?.trim() || 'Student';
+          const fName = parts[1]?.trim() || 'Learner';
+          studentMap.set(stId, {
+            id: stId,
+            lastName: lName,
+            firstName: fName,
+            middleInitial: '',
+            gradeLevel: sessObj.gradeLevel,
+            section: sessObj.section,
+            subject: sessObj.subject,
+            programType: sessObj.programType,
+            baselineScore: 0,
+            focusTopic: sessObj.focusCompetency,
+            enrolledDate: sessObj.date,
+            status: 'Progressing',
+            teacherEmail: sessObj.teacherEmail || 'shirlene.mandapat@depedqc.ph',
+          });
+        }
+      });
+
+      const students = Array.from(studentMap.values());
+      const sessions = Array.from(sessionMap.values());
+
+      return { teacher, students, sessions };
     } catch (e: any) {
       console.warn('Unable to reach Supabase during fetch (offline/network fallback active):', e?.message || e);
       return null;
