@@ -19,7 +19,6 @@ import { IndividualAnecdotalReportModal } from './components/IndividualAnecdotal
 import { SupabaseDatabaseModal } from './components/SupabaseDatabaseModal';
 import { ConfirmModal, ConfirmActionType } from './components/ConfirmModal';
 import { SchoolLogo } from './components/SchoolLogo';
-import { RMCHSHeaderBanner } from './components/RMCHSHeaderBanner';
 import {
   Users,
   Calendar,
@@ -416,11 +415,6 @@ export default function App() {
 
       {/* Main Dashboard Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Upper Portion of Dashboard: Official RMCHS TLE Department Banner */}
-        <div className="w-full">
-          <RMCHSHeaderBanner showSubtitle={true} />
-        </div>
-
         {/* Department Welcome & Action Banner with RMCHS Green & Gold Theme (For Classroom Teacher views) */}
         {teacher.role !== 'admin' && teacher.email !== 'admin@projectsmile' && (
           <div className="relative overflow-hidden bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-950 rounded-2xl p-6 text-white shadow-xl border border-emerald-800/80">
