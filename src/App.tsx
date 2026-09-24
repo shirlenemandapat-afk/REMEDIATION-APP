@@ -258,7 +258,10 @@ export default function App() {
   const handleEnrollStudent = async (
     studentData: Omit<Student, 'id' | 'enrolledDate' | 'status'>
   ) => {
-    const newStudent = storage.addStudent(studentData);
+    const newStudent = storage.addStudent({
+      ...studentData,
+      teacherEmail: teacher?.email,
+    });
     if (isSupabaseConfigured()) {
       await supabaseService.upsertStudent(newStudent, teacher.email);
     }
@@ -375,27 +378,33 @@ export default function App() {
 
   // Session CRUD
   const handleAddSession = async (sessionData: Omit<SessionRecord, 'id' | 'createdAt'>) => {
-    const saved = storage.addSession(sessionData);
+    const saved = storage.addSession({
+      ...sessionData,
+      teacherEmail: teacher?.email,
+    });
     if (isSupabaseConfigured()) {
       await supabaseService.upsertSession(saved, teacher.email);
     }
     refreshData();
     showToast(`Daily session log saved for ${sessionData.studentName} (${sessionData.score}% Mastery)!`, 'success');
     if (viewStudent && viewStudent.id === sessionData.studentId) {
-      const updated = storage.getStudents().find((s) => s.id === sessionData.studentId);
+      const updated = storage.getStudents(teacher?.email).find((s) => s.id === sessionData.studentId);
       if (updated) setViewStudent(updated);
     }
   };
 
   const handleUpdateSession = async (updatedSession: SessionRecord) => {
-    storage.updateSession(updatedSession);
+    storage.updateSession({
+      ...updatedSession,
+      teacherEmail: updatedSession.teacherEmail || teacher?.email,
+    });
     if (isSupabaseConfigured()) {
       await supabaseService.upsertSession(updatedSession, teacher.email);
     }
     refreshData();
     showToast(`Session record for ${updatedSession.studentName} has been updated successfully!`, 'success');
     if (viewStudent && viewStudent.id === updatedSession.studentId) {
-      const updated = storage.getStudents().find((s) => s.id === updatedSession.studentId);
+      const updated = storage.getStudents(teacher?.email).find((s) => s.id === updatedSession.studentId);
       if (updated) setViewStudent(updated);
     }
   };

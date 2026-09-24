@@ -266,8 +266,11 @@ async function pullLatestFromSupabase(db: AppDbState): Promise<boolean> {
       const studentMap = new Map();
       (db.students || []).forEach((s: any) => studentMap.set(String(s.id), s));
       studentsRes.data.forEach((s: any) => {
-        studentMap.set(String(s.id), {
-          id: String(s.id),
+        const sid = String(s.id);
+        const existing = studentMap.get(sid);
+        const tEmail = (s.teacher_email || s.teacherEmail || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim();
+        studentMap.set(sid, {
+          id: sid,
           lastName: s.last_name || 'Student',
           firstName: s.first_name || 'Learner',
           middleInitial: s.middle_initial || '',
@@ -285,7 +288,7 @@ async function pullLatestFromSupabase(db: AppDbState): Promise<boolean> {
           notes: s.notes || undefined,
           isArchived: Boolean(s.is_archived),
           archivedAt: s.archived_at || undefined,
-          teacherEmail: s.teacher_email || 'shirlene.mandapat@depedqc.ph',
+          teacherEmail: tEmail,
         });
       });
       db.students = Array.from(studentMap.values());
@@ -750,22 +753,15 @@ async function startServer() {
       await pullLatestFromSupabase(db);
 
       const rawEmail = (req.query.email as string || '').trim().toLowerCase();
-      const isAdmin = rawEmail === 'admin@projectsmile' || rawEmail.includes('admin') || db.accounts[rawEmail]?.role === 'admin';
-
       const profile = db.accounts[rawEmail] || null;
 
       let matchedStudents: any[] = [];
       let matchedSessions: any[] = [];
 
-      if (isAdmin || !rawEmail) {
-        matchedStudents = db.students || [];
-        matchedSessions = db.sessions || [];
-      } else {
+      if (rawEmail) {
         matchedStudents = (db.students || []).filter((s: any) => {
           const sEmail = (s.teacherEmail || s.teacher_email || '').toLowerCase().trim();
-          if (sEmail) return sEmail === rawEmail;
-          // Primary teacher fallback
-          return rawEmail === 'shirlene.mandapat@depedqc.ph';
+          return sEmail === rawEmail;
         });
 
         const studentIdSet = new Set(matchedStudents.map((s) => String(s.id)));
@@ -774,8 +770,11 @@ async function startServer() {
           const sEmail = (sess.teacherEmail || sess.teacher_email || '').toLowerCase().trim();
           if (sEmail) return sEmail === rawEmail;
           const stId = String(sess.studentId || sess.student_id || '');
-          return (stId && studentIdSet.has(stId)) || (rawEmail === 'shirlene.mandapat@depedqc.ph' && !sEmail);
+          return Boolean(stId && studentIdSet.has(stId));
         });
+      } else {
+        matchedStudents = db.students || [];
+        matchedSessions = db.sessions || [];
       }
 
       res.json({
@@ -817,42 +816,40 @@ async function startServer() {
         };
       }
 
-      const isAdmin = cleanEmail === 'admin@projectsmile' || cleanEmail.includes('admin') || db.accounts[cleanEmail]?.role === 'admin';
-
-      // Update students by map merge to never drop other teachers' students
+      // Update students by map merge to never drop other teachers' students and preserve owner emails
       if (Array.isArray(students)) {
-        if (isAdmin) {
-          db.students = students;
-        } else {
-          const studentMap = new Map();
-          (db.students || []).forEach((s: any) => studentMap.set(String(s.id), s));
-          students.forEach((s: any) => {
-            studentMap.set(String(s.id), {
-              ...s,
-              id: String(s.id),
-              teacherEmail: s.teacherEmail || cleanEmail,
-            });
+        const studentMap = new Map();
+        (db.students || []).forEach((s: any) => studentMap.set(String(s.id), s));
+        students.forEach((s: any) => {
+          const sid = String(s.id);
+          const existing = studentMap.get(sid);
+          const ownerEmail = (s.teacherEmail || s.teacher_email || (existing ? (existing.teacherEmail || existing.teacher_email) : '') || cleanEmail).toLowerCase().trim();
+          studentMap.set(sid, {
+            ...(existing || {}),
+            ...s,
+            id: sid,
+            teacherEmail: ownerEmail,
           });
-          db.students = Array.from(studentMap.values());
-        }
+        });
+        db.students = Array.from(studentMap.values());
       }
 
-      // Update sessions by map merge to never drop other teachers' sessions
+      // Update sessions by map merge to never drop other teachers' sessions and preserve owner emails
       if (Array.isArray(sessions)) {
-        if (isAdmin) {
-          db.sessions = sessions;
-        } else {
-          const sessionMap = new Map();
-          (db.sessions || []).forEach((sess: any) => sessionMap.set(String(sess.id), sess));
-          sessions.forEach((sess: any) => {
-            sessionMap.set(String(sess.id), {
-              ...sess,
-              id: String(sess.id),
-              teacherEmail: sess.teacherEmail || cleanEmail,
-            });
+        const sessionMap = new Map();
+        (db.sessions || []).forEach((sess: any) => sessionMap.set(String(sess.id), sess));
+        sessions.forEach((sess: any) => {
+          const sessId = String(sess.id);
+          const existing = sessionMap.get(sessId);
+          const ownerEmail = (sess.teacherEmail || sess.teacher_email || (existing ? (existing.teacherEmail || existing.teacher_email) : '') || cleanEmail).toLowerCase().trim();
+          sessionMap.set(sessId, {
+            ...(existing || {}),
+            ...sess,
+            id: sessId,
+            teacherEmail: ownerEmail,
           });
-          db.sessions = Array.from(sessionMap.values());
-        }
+        });
+        db.sessions = Array.from(sessionMap.values());
       }
 
       writeDb(db);
@@ -907,10 +904,10 @@ async function startServer() {
       await pullLatestFromSupabase(db);
       const teacherEmail = (req.query.teacherEmail as string || '').toLowerCase().trim();
       let list = db.sessions || [];
-      if (teacherEmail && !teacherEmail.includes('admin') && teacherEmail !== 'shirlene.mandapat@depedqc.ph') {
+      if (teacherEmail) {
         list = list.filter((s: any) => {
-          if (s.teacherEmail) return s.teacherEmail.toLowerCase() === teacherEmail;
-          return false;
+          const sTeacher = (s.teacherEmail || s.teacher_email || '').toLowerCase().trim();
+          return sTeacher === teacherEmail;
         });
       }
       res.json({ success: true, sessions: list });

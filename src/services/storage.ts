@@ -1086,27 +1086,59 @@ export const storage = {
 
           // Authoritative Synchronization for Students
           if (Array.isArray(allStudents) && allStudents.length > 0) {
-            const studentMap = new Map();
+            const studentMap = new Map<string, Student>();
             this.getAllStudents().forEach((s) => studentMap.set(String(s.id), s));
-            allStudents.forEach((s: Student) => studentMap.set(String(s.id), s));
+            allStudents.forEach((s: Student) => {
+              const sid = String(s.id);
+              const existing = studentMap.get(sid);
+              studentMap.set(sid, {
+                ...s,
+                id: sid,
+                teacherEmail: (s.teacherEmail || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim(),
+              });
+            });
             localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(Array.from(studentMap.values())));
           } else if (Array.isArray(students)) {
-            const studentMap = new Map();
+            const studentMap = new Map<string, Student>();
             this.getAllStudents().forEach((s) => studentMap.set(String(s.id), s));
-            students.forEach((s: Student) => studentMap.set(String(s.id), s));
+            students.forEach((s: Student) => {
+              const sid = String(s.id);
+              const existing = studentMap.get(sid);
+              studentMap.set(sid, {
+                ...s,
+                id: sid,
+                teacherEmail: (s.teacherEmail || (existing ? existing.teacherEmail : '') || activeEmail).toLowerCase().trim(),
+              });
+            });
             localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(Array.from(studentMap.values())));
           }
 
           // Authoritative Synchronization for Sessions
           if (Array.isArray(allSessions) && allSessions.length > 0) {
-            const sessionMap = new Map();
+            const sessionMap = new Map<string, SessionRecord>();
             this.getAllSessions().forEach((sess) => sessionMap.set(String(sess.id), sess));
-            allSessions.forEach((sess: SessionRecord) => sessionMap.set(String(sess.id), sess));
+            allSessions.forEach((sess: SessionRecord) => {
+              const sessId = String(sess.id);
+              const existing = sessionMap.get(sessId);
+              sessionMap.set(sessId, {
+                ...sess,
+                id: sessId,
+                teacherEmail: (sess.teacherEmail || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim(),
+              });
+            });
             localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(Array.from(sessionMap.values())));
           } else if (Array.isArray(sessions)) {
-            const sessionMap = new Map();
+            const sessionMap = new Map<string, SessionRecord>();
             this.getAllSessions().forEach((sess) => sessionMap.set(String(sess.id), sess));
-            sessions.forEach((sess: SessionRecord) => sessionMap.set(String(sess.id), sess));
+            sessions.forEach((sess: SessionRecord) => {
+              const sessId = String(sess.id);
+              const existing = sessionMap.get(sessId);
+              sessionMap.set(sessId, {
+                ...sess,
+                id: sessId,
+                teacherEmail: (sess.teacherEmail || (existing ? existing.teacherEmail : '') || activeEmail).toLowerCase().trim(),
+              });
+            });
             localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(Array.from(sessionMap.values())));
           }
 
@@ -1676,18 +1708,14 @@ export const storage = {
     const all = this.getAllStudents();
     const activeEmail = (forTeacherEmail || this.getActiveUserEmail() || '').toLowerCase().trim();
 
-    // If no active email or requester is admin, return all students
-    if (!activeEmail || this.isAdminEmail(activeEmail)) {
-      return all;
+    if (!activeEmail) {
+      return [];
     }
 
     // Filter strictly by teacher email
     return all.filter((s) => {
-      if (s.teacherEmail) {
-        return s.teacherEmail.toLowerCase() === activeEmail;
-      }
-      // If legacy student without teacherEmail, assign to default coordinator
-      return activeEmail === 'shirlene.mandapat@depedqc.ph';
+      const sTeacher = (s.teacherEmail || '').toLowerCase().trim();
+      return sTeacher === activeEmail;
     });
   },
 
@@ -1696,10 +1724,12 @@ export const storage = {
     const studentMap = new Map<string, Student>();
     this.getAllStudents().forEach((s) => studentMap.set(String(s.id), s));
     students.forEach((s) => {
+      const existing = studentMap.get(String(s.id));
+      const tEmail = (s.teacherEmail || (existing ? existing.teacherEmail : '') || activeEmail).toLowerCase().trim();
       studentMap.set(String(s.id), {
         ...s,
         id: String(s.id),
-        teacherEmail: s.teacherEmail || activeEmail,
+        teacherEmail: tEmail,
       });
     });
     const combined = Array.from(studentMap.values());
@@ -1707,11 +1737,14 @@ export const storage = {
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(combined));
     
     // Sync to dedicated teacher data endpoint & full sync endpoint
-    fetch('/api/teacher/data', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: activeEmail, students: combined }),
-    }).catch(() => {});
+    if (activeEmail) {
+      const teacherOnlyStudents = combined.filter((s) => (s.teacherEmail || '').toLowerCase().trim() === activeEmail);
+      fetch('/api/teacher/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: activeEmail, students: teacherOnlyStudents }),
+      }).catch(() => {});
+    }
 
     fetch('/api/sync/all', {
       method: 'POST',
@@ -1721,17 +1754,17 @@ export const storage = {
 
     // Instant automatic push to Supabase in background
     if (isSupabaseConfigured()) {
-      const targetTeacherEmail = activeEmail || 'shirlene.mandapat@depedqc.ph';
       students.forEach((s) => {
-        supabaseService.upsertStudent(s, s.teacherEmail || targetTeacherEmail).catch(() => {});
+        const targetEmail = (s.teacherEmail || activeEmail).toLowerCase().trim();
+        supabaseService.upsertStudent(s, targetEmail).catch(() => {});
       });
     }
   },
 
   addStudent(studentData: Omit<Student, 'id' | 'enrolledDate' | 'status'> & { status?: Student['status']; teacherEmail?: string }): Student {
     const allStudents = this.getAllStudents();
-    const activeEmail = this.getActiveUserEmail();
-    const teacherEmail = studentData.teacherEmail || (activeEmail ? activeEmail.toLowerCase() : 'shirlene.mandapat@depedqc.ph');
+    const activeEmail = (this.getActiveUserEmail() || '').toLowerCase().trim();
+    const teacherEmail = (studentData.teacherEmail || activeEmail || 'shirlene.mandapat@depedqc.ph').toLowerCase().trim();
     const newStudent: Student = {
       ...studentData,
       id: `stud-${Date.now()}`,
@@ -2024,18 +2057,19 @@ export const storage = {
     const all = this.getAllSessions();
     const activeEmail = (forTeacherEmail || this.getActiveUserEmail() || '').toLowerCase().trim();
 
-    if (!activeEmail || this.isAdminEmail(activeEmail)) {
-      return all;
+    if (!activeEmail) {
+      return [];
     }
 
     const myStudents = this.getStudents(activeEmail);
-    const myStudentIdSet = new Set(myStudents.map((s) => s.id));
+    const myStudentIdSet = new Set(myStudents.map((s) => String(s.id)));
 
     return all.filter((sess) => {
-      if (sess.teacherEmail) {
-        return sess.teacherEmail.toLowerCase() === activeEmail;
+      const sTeacher = (sess.teacherEmail || '').toLowerCase().trim();
+      if (sTeacher) {
+        return sTeacher === activeEmail;
       }
-      return myStudentIdSet.has(sess.studentId) || activeEmail === 'shirlene.mandapat@depedqc.ph';
+      return myStudentIdSet.has(String(sess.studentId));
     });
   },
 
@@ -2044,10 +2078,12 @@ export const storage = {
     const sessionMap = new Map<string, SessionRecord>();
     this.getAllSessions().forEach((s) => sessionMap.set(String(s.id), s));
     sessions.forEach((s) => {
+      const existing = sessionMap.get(String(s.id));
+      const tEmail = (s.teacherEmail || (existing ? existing.teacherEmail : '') || activeEmail).toLowerCase().trim();
       sessionMap.set(String(s.id), {
         ...s,
         id: String(s.id),
-        teacherEmail: s.teacherEmail || activeEmail,
+        teacherEmail: tEmail,
       });
     });
     const combined = Array.from(sessionMap.values());
@@ -2073,13 +2109,14 @@ export const storage = {
       }
     }
 
-    // Sync to server endpoints
+    // Sync only this teacher's sessions to server
     try {
       if (activeEmail) {
+        const teacherOnlySessions = combined.filter((s) => (s.teacherEmail || '').toLowerCase().trim() === activeEmail);
         fetch('/api/teacher/data', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: activeEmail, sessions: combined }),
+          body: JSON.stringify({ email: activeEmail, sessions: teacherOnlySessions }),
         }).catch(() => {});
       }
 
@@ -2097,9 +2134,9 @@ export const storage = {
 
       // Instant automatic push to Supabase in background
       if (isSupabaseConfigured()) {
-        const targetTeacherEmail = activeEmail || 'shirlene.mandapat@depedqc.ph';
         sessions.forEach((sess) => {
-          supabaseService.upsertSession(sess, sess.teacherEmail || targetTeacherEmail).catch(() => {});
+          const targetEmail = (sess.teacherEmail || activeEmail).toLowerCase().trim();
+          supabaseService.upsertSession(sess, targetEmail).catch(() => {});
         });
       }
     } catch (err) {
@@ -2109,8 +2146,8 @@ export const storage = {
 
   addSession(sessionData: Omit<SessionRecord, 'id' | 'createdAt'> & { teacherEmail?: string }): SessionRecord {
     const allSessions = this.getAllSessions();
-    const activeEmail = this.getActiveUserEmail();
-    const teacherEmail = sessionData.teacherEmail || (activeEmail ? activeEmail.toLowerCase() : 'shirlene.mandapat@depedqc.ph');
+    const activeEmail = (this.getActiveUserEmail() || '').toLowerCase().trim();
+    const teacherEmail = (sessionData.teacherEmail || activeEmail || 'shirlene.mandapat@depedqc.ph').toLowerCase().trim();
     const newSession: SessionRecord = {
       ...sessionData,
       id: `sess-${Date.now()}`,

@@ -436,7 +436,7 @@ export const supabaseService = {
             focusTopic: sessObj.focusCompetency,
             enrolledDate: sessObj.date,
             status: 'Progressing',
-            teacherEmail: sessObj.teacherEmail || 'shirlene.mandapat@depedqc.ph',
+            teacherEmail: sessObj.teacherEmail || targetUserEmail || '',
           });
         }
       });
