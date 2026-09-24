@@ -869,7 +869,7 @@ export const storage = {
   addAuditLog(adminEmail: string, action: string, details: string, targetUser?: string): void {
     const logs = this.getAuditLogs();
     const newLog: AdminAuditLog = {
-      id: `audit-${Date.now()}`,
+      id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       timestamp: new Date().toLocaleString(),
       adminEmail: adminEmail || 'admin@projectsmile',
       action,
@@ -877,12 +877,76 @@ export const storage = {
       targetUser,
     };
     logs.unshift(newLog);
-    // Keep last 100 logs
-    const trimmed = logs.slice(0, 100);
+    // Keep last 150 logs
+    const trimmed = logs.slice(0, 150);
     try {
       localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(trimmed));
     } catch (e) {
       console.error('Error saving audit log', e);
+    }
+
+    // Broadcast log to persistent server for instant admin visibility
+    fetch('/api/sync/all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auditLogs: trimmed }),
+    }).catch(() => {});
+  },
+
+  saveAuditLogsDirectly(logs: AdminAuditLog[]): void {
+    if (!Array.isArray(logs)) return;
+    const logMap = new Map<string, AdminAuditLog>();
+    this.getAuditLogs().forEach((l) => logMap.set(String(l.id), l));
+    logs.forEach((l) => logMap.set(String(l.id), l));
+    const combined = Array.from(logMap.values())
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 150);
+    try {
+      localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(combined));
+    } catch (e) {
+      console.error('Error saving audit logs directly', e);
+    }
+  },
+
+  saveStudentsDirectly(students: Student[]): void {
+    if (!Array.isArray(students)) return;
+    const studentMap = new Map<string, Student>();
+    this.getAllStudents().forEach((s) => studentMap.set(String(s.id), s));
+    students.forEach((s) => {
+      const sid = String(s.id);
+      const existing = studentMap.get(sid);
+      studentMap.set(sid, {
+        ...(existing || {}),
+        ...s,
+        id: sid,
+        teacherEmail: (s.teacherEmail || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim(),
+      });
+    });
+    try {
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(Array.from(studentMap.values())));
+    } catch (e) {
+      console.error('Error saving students directly', e);
+    }
+  },
+
+  saveSessionsDirectly(sessions: SessionRecord[]): void {
+    if (!Array.isArray(sessions)) return;
+    const sessionMap = new Map<string, SessionRecord>();
+    this.getAllSessions().forEach((s) => sessionMap.set(String(s.id), s));
+    sessions.forEach((s) => {
+      const sessId = String(s.id);
+      const existing = sessionMap.get(sessId);
+      sessionMap.set(sessId, {
+        ...(existing || {}),
+        ...s,
+        id: sessId,
+        teacherEmail: (s.teacherEmail || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim(),
+      });
+    });
+    try {
+      localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(Array.from(sessionMap.values())));
+    } catch (e) {
+      console.error('Error saving sessions directly', e);
     }
   },
 
@@ -994,17 +1058,7 @@ export const storage = {
   isLoggedIn(): boolean {
     try {
       const inSession = sessionStorage.getItem(STORAGE_KEYS.AUTH_SESSION);
-      if (inSession === 'true') return true;
-      if (inSession === 'false') return false;
-      const inLocal = localStorage.getItem(STORAGE_KEYS.AUTH_SESSION);
-      if (inLocal === 'true') return true;
-      
-      // If we have an active user email and registered account, stay smoothly authenticated on this device
-      const activeEmail = this.getActiveUserEmail();
-      if (activeEmail && this.isAccountRegistered(activeEmail)) {
-        return true;
-      }
-      return false;
+      return inSession === 'true';
     } catch {
       return false;
     }
@@ -1014,13 +1068,11 @@ export const storage = {
     try {
       if (isLoggedIn) {
         sessionStorage.setItem(STORAGE_KEYS.AUTH_SESSION, 'true');
-        localStorage.setItem(STORAGE_KEYS.AUTH_SESSION, 'true');
       } else {
-        sessionStorage.setItem(STORAGE_KEYS.AUTH_SESSION, 'false');
-        localStorage.setItem(STORAGE_KEYS.AUTH_SESSION, 'false');
-        localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
         sessionStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
       }
+      // Never store persistent auth tokens in localStorage so app reopen requires login & password
+      localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
     } catch (e) {
       console.error('Session storage update error:', e);
     }
@@ -1084,17 +1136,18 @@ export const storage = {
             localStorage.setItem(STORAGE_KEYS.TEACHER, JSON.stringify(localAccounts[activeEmail]));
           }
 
-          // Authoritative Synchronization for Students
+          // Authoritative Synchronization for Students - Preserve exact owner teacherEmail
           if (Array.isArray(allStudents) && allStudents.length > 0) {
             const studentMap = new Map<string, Student>();
             this.getAllStudents().forEach((s) => studentMap.set(String(s.id), s));
             allStudents.forEach((s: Student) => {
               const sid = String(s.id);
               const existing = studentMap.get(sid);
+              const tEmail = (s.teacherEmail || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim();
               studentMap.set(sid, {
                 ...s,
                 id: sid,
-                teacherEmail: (s.teacherEmail || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim(),
+                teacherEmail: tEmail,
               });
             });
             localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(Array.from(studentMap.values())));
@@ -1104,26 +1157,28 @@ export const storage = {
             students.forEach((s: Student) => {
               const sid = String(s.id);
               const existing = studentMap.get(sid);
+              const tEmail = (s.teacherEmail || (existing ? existing.teacherEmail : '') || (activeEmail ? activeEmail : '')).toLowerCase().trim();
               studentMap.set(sid, {
                 ...s,
                 id: sid,
-                teacherEmail: (s.teacherEmail || (existing ? existing.teacherEmail : '') || activeEmail).toLowerCase().trim(),
+                teacherEmail: tEmail,
               });
             });
             localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(Array.from(studentMap.values())));
           }
 
-          // Authoritative Synchronization for Sessions
+          // Authoritative Synchronization for Sessions - Preserve exact owner teacherEmail
           if (Array.isArray(allSessions) && allSessions.length > 0) {
             const sessionMap = new Map<string, SessionRecord>();
             this.getAllSessions().forEach((sess) => sessionMap.set(String(sess.id), sess));
             allSessions.forEach((sess: SessionRecord) => {
               const sessId = String(sess.id);
               const existing = sessionMap.get(sessId);
+              const tEmail = (sess.teacherEmail || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim();
               sessionMap.set(sessId, {
                 ...sess,
                 id: sessId,
-                teacherEmail: (sess.teacherEmail || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim(),
+                teacherEmail: tEmail,
               });
             });
             localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(Array.from(sessionMap.values())));
@@ -1133,10 +1188,11 @@ export const storage = {
             sessions.forEach((sess: SessionRecord) => {
               const sessId = String(sess.id);
               const existing = sessionMap.get(sessId);
+              const tEmail = (sess.teacherEmail || (existing ? existing.teacherEmail : '') || (activeEmail ? activeEmail : '')).toLowerCase().trim();
               sessionMap.set(sessId, {
                 ...sess,
                 id: sessId,
-                teacherEmail: (sess.teacherEmail || (existing ? existing.teacherEmail : '') || activeEmail).toLowerCase().trim(),
+                teacherEmail: tEmail,
               });
             });
             localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(Array.from(sessionMap.values())));
@@ -1251,11 +1307,12 @@ export const storage = {
       console.warn('Server sync skipped (offline mode):', e);
     }
 
+    const isAdmin = this.isAdminEmail(forTeacherEmail || activeEmail);
     return {
       success: true,
       profile: this.getTeacherProfile(),
-      students: this.getStudents(forTeacherEmail || activeEmail),
-      sessions: this.getSessions(forTeacherEmail || activeEmail),
+      students: isAdmin ? this.getAllStudents() : this.getStudents(forTeacherEmail || activeEmail),
+      sessions: isAdmin ? this.getAllSessions() : this.getSessions(forTeacherEmail || activeEmail),
     };
   },
 
@@ -1725,7 +1782,9 @@ export const storage = {
     this.getAllStudents().forEach((s) => studentMap.set(String(s.id), s));
     students.forEach((s) => {
       const existing = studentMap.get(String(s.id));
-      const tEmail = (s.teacherEmail || (existing ? existing.teacherEmail : '') || activeEmail).toLowerCase().trim();
+      const existingTeacher = (existing?.teacherEmail || '').toLowerCase().trim();
+      const currentTeacher = (s.teacherEmail || '').toLowerCase().trim();
+      const tEmail = currentTeacher || existingTeacher || (activeEmail ? activeEmail : '');
       studentMap.set(String(s.id), {
         ...s,
         id: String(s.id),
@@ -1764,7 +1823,7 @@ export const storage = {
   addStudent(studentData: Omit<Student, 'id' | 'enrolledDate' | 'status'> & { status?: Student['status']; teacherEmail?: string }): Student {
     const allStudents = this.getAllStudents();
     const activeEmail = (this.getActiveUserEmail() || '').toLowerCase().trim();
-    const teacherEmail = (studentData.teacherEmail || activeEmail || 'shirlene.mandapat@depedqc.ph').toLowerCase().trim();
+    const teacherEmail = (studentData.teacherEmail || activeEmail || '').toLowerCase().trim();
     const newStudent: Student = {
       ...studentData,
       id: `stud-${Date.now()}`,
@@ -1774,6 +1833,15 @@ export const storage = {
     };
     allStudents.unshift(newStudent);
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(allStudents));
+
+    const teacherName = this.findAccountByEmail(teacherEmail)?.name || teacherEmail || 'Teacher';
+    this.addAuditLog(
+      teacherEmail || 'admin@projectsmile',
+      'ENROLL_STUDENT',
+      `Teacher ${teacherName} enrolled learner: ${newStudent.lastName}, ${newStudent.firstName} (${newStudent.gradeLevel} - ${newStudent.section}) in ${newStudent.programType}.`,
+      teacherEmail
+    );
+
     fetch('/api/sync/all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1796,6 +1864,15 @@ export const storage = {
     if (index !== -1) {
       allStudents[index] = student;
       localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(allStudents));
+
+      const activeEmail = (this.getActiveUserEmail() || student.teacherEmail || '').toLowerCase().trim();
+      const teacherName = this.findAccountByEmail(activeEmail)?.name || activeEmail || 'Teacher';
+      this.addAuditLog(
+        activeEmail || 'admin@projectsmile',
+        'UPDATE_STUDENT',
+        `Teacher ${teacherName} updated student profile: ${student.lastName}, ${student.firstName} (${student.section}).`,
+        student.teacherEmail
+      );
 
       // Cascade updated name, section, grade, subject to associated sessions
       const fullName = `${student.lastName}, ${student.firstName} ${student.middleInitial || ''}`.trim();
@@ -2079,7 +2156,9 @@ export const storage = {
     this.getAllSessions().forEach((s) => sessionMap.set(String(s.id), s));
     sessions.forEach((s) => {
       const existing = sessionMap.get(String(s.id));
-      const tEmail = (s.teacherEmail || (existing ? existing.teacherEmail : '') || activeEmail).toLowerCase().trim();
+      const existingTeacher = (existing?.teacherEmail || '').toLowerCase().trim();
+      const currentTeacher = (s.teacherEmail || '').toLowerCase().trim();
+      const tEmail = currentTeacher || existingTeacher || (activeEmail ? activeEmail : '');
       sessionMap.set(String(s.id), {
         ...s,
         id: String(s.id),
@@ -2147,7 +2226,7 @@ export const storage = {
   addSession(sessionData: Omit<SessionRecord, 'id' | 'createdAt'> & { teacherEmail?: string }): SessionRecord {
     const allSessions = this.getAllSessions();
     const activeEmail = (this.getActiveUserEmail() || '').toLowerCase().trim();
-    const teacherEmail = (sessionData.teacherEmail || activeEmail || 'shirlene.mandapat@depedqc.ph').toLowerCase().trim();
+    const teacherEmail = (sessionData.teacherEmail || activeEmail || '').toLowerCase().trim();
     const newSession: SessionRecord = {
       ...sessionData,
       id: `sess-${Date.now()}`,
@@ -2156,6 +2235,14 @@ export const storage = {
     };
     allSessions.unshift(newSession);
     this.saveSessions(allSessions);
+
+    const teacherName = this.findAccountByEmail(teacherEmail)?.name || teacherEmail || 'Teacher';
+    this.addAuditLog(
+      teacherEmail || 'admin@projectsmile',
+      'LOG_SESSION',
+      `Teacher ${teacherName} logged remediation session for ${newSession.studentName} (${newSession.score}% - ${newSession.masteryLevel || 'Evaluated'}).`,
+      teacherEmail
+    );
 
     // Instant dedicated sync to server
     fetch('/api/sessions', {
@@ -2192,6 +2279,15 @@ export const storage = {
     if (index !== -1) {
       all[index] = session;
       this.saveSessions(all);
+
+      const activeEmail = (session.teacherEmail || this.getActiveUserEmail() || '').toLowerCase().trim();
+      const teacherName = this.findAccountByEmail(activeEmail)?.name || activeEmail || 'Teacher';
+      this.addAuditLog(
+        activeEmail || 'admin@projectsmile',
+        'UPDATE_SESSION',
+        `Teacher ${teacherName} updated session for ${session.studentName} (${session.date}).`,
+        session.teacherEmail
+      );
 
       // Automatically update student's status if score changed
       const allStudents = this.getAllStudents();

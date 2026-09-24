@@ -754,11 +754,12 @@ async function startServer() {
 
       const rawEmail = (req.query.email as string || '').trim().toLowerCase();
       const profile = db.accounts[rawEmail] || null;
+      const isAdmin = rawEmail === 'admin@projectsmile' || rawEmail.includes('admin') || (profile && profile.role === 'admin');
 
       let matchedStudents: any[] = [];
       let matchedSessions: any[] = [];
 
-      if (rawEmail) {
+      if (rawEmail && !isAdmin) {
         matchedStudents = (db.students || []).filter((s: any) => {
           const sEmail = (s.teacherEmail || s.teacher_email || '').toLowerCase().trim();
           return sEmail === rawEmail;
@@ -823,7 +824,9 @@ async function startServer() {
         students.forEach((s: any) => {
           const sid = String(s.id);
           const existing = studentMap.get(sid);
-          const ownerEmail = (s.teacherEmail || s.teacher_email || (existing ? (existing.teacherEmail || existing.teacher_email) : '') || cleanEmail).toLowerCase().trim();
+          const existingEmail = existing ? (existing.teacherEmail || existing.teacher_email || '') : '';
+          const currentEmail = (s.teacherEmail || s.teacher_email || '').toLowerCase().trim();
+          const ownerEmail = (currentEmail || existingEmail || cleanEmail).toLowerCase().trim();
           studentMap.set(sid, {
             ...(existing || {}),
             ...s,
@@ -841,7 +844,9 @@ async function startServer() {
         sessions.forEach((sess: any) => {
           const sessId = String(sess.id);
           const existing = sessionMap.get(sessId);
-          const ownerEmail = (sess.teacherEmail || sess.teacher_email || (existing ? (existing.teacherEmail || existing.teacher_email) : '') || cleanEmail).toLowerCase().trim();
+          const existingEmail = existing ? (existing.teacherEmail || existing.teacher_email || '') : '';
+          const currentEmail = (sess.teacherEmail || sess.teacher_email || '').toLowerCase().trim();
+          const ownerEmail = (currentEmail || existingEmail || cleanEmail).toLowerCase().trim();
           sessionMap.set(sessId, {
             ...(existing || {}),
             ...sess,
@@ -943,8 +948,17 @@ async function startServer() {
       }
 
       const sessionMap = new Map();
-      (db.sessions || []).forEach((s: any) => sessionMap.set(s.id, s));
-      validIncoming.forEach((s: any) => sessionMap.set(s.id, s));
+      (db.sessions || []).forEach((s: any) => sessionMap.set(String(s.id), s));
+      validIncoming.forEach((s: any) => {
+        const sessId = String(s.id);
+        const existing = sessionMap.get(sessId);
+        sessionMap.set(sessId, {
+          ...(existing || {}),
+          ...s,
+          id: sessId,
+          teacherEmail: (s.teacherEmail || s.teacher_email || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim(),
+        });
+      });
       db.sessions = Array.from(sessionMap.values());
 
       writeDb(db);
@@ -1019,8 +1033,17 @@ async function startServer() {
       }
 
       const studentMap = new Map();
-      (db.students || []).forEach((s: any) => studentMap.set(s.id, s));
-      validIncoming.forEach((s: any) => studentMap.set(s.id, s));
+      (db.students || []).forEach((s: any) => studentMap.set(String(s.id), s));
+      validIncoming.forEach((s: any) => {
+        const sid = String(s.id);
+        const existing = studentMap.get(sid);
+        studentMap.set(sid, {
+          ...(existing || {}),
+          ...s,
+          id: sid,
+          teacherEmail: (s.teacherEmail || s.teacher_email || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim(),
+        });
+      });
       db.students = Array.from(studentMap.values());
 
       writeDb(db);
@@ -1107,15 +1130,33 @@ async function startServer() {
       if (Array.isArray(students)) {
         // Merge students by ID
         const studentMap = new Map();
-        db.students.forEach((s) => studentMap.set(s.id, s));
-        students.forEach((s) => studentMap.set(s.id, s));
+        (db.students || []).forEach((s: any) => studentMap.set(String(s.id), s));
+        students.forEach((s: any) => {
+          const sid = String(s.id);
+          const existing = studentMap.get(sid);
+          studentMap.set(sid, {
+            ...(existing || {}),
+            ...s,
+            id: sid,
+            teacherEmail: (s.teacherEmail || s.teacher_email || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim(),
+          });
+        });
         db.students = Array.from(studentMap.values());
       }
       if (Array.isArray(sessions)) {
         // Merge sessions by ID
         const sessionMap = new Map();
-        db.sessions.forEach((s) => sessionMap.set(s.id, s));
-        sessions.forEach((s) => sessionMap.set(s.id, s));
+        (db.sessions || []).forEach((s: any) => sessionMap.set(String(s.id), s));
+        sessions.forEach((s: any) => {
+          const sessId = String(s.id);
+          const existing = sessionMap.get(sessId);
+          sessionMap.set(sessId, {
+            ...(existing || {}),
+            ...s,
+            id: sessId,
+            teacherEmail: (s.teacherEmail || s.teacher_email || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim(),
+          });
+        });
         db.sessions = Array.from(sessionMap.values());
       }
       if (Array.isArray(programs) && programs.length > 0) {
@@ -1128,7 +1169,10 @@ async function startServer() {
         db.announcements = announcements;
       }
       if (Array.isArray(auditLogs) && auditLogs.length > 0) {
-        db.auditLogs = auditLogs;
+        const logMap = new Map();
+        (db.auditLogs || []).forEach((l: any) => logMap.set(String(l.id), l));
+        auditLogs.forEach((l: any) => logMap.set(String(l.id), l));
+        db.auditLogs = Array.from(logMap.values()).slice(0, 200);
       }
       if (systemSettings) {
         db.systemSettings = { ...db.systemSettings, ...systemSettings };

@@ -90,14 +90,46 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     try {
       // 1. Force authoritative sync from server & Supabase for admin view
       await storage.syncFromServer(currentAdmin.email || 'admin@projectsmile');
+
+      // 2. Query full persistent sync dataset to guarantee 100% complete records
+      try {
+        const res = await fetch('/api/sync/all');
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.success && json.data) {
+            const { students: allStuds, sessions: allSess, auditLogs: allLogs, programs: allProgs, classes: allCls, announcements: allAnc } = json.data;
+            if (Array.isArray(allStuds) && allStuds.length > 0) {
+              storage.saveStudentsDirectly(allStuds);
+            }
+            if (Array.isArray(allSess) && allSess.length > 0) {
+              storage.saveSessionsDirectly(allSess);
+            }
+            if (Array.isArray(allLogs) && allLogs.length > 0) {
+              storage.saveAuditLogsDirectly(allLogs);
+            }
+            if (Array.isArray(allProgs) && allProgs.length > 0) {
+              storage.savePrograms(allProgs);
+            }
+            if (Array.isArray(allCls) && allCls.length > 0) {
+              storage.saveRemediationClasses(allCls);
+            }
+            if (Array.isArray(allAnc) && allAnc.length > 0) {
+              storage.saveAnnouncements(allAnc);
+            }
+          }
+        }
+      } catch (syncAllErr) {
+        console.warn('Sync all fetch notice:', syncAllErr);
+      }
+
       setLiveStudents(storage.getAllStudents());
       setLiveSessions(storage.getAllSessions());
 
-      // 2. Refresh teachers
+      // 3. Refresh teachers
       const freshTeachers = await storage.fetchAllTeachersFromServer();
       setTeachers(freshTeachers);
       
-      // 3. Refresh remaining entities
+      // 4. Refresh remaining entities
       setPrograms(storage.getPrograms());
       setClasses(storage.getRemediationClasses());
       setAnnouncements(storage.getAnnouncements());

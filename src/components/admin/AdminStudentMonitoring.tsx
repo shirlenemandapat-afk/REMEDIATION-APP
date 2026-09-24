@@ -43,7 +43,7 @@ export const AdminStudentMonitoring: React.FC<AdminStudentMonitoringProps> = ({
   const allTeacherEmails = Array.from(
     new Set([
       ...teachers.map((t) => (t.email || '').toLowerCase().trim()),
-      ...activeStudents.map((s) => (s.teacherEmail || 'shirlene.mandapat@depedqc.ph').toLowerCase().trim()),
+      ...activeStudents.map((s) => (s.teacherEmail || '').toLowerCase().trim()),
     ])
   ).filter(Boolean);
 
@@ -57,7 +57,9 @@ export const AdminStudentMonitoring: React.FC<AdminStudentMonitoringProps> = ({
 
     const matchesGrade = gradeFilter === 'all' || s.gradeLevel === gradeFilter;
     const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
-    const matchesTeacher = teacherFilter === 'all' || (s.teacherEmail || 'shirlene.mandapat@depedqc.ph').toLowerCase() === teacherFilter.toLowerCase();
+    const matchesTeacher =
+      teacherFilter === 'all' ||
+      (s.teacherEmail || '').toLowerCase().trim() === teacherFilter.toLowerCase().trim();
 
     return matchesSearch && matchesGrade && matchesStatus && matchesTeacher;
   });

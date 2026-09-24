@@ -42,7 +42,7 @@ export const AdminTeacherReports: React.FC<AdminTeacherReportsProps> = ({
   const teacherStats = teachers.map((teacher) => {
     const tEmailNorm = (teacher.email || '').toLowerCase().trim();
 
-    // Filter sessions matching this teacher either directly by session teacherEmail, student.teacherEmail, or assigned subjects
+    // Filter sessions matching this teacher strictly by session teacherEmail or student.teacherEmail
     const teacherSessions = sessions.filter((s) => {
       const student = students.find((st) => st.id === s.studentId);
       const isDirectSessionEmailMatch = Boolean(
@@ -52,18 +52,8 @@ export const AdminTeacherReports: React.FC<AdminTeacherReportsProps> = ({
         student?.teacherEmail &&
         student.teacherEmail.toLowerCase().trim() === tEmailNorm
       );
-      const isSubjMatch = Boolean(
-        teacher.assignedSubjects &&
-        teacher.assignedSubjects.length > 0 &&
-        teacher.assignedSubjects.some((sub) => (s.subject || student?.subject) === sub)
-      );
-      const isDefaultFallback = Boolean(
-        tEmailNorm === 'shirlene.mandapat@depedqc.ph' &&
-        !s.teacherEmail &&
-        (!student || !student.teacherEmail)
-      );
 
-      return isDirectSessionEmailMatch || isStudentEmailMatch || isSubjMatch || isDefaultFallback;
+      return isDirectSessionEmailMatch || isStudentEmailMatch;
     });
 
     const movCount = teacherSessions.reduce((acc, s) => acc + (s.movs?.length || 0), 0);
@@ -94,7 +84,7 @@ export const AdminTeacherReports: React.FC<AdminTeacherReportsProps> = ({
 
   const filteredDrilldownSessions = sessions.filter((sess) => {
     const student = students.find((st) => st.id === sess.studentId);
-    const sessTeacherEmail = (sess.teacherEmail || student?.teacherEmail || 'shirlene.mandapat@depedqc.ph').toLowerCase().trim();
+    const sessTeacherEmail = (sess.teacherEmail || student?.teacherEmail || '').toLowerCase().trim();
     
     const matchesTeacher =
       drilldownTeacherFilter === 'all' || sessTeacherEmail === drilldownTeacherFilter.toLowerCase().trim();

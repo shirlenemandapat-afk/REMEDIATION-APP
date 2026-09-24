@@ -201,8 +201,9 @@ export default function App() {
   const refreshData = () => {
     const currentTeacher = storage.getTeacherProfile();
     setTeacher(currentTeacher);
-    setStudents(storage.getStudents(currentTeacher.email));
-    setSessions(storage.getSessions(currentTeacher.email));
+    const isAdmin = storage.isAdminEmail(currentTeacher?.email) || currentTeacher?.role === 'admin';
+    setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(currentTeacher?.email));
+    setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(currentTeacher?.email));
   };
 
   const handleLoginSuccess = async (profile: TeacherProfile) => {
@@ -618,8 +619,8 @@ export default function App() {
         {activeTab === 'admin-portal' && (
           <AdminDashboard
             currentAdmin={teacher}
-            students={students && students.length > 0 ? students : storage.getAllStudents()}
-            sessions={sessions && sessions.length > 0 ? sessions : storage.getAllSessions()}
+            students={storage.getAllStudents()}
+            sessions={storage.getAllSessions()}
             onRefreshData={refreshData}
             onSelectStudent={(stud) => setViewStudent(stud)}
             onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
