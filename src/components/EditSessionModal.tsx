@@ -190,12 +190,21 @@ export const EditSessionModal: React.FC<EditSessionModalProps> = ({
     setIsConfirmDelete(false);
   };
 
-  // Synchronize when prop `session` changes
+  const prevSessionIdRef = useRef<string | undefined>(undefined);
+  const prevIsOpenRef = useRef<boolean>(false);
+
+  // Synchronize when prop `session` changes or modal opens
   useEffect(() => {
-    if (session) {
+    const isOpening = isOpen && !prevIsOpenRef.current;
+    const isSessionChanged = isOpen && session?.id !== prevSessionIdRef.current;
+
+    prevIsOpenRef.current = isOpen;
+    prevSessionIdRef.current = session?.id;
+
+    if ((isOpening || isSessionChanged) && session) {
       loadSessionData(session);
     }
-  }, [session, isOpen]);
+  }, [session?.id, isOpen]);
 
   if (!isOpen || !currentSession) return null;
 
@@ -501,16 +510,28 @@ export const EditSessionModal: React.FC<EditSessionModalProps> = ({
             <div className="sm:col-span-8">
               <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                Focus Competency / Learning Gap <span className="text-red-500">*</span>
+                Target Learning Competency / Learning Gap <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g., Drafting Orthographic Projections & Dimensioning"
-                value={focusCompetency}
-                onChange={(e) => setFocusCompetency(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-2xs"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g., Drafting Orthographic Projections & Dimensioning"
+                  value={focusCompetency}
+                  onChange={(e) => setFocusCompetency(e.target.value)}
+                  className="w-full pl-3 pr-8 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-2xs"
+                />
+                {focusCompetency && (
+                  <button
+                    type="button"
+                    onClick={() => setFocusCompetency('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                    title="Clear competency"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

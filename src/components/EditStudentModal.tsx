@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Student, ProgramType } from '../types';
 import {
   UserCheck,
@@ -172,9 +172,18 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
   const [error, setError] = useState('');
   const [savedFeedback, setSavedFeedback] = useState(false);
 
-  // Sync state when student prop changes
+  const prevStudentIdRef = useRef<string | undefined>(undefined);
+  const prevIsOpenRef = useRef<boolean>(false);
+
+  // Sync state when modal opens or student ID changes
   useEffect(() => {
-    if (student) {
+    const isOpening = isOpen && !prevIsOpenRef.current;
+    const isStudentChanged = isOpen && student?.id !== prevStudentIdRef.current;
+
+    prevIsOpenRef.current = isOpen;
+    prevStudentIdRef.current = student?.id;
+
+    if ((isOpening || isStudentChanged) && student) {
       setLastName(student.lastName || '');
       setFirstName(student.firstName || '');
       setMiddleInitial(student.middleInitial || '');
@@ -204,7 +213,7 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
       setSavedFeedback(false);
       setShowScheduleBuilder(false);
     }
-  }, [student, isOpen]);
+  }, [student?.id, isOpen]);
 
   if (!isOpen || !student) return null;
 

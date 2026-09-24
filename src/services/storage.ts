@@ -1026,14 +1026,8 @@ export const storage = {
     }
   },
 
-  logout(): void {
-    this.setLoggedIn(false);
-    localStorage.removeItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
-    sessionStorage.removeItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
-  },
-
   // Server data synchronization helper (Bi-directional multi-device cloud synchronization)
-  async syncFromServer(forTeacherEmail?: string): Promise<{ success: boolean; students: Student[]; sessions: SessionRecord[] }> {
+  async syncFromServer(forTeacherEmail?: string): Promise<{ success: boolean; profile?: TeacherProfile; students: Student[]; sessions: SessionRecord[] }> {
     const activeEmail = (forTeacherEmail || this.getActiveUserEmail() || '').toLowerCase().trim();
 
     // 0. Automatically sync Supabase credentials from server so new devices immediately connect

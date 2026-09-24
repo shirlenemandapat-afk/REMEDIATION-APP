@@ -63,9 +63,9 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [focusCompetency, setFocusCompetency] = useState<string>('');
 
-  // Multi-selection state
-  const [selectedActivityTypes, setSelectedActivityTypes] = useState<string[]>(['Remedial Hands-on Practice']);
-  const [selectedInterventions, setSelectedInterventions] = useState<string[]>(['Task Simplification']);
+  // Multi-selection state (unselected by default for clean teacher choice)
+  const [selectedActivityTypes, setSelectedActivityTypes] = useState<string[]>([]);
+  const [selectedInterventions, setSelectedInterventions] = useState<string[]>([]);
 
   // Custom encoded 'Others' inputs for Activity Types and Interventions
   const [otherActivityText, setOtherActivityText] = useState<string>('');
@@ -97,11 +97,22 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
   const activeStudents = students.filter((s) => !s.isArchived);
   const eligibleStudents = activeStudents.length > 0 ? activeStudents : students;
 
-  // Synchronize student and form values when modal opens or preSelectedStudentId changes
+  const prevIsOpenRef = useRef<boolean>(false);
+  const prevPreSelectedIdRef = useRef<string | undefined>(undefined);
+
+  // Synchronize student and form values only when modal is first opened or target student changes
   useEffect(() => {
-    if (isOpen) {
+    const isOpening = isOpen && !prevIsOpenRef.current;
+    const isTargetChanged = isOpen && preSelectedStudentId !== prevPreSelectedIdRef.current;
+
+    prevIsOpenRef.current = isOpen;
+    prevPreSelectedIdRef.current = preSelectedStudentId;
+
+    if (isOpening || isTargetChanged) {
       setError('');
       setDate(new Date().toISOString().split('T')[0]);
+      setSelectedActivityTypes([]);
+      setSelectedInterventions([]);
       setOtherActivityText('');
       setOtherActivityChecked(false);
       setOtherStrategyText('');
@@ -120,7 +131,7 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
         }
       }
     }
-  }, [isOpen, preSelectedStudentId, students]);
+  }, [isOpen, preSelectedStudentId]);
 
   if (!isOpen) return null;
 
@@ -265,7 +276,9 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
       return;
     }
     if (effectiveActivities.length === 0) {
-      effectiveActivities = ['Remedial Hands-on Practice'];
+      setError('Please select at least one Activity Type conducted during this session.');
+      formRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
     }
 
     // Process Intervention Strategies including encoded 'Others'
@@ -282,7 +295,9 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
       return;
     }
     if (effectiveInterventions.length === 0) {
-      effectiveInterventions = ['Task Simplification'];
+      setError('Please select at least one Intervention / Teaching Strategy applied.');
+      formRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
     }
 
     const safeRaw = Number(rawScore) >= 0 ? Number(rawScore) : 0;
@@ -518,19 +533,43 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
           )}
 
           {/* REQUIREMENT 1: Focus Competency Per Session */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/90 space-y-1.5">
-            <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
-              <BookOpen className="w-4 h-4 text-emerald-700" />
-              Focus Learning Competency for this Session <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. Constructing Orthographic Views (Top, Front, Right-Side Views)"
-              value={focusCompetency}
-              onChange={(e) => setFocusCompetency(e.target.value)}
-              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-xs"
-            />
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/90 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <BookOpen className="w-4 h-4 text-emerald-700" />
+                Target Learning Competency for this Session <span className="text-red-500">*</span>
+              </label>
+              {currentStudent?.focusTopic && currentStudent.focusTopic !== focusCompetency && (
+                <button
+                  type="button"
+                  onClick={() => setFocusCompetency(currentStudent.focusTopic)}
+                  className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-100/70 hover:bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-300 transition cursor-pointer"
+                  title="Use student's default target competency"
+                >
+                  Use Default: {currentStudent.focusTopic.slice(0, 24)}...
+                </button>
+              )}
+            </div>
+            <div className="relative">
+              <input
+                type="text"
+                required
+                placeholder="e.g. Constructing Orthographic Views (Top, Front, Right-Side Views)"
+                value={focusCompetency}
+                onChange={(e) => setFocusCompetency(e.target.value)}
+                className="w-full pl-3 pr-8 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-xs"
+              />
+              {focusCompetency && (
+                <button
+                  type="button"
+                  onClick={() => setFocusCompetency('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                  title="Clear competency"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
             <p className="text-[11px] text-slate-500">
               Specify the exact curriculum MELC or practical competency addressed during today's session.
             </p>
