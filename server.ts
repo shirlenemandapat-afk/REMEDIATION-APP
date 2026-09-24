@@ -193,6 +193,34 @@ async function relayStudentsToSupabase(students: any[], defaultTeacherEmail?: st
   }
 }
 
+// Automatically relay teacher profile to Supabase in background
+async function relayTeacherProfileToSupabase(profile: any) {
+  const client = getServerSupabaseClient();
+  if (!client || !profile || !profile.email) return;
+  try {
+    const payload = {
+      email: profile.email.trim(),
+      name: profile.name || 'Teacher',
+      title: profile.title || 'Teacher I / TLE Faculty',
+      school_name: profile.schoolName || profile.school_name || 'Ramon Magsaysay (Cubao) High School',
+      division: profile.division || 'SDO Quezon City • TLE Department',
+      region: profile.region || 'National Capital Region',
+      academic_year: profile.academicYear || profile.academic_year || '2025-2026',
+      department: profile.department || 'Technology and Livelihood Education (TLE)',
+      master_teacher_name: profile.masterTeacherName || profile.master_teacher_name || null,
+      master_teacher_position: profile.masterTeacherPosition || profile.master_teacher_position || null,
+      head_teacher_name: profile.headTeacherName || profile.head_teacher_name || null,
+      head_teacher_position: profile.headTeacherPosition || profile.head_teacher_position || null,
+      principal_name: profile.principalName || profile.principal_name || null,
+      principal_position: profile.principalPosition || profile.principal_position || null,
+      updated_at: new Date().toISOString(),
+    };
+    await client.from('teacher_profiles').upsert(payload, { onConflict: 'email' });
+  } catch (err: any) {
+    console.warn(`[SUPABASE RELAY NOTICE] Teacher ${profile.email}:`, err?.message || err);
+  }
+}
+
 // Automatically pull all latest records from Supabase into server state
 async function pullLatestFromSupabase(db: AppDbState): Promise<boolean> {
   const client = getServerSupabaseClient(db);
@@ -740,12 +768,13 @@ async function startServer() {
           return rawEmail === 'shirlene.mandapat@depedqc.ph';
         });
 
-        const studentIdSet = new Set(matchedStudents.map((s) => s.id));
+        const studentIdSet = new Set(matchedStudents.map((s) => String(s.id)));
 
         matchedSessions = (db.sessions || []).filter((sess: any) => {
           const sEmail = (sess.teacherEmail || sess.teacher_email || '').toLowerCase().trim();
           if (sEmail) return sEmail === rawEmail;
-          return studentIdSet.has(sess.studentId) || (rawEmail === 'shirlene.mandapat@depedqc.ph' && !sEmail);
+          const stId = String(sess.studentId || sess.student_id || '');
+          return (stId && studentIdSet.has(stId)) || (rawEmail === 'shirlene.mandapat@depedqc.ph' && !sEmail);
         });
       }
 
@@ -830,6 +859,9 @@ async function startServer() {
       console.log(`[SYNC SUCCESS]: Synchronized teacher data for ${cleanEmail}. Total students: ${db.students.length}, sessions: ${db.sessions.length}`);
 
       // Automatically relay changes to Supabase in background without requiring user manual trigger
+      if (profile && typeof profile === 'object') {
+        relayTeacherProfileToSupabase(db.accounts[cleanEmail]).catch(() => {});
+      }
       if (Array.isArray(students) && students.length > 0) {
         relayStudentsToSupabase(students, cleanEmail).catch(() => {});
       }

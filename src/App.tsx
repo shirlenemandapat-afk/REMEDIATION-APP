@@ -162,6 +162,10 @@ export default function App() {
       try {
         const res = await storage.syncFromServer(activeEmail);
         if (res && res.success) {
+          const freshTeacher = storage.getTeacherProfile();
+          if (freshTeacher && freshTeacher.email) {
+            setTeacher(freshTeacher);
+          }
           setStudents(res.students);
           setSessions(res.sessions);
           setLastSyncTime(new Date());

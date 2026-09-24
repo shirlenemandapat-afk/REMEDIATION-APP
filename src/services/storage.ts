@@ -974,6 +974,13 @@ export const storage = {
           body: JSON.stringify({ accounts: { [norm]: profile } }),
         }).catch(() => {});
 
+        // Direct teacher dataset sync
+        fetch('/api/teacher/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: norm, profile }),
+        }).catch(() => {});
+
         // Instant sync to Supabase if configured
         if (isSupabaseConfigured()) {
           supabaseService.upsertTeacher(profile).catch(() => {});
@@ -986,7 +993,18 @@ export const storage = {
 
   isLoggedIn(): boolean {
     try {
-      return sessionStorage.getItem(STORAGE_KEYS.AUTH_SESSION) === 'true';
+      const inSession = sessionStorage.getItem(STORAGE_KEYS.AUTH_SESSION);
+      if (inSession === 'true') return true;
+      if (inSession === 'false') return false;
+      const inLocal = localStorage.getItem(STORAGE_KEYS.AUTH_SESSION);
+      if (inLocal === 'true') return true;
+      
+      // If we have an active user email and registered account, stay smoothly authenticated on this device
+      const activeEmail = this.getActiveUserEmail();
+      if (activeEmail && this.isAccountRegistered(activeEmail)) {
+        return true;
+      }
+      return false;
     } catch {
       return false;
     }
@@ -996,15 +1014,22 @@ export const storage = {
     try {
       if (isLoggedIn) {
         sessionStorage.setItem(STORAGE_KEYS.AUTH_SESSION, 'true');
-        // Clean legacy persistent session in localStorage if any exists
-        localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
+        localStorage.setItem(STORAGE_KEYS.AUTH_SESSION, 'true');
       } else {
-        sessionStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
+        sessionStorage.setItem(STORAGE_KEYS.AUTH_SESSION, 'false');
+        localStorage.setItem(STORAGE_KEYS.AUTH_SESSION, 'false');
         localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
+        sessionStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
       }
     } catch (e) {
       console.error('Session storage update error:', e);
     }
+  },
+
+  logout(): void {
+    this.setLoggedIn(false);
+    localStorage.removeItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
+    sessionStorage.removeItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
   },
 
   // Server data synchronization helper (Bi-directional multi-device cloud synchronization)
@@ -1202,8 +1227,9 @@ export const storage = {
 
     return {
       success: true,
-      students: this.getStudents(forTeacherEmail),
-      sessions: this.getSessions(forTeacherEmail),
+      profile: this.getTeacherProfile(),
+      students: this.getStudents(forTeacherEmail || activeEmail),
+      sessions: this.getSessions(forTeacherEmail || activeEmail),
     };
   },
 

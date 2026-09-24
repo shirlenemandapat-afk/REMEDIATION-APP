@@ -253,20 +253,16 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
 
     // Process Activity Types including encoded 'Others'
     let effectiveActivities = [...selectedActivityTypes];
-    const hasCustomActivity = otherActivityChecked || !!otherActivityText.trim();
-    if (hasCustomActivity) {
-      const customTrimmed = otherActivityText.trim();
-      if (!customTrimmed && otherActivityChecked) {
-        setError("Please encode your custom activity type in the 'OTHERS:' field, or uncheck the box.");
-        formRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-        return;
+    const customActTrimmed = otherActivityText.trim();
+    if (customActTrimmed) {
+      const formatted = formatCustomEntry(customActTrimmed);
+      if (!effectiveActivities.includes(formatted)) {
+        effectiveActivities.push(formatted);
       }
-      if (customTrimmed) {
-        const formatted = formatCustomEntry(customTrimmed);
-        if (!effectiveActivities.includes(formatted)) {
-          effectiveActivities.push(formatted);
-        }
-      }
+    } else if (otherActivityChecked && effectiveActivities.length === 0) {
+      setError("Please encode your custom activity type in the 'OTHERS:' field or select an activity.");
+      formRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
     }
     if (effectiveActivities.length === 0) {
       effectiveActivities = ['Remedial Hands-on Practice'];
@@ -274,20 +270,16 @@ export const AddSessionModal: React.FC<AddSessionModalProps> = ({
 
     // Process Intervention Strategies including encoded 'Others'
     let effectiveInterventions = [...selectedInterventions];
-    const hasCustomStrategy = otherStrategyChecked || !!otherStrategyText.trim();
-    if (hasCustomStrategy) {
-      const customTrimmed = otherStrategyText.trim();
-      if (!customTrimmed && otherStrategyChecked) {
-        setError("Please encode your custom intervention / teaching strategy in the 'OTHERS:' field, or uncheck the box.");
-        formRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-        return;
+    const customStratTrimmed = otherStrategyText.trim();
+    if (customStratTrimmed) {
+      const formatted = formatCustomEntry(customStratTrimmed);
+      if (!effectiveInterventions.includes(formatted)) {
+        effectiveInterventions.push(formatted);
       }
-      if (customTrimmed) {
-        const formatted = formatCustomEntry(customTrimmed);
-        if (!effectiveInterventions.includes(formatted)) {
-          effectiveInterventions.push(formatted);
-        }
-      }
+    } else if (otherStrategyChecked && effectiveInterventions.length === 0) {
+      setError("Please encode your custom intervention / teaching strategy in the 'OTHERS:' field or select a strategy.");
+      formRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
     }
     if (effectiveInterventions.length === 0) {
       effectiveInterventions = ['Task Simplification'];

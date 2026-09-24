@@ -117,7 +117,7 @@ export const EditSessionModal: React.FC<EditSessionModalProps> = ({
       ? [sess.activityType]
       : ['Remedial Hands-on Practice'];
     
-    const predefinedActNames = Object.keys(ACTIVITY_DEFINITIONS);
+    const predefinedActNames = ACTIVITY_DEFINITIONS.map((a) => a.name);
     const matchedActs: string[] = [];
     let customAct = '';
 
@@ -125,11 +125,15 @@ export const EditSessionModal: React.FC<EditSessionModalProps> = ({
       if (predefinedActNames.includes(act)) {
         matchedActs.push(act);
       } else {
-        customAct = act;
+        // Strip leading 'Others: ' or 'OTHERS: ' if present
+        const clean = act.replace(/^others:\s*/i, '').trim();
+        if (clean) {
+          customAct = clean;
+        }
       }
     });
 
-    setSelectedActivityTypes(matchedActs.length > 0 ? matchedActs : [predefinedActNames[0]]);
+    setSelectedActivityTypes(matchedActs.length > 0 ? matchedActs : (customAct ? [] : [predefinedActNames[0]]));
     if (customAct) {
       setOtherActivityChecked(true);
       setOtherActivityText(customAct);
@@ -145,7 +149,7 @@ export const EditSessionModal: React.FC<EditSessionModalProps> = ({
       ? [sess.intervention]
       : ['Task Simplification'];
 
-    const predefinedIntNames = Object.keys(STRATEGY_DEFINITIONS);
+    const predefinedIntNames = STRATEGY_DEFINITIONS.map((s) => s.name);
     const matchedInts: string[] = [];
     let customInt = '';
 
@@ -153,11 +157,15 @@ export const EditSessionModal: React.FC<EditSessionModalProps> = ({
       if (predefinedIntNames.includes(it)) {
         matchedInts.push(it);
       } else {
-        customInt = it;
+        // Strip leading 'Others: ' or 'OTHERS: ' if present
+        const clean = it.replace(/^others:\s*/i, '').trim();
+        if (clean) {
+          customInt = clean;
+        }
       }
     });
 
-    setSelectedInterventions(matchedInts.length > 0 ? matchedInts : [predefinedIntNames[0]]);
+    setSelectedInterventions(matchedInts.length > 0 ? matchedInts : (customInt ? [] : [predefinedIntNames[0]]));
     if (customInt) {
       setOtherStrategyChecked(true);
       setOtherStrategyText(customInt);
@@ -208,8 +216,10 @@ export const EditSessionModal: React.FC<EditSessionModalProps> = ({
   const toggleActivityType = (act: string) => {
     setSelectedActivityTypes((prev) => {
       if (prev.includes(act)) {
-        if (prev.length === 1 && !otherActivityChecked) return prev;
-        return prev.filter((a) => a !== act);
+        if (prev.length > 1 || otherActivityChecked || otherActivityText.trim()) {
+          return prev.filter((a) => a !== act);
+        }
+        return prev;
       }
       return [...prev, act];
     });
@@ -219,8 +229,10 @@ export const EditSessionModal: React.FC<EditSessionModalProps> = ({
   const toggleIntervention = (strat: string) => {
     setSelectedInterventions((prev) => {
       if (prev.includes(strat)) {
-        if (prev.length === 1 && !otherStrategyChecked) return prev;
-        return prev.filter((s) => s !== strat);
+        if (prev.length > 1 || otherStrategyChecked || otherStrategyText.trim()) {
+          return prev.filter((s) => s !== strat);
+        }
+        return prev;
       }
       return [...prev, strat];
     });
@@ -297,23 +309,35 @@ export const EditSessionModal: React.FC<EditSessionModalProps> = ({
       return;
     }
 
+    const formatCustomEntry = (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return '';
+      return trimmed.toLowerCase().startsWith('others:') ? trimmed : `Others: ${trimmed}`;
+    };
+
     const finalActivities = [...selectedActivityTypes];
-    if (otherActivityChecked && otherActivityText.trim()) {
-      finalActivities.push(otherActivityText.trim());
+    if (otherActivityText.trim()) {
+      const formatted = formatCustomEntry(otherActivityText.trim());
+      if (!finalActivities.includes(formatted)) {
+        finalActivities.push(formatted);
+      }
     }
 
     if (finalActivities.length === 0) {
-      setError('Please select at least one Remediation Activity Type.');
+      setError('Please select at least one Remediation Activity Type or encode a custom activity.');
       return;
     }
 
     const finalInterventions = [...selectedInterventions];
-    if (otherStrategyChecked && otherStrategyText.trim()) {
-      finalInterventions.push(otherStrategyText.trim());
+    if (otherStrategyText.trim()) {
+      const formatted = formatCustomEntry(otherStrategyText.trim());
+      if (!finalInterventions.includes(formatted)) {
+        finalInterventions.push(formatted);
+      }
     }
 
     if (finalInterventions.length === 0) {
-      setError('Please select at least one Specific Intervention Applied.');
+      setError('Please select at least one Specific Intervention Applied or encode a custom strategy.');
       return;
     }
 
@@ -491,26 +515,28 @@ export const EditSessionModal: React.FC<EditSessionModalProps> = ({
           </div>
 
           {/* Section 2: Activity Types (Multi-select) */}
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
                 <BookOpen className="w-3.5 h-3.5 text-emerald-700" />
                 Remediation / Enhancement Activity Types <span className="text-red-500">*</span>
               </label>
-              <span className="text-[10px] text-slate-500 font-semibold">Select all that apply</span>
+              <span className="text-[11px] font-semibold text-emerald-700">
+                ({selectedActivityTypes.length + (otherActivityChecked || otherActivityText.trim() ? 1 : 0)} selected)
+              </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {Object.entries(ACTIVITY_DEFINITIONS).map(([actName, def]) => {
-                const isSelected = selectedActivityTypes.includes(actName);
+              {ACTIVITY_DEFINITIONS.map((def) => {
+                const isSelected = selectedActivityTypes.includes(def.name);
                 return (
                   <button
-                    key={actName}
+                    key={def.name}
                     type="button"
-                    onClick={() => toggleActivityType(actName)}
+                    onClick={() => toggleActivityType(def.name)}
                     className={`p-2.5 rounded-xl border text-left text-xs font-bold transition flex items-start gap-2 cursor-pointer ${
                       isSelected
-                        ? 'bg-emerald-50 border-emerald-400 text-emerald-950 shadow-2xs'
+                        ? 'bg-emerald-50 border-emerald-400 text-emerald-950 shadow-2xs ring-1 ring-emerald-500/30'
                         : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                     }`}
                   >
@@ -520,7 +546,7 @@ export const EditSessionModal: React.FC<EditSessionModalProps> = ({
                       <Square className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
                     )}
                     <div>
-                      <span className="block leading-tight">{actName}</span>
+                      <span className="block leading-tight">{def.name}</span>
                       <span className="block text-[10px] font-normal text-slate-500 leading-snug mt-0.5">
                         {def.description}
                       </span>
@@ -531,49 +557,99 @@ export const EditSessionModal: React.FC<EditSessionModalProps> = ({
             </div>
 
             {/* Custom Other Activity */}
-            <div className="pt-2 flex items-center gap-2">
-              <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={otherActivityChecked}
-                  onChange={(e) => setOtherActivityChecked(e.target.checked)}
-                  className="rounded text-emerald-600 focus:ring-emerald-500"
-                />
-                <span>Other Specific Activity:</span>
-              </label>
-              {otherActivityChecked && (
+            <div
+              className={`rounded-xl border p-3 transition-all ${
+                otherActivityChecked || otherActivityText.trim()
+                  ? 'bg-emerald-50/90 border-emerald-400 ring-2 ring-emerald-500/20 shadow-xs'
+                  : 'bg-white border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={otherActivityChecked || !!otherActivityText.trim()}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setOtherActivityChecked(checked);
+                      if (!checked) {
+                        setOtherActivityText('');
+                      }
+                    }}
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                  />
+                  <span className="text-emerald-950 font-black text-xs flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    OTHERS:
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-600">
+                    Encode Custom Activity Type
+                  </span>
+                </label>
+                {(otherActivityChecked || otherActivityText.trim()) && (
+                  <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+                    Custom Activity Added
+                  </span>
+                )}
+              </div>
+
+              <div className="relative">
                 <input
                   type="text"
-                  placeholder="Specify custom activity type..."
+                  placeholder="Encode custom activity type (e.g. Diagnostic Speed Drill, Board Simulation, Multimedia Critique, etc.)"
                   value={otherActivityText}
-                  onChange={(e) => setOtherActivityText(e.target.value)}
-                  className="flex-1 px-3 py-1 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setOtherActivityText(val);
+                    if (val.trim()) {
+                      setOtherActivityChecked(true);
+                    }
+                  }}
+                  onFocus={() => {
+                    if (!otherActivityChecked) setOtherActivityChecked(true);
+                  }}
+                  className="w-full pl-3 pr-8 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-xs"
                 />
-              )}
+                {otherActivityText && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOtherActivityText('');
+                      setOtherActivityChecked(false);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                    title="Clear custom activity"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Section 3: Interventions Applied (Multi-select) */}
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
                 <Award className="w-3.5 h-3.5 text-amber-600" />
                 Specific Interventions Applied <span className="text-red-500">*</span>
               </label>
-              <span className="text-[10px] text-slate-500 font-semibold">Select all that apply</span>
+              <span className="text-[11px] font-semibold text-amber-700">
+                ({selectedInterventions.length + (otherStrategyChecked || otherStrategyText.trim() ? 1 : 0)} selected)
+              </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {Object.entries(STRATEGY_DEFINITIONS).map(([stratName, def]) => {
-                const isSelected = selectedInterventions.includes(stratName);
+              {STRATEGY_DEFINITIONS.map((def) => {
+                const isSelected = selectedInterventions.includes(def.name);
                 return (
                   <button
-                    key={stratName}
+                    key={def.name}
                     type="button"
-                    onClick={() => toggleIntervention(stratName)}
+                    onClick={() => toggleIntervention(def.name)}
                     className={`p-2.5 rounded-xl border text-left text-xs font-bold transition flex items-start gap-2 cursor-pointer ${
                       isSelected
-                        ? 'bg-amber-50 border-amber-400 text-amber-950 shadow-2xs'
+                        ? 'bg-amber-50 border-amber-400 text-amber-950 shadow-2xs ring-1 ring-amber-500/30'
                         : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                     }`}
                   >
@@ -583,7 +659,7 @@ export const EditSessionModal: React.FC<EditSessionModalProps> = ({
                       <Square className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
                     )}
                     <div>
-                      <span className="block leading-tight">{stratName}</span>
+                      <span className="block leading-tight">{def.name}</span>
                       <span className="block text-[10px] font-normal text-slate-500 leading-snug mt-0.5">
                         {def.description}
                       </span>
@@ -594,25 +670,73 @@ export const EditSessionModal: React.FC<EditSessionModalProps> = ({
             </div>
 
             {/* Custom Other Strategy */}
-            <div className="pt-2 flex items-center gap-2">
-              <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={otherStrategyChecked}
-                  onChange={(e) => setOtherStrategyChecked(e.target.checked)}
-                  className="rounded text-amber-600 focus:ring-amber-500"
-                />
-                <span>Other Specific Intervention:</span>
-              </label>
-              {otherStrategyChecked && (
+            <div
+              className={`rounded-xl border p-3 transition-all ${
+                otherStrategyChecked || otherStrategyText.trim()
+                  ? 'bg-amber-50/90 border-amber-400 ring-2 ring-amber-500/20 shadow-xs'
+                  : 'bg-white border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={otherStrategyChecked || !!otherStrategyText.trim()}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setOtherStrategyChecked(checked);
+                      if (!checked) {
+                        setOtherStrategyText('');
+                      }
+                    }}
+                    className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-slate-300 cursor-pointer"
+                  />
+                  <span className="text-amber-950 font-black text-xs flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    OTHERS:
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-600">
+                    Encode Custom Intervention or Teaching Strategy
+                  </span>
+                </label>
+                {(otherStrategyChecked || otherStrategyText.trim()) && (
+                  <span className="text-[10px] font-extrabold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300">
+                    Custom Strategy Added
+                  </span>
+                )}
+              </div>
+
+              <div className="relative">
                 <input
                   type="text"
-                  placeholder="Specify custom intervention..."
+                  placeholder="Encode custom strategy (e.g. Peer-Led Reciprocal Questioning, Kinesthetic Modeling, Mnemonics Drill, etc.)"
                   value={otherStrategyText}
-                  onChange={(e) => setOtherStrategyText(e.target.value)}
-                  className="flex-1 px-3 py-1 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setOtherStrategyText(val);
+                    if (val.trim()) {
+                      setOtherStrategyChecked(true);
+                    }
+                  }}
+                  onFocus={() => {
+                    if (!otherStrategyChecked) setOtherStrategyChecked(true);
+                  }}
+                  className="w-full pl-3 pr-8 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none shadow-xs"
                 />
-              )}
+                {otherStrategyText && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOtherStrategyText('');
+                      setOtherStrategyChecked(false);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                    title="Clear custom strategy"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
