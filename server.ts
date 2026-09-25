@@ -557,10 +557,10 @@ async function startServer() {
     }
   });
 
-  // User Login (Auto-provisions & accounts for teachers if not registered yet, and logs activity)
+  // User Login (Strict credential verification)
   app.post('/api/auth/login', (req, res) => {
     try {
-      const { email, password, name } = req.body;
+      const { email, password } = req.body;
       if (!email || !password) {
         return res.status(400).json({ success: false, message: 'Please provide both email and password.' });
       }
@@ -581,87 +581,23 @@ async function startServer() {
         }
       }
 
-      // If account is not found or not configured yet, seamlessly provision and register them
-      // so when any teacher logs in, they are immediately accounted for in the admin portal!
-      if (!account || !account.isPasswordSet) {
-        const usernamePart = cleanEmail.split('@')[0].replace(/[._]/g, ' ');
-        const formattedName = usernamePart
-          .split(' ')
-          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(' ');
-
-        account = {
-          email: cleanEmail,
-          name: name ? name.trim() : (formattedName || 'Teacher'),
-          title: 'Teacher I / TLE Faculty',
-          schoolName: 'Ramon Magsaysay (Cubao) High School',
-          division: 'SDO Quezon City • TLE Department',
-          region: 'National Capital Region (NCR)',
-          academicYear: '2025-2026',
-          department: 'Technology and Livelihood Education (TLE)',
-          assignedSubjects: ['ICT - Computer Programming'],
-          reportsSubmissionStatus: 'Submitted',
-          accountStatus: 'Active',
-          role: cleanEmail.includes('admin') ? 'admin' : cleanEmail.includes('shirlene') ? 'coordinator' : 'teacher',
-          passwordHash: cleanPassword,
-          isPasswordSet: true,
-          registeredAt: new Date().toISOString().split('T')[0],
-          lastLoginAt: new Date().toLocaleString(),
-          masterTeacherName: 'Shirlene M. Mandapat',
-          masterTeacherPosition: 'Master Teacher I / TLE Subject Coordinator',
-          headTeacherName: 'Dr. Corazon V. Santos',
-          headTeacherPosition: 'Head Teacher III / TLE Department',
-          principalName: 'Dr. Maria Luisa T. Ramos',
-          principalPosition: 'Secondary School Principal IV',
-        };
-
-        db.accounts[cleanEmail] = account;
-
-        // Record audit logs for teacher registration & login
-        db.auditLogs.unshift({
-          id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-          userEmail: cleanEmail,
-          action: 'TEACHER_REGISTERED',
-          details: `Faculty account registered: ${account.name} (${cleanEmail}) - ${account.title}`,
-          targetUser: cleanEmail,
-          timestamp: new Date().toISOString(),
+      // Check if account exists
+      if (!account || !account.isPasswordSet || !account.passwordHash) {
+        return res.status(401).json({
+          success: false,
+          message: 'Account not found. Please switch to "Register Account" to create your teacher profile.',
         });
-
-        db.auditLogs.unshift({
-          id: `audit-${Date.now() + 1}-${Math.random().toString(36).substring(2, 7)}`,
-          userEmail: cleanEmail,
-          action: 'TEACHER_LOGGED_IN',
-          details: `Faculty login: ${account.name} (${cleanEmail}) accessed Project S.M.I.L.E. Portal.`,
-          targetUser: cleanEmail,
-          timestamp: new Date().toISOString(),
-        });
-
-        writeDb(db);
-        console.log(`[AUTH] Teacher auto-accounted on login for admin monitoring: ${cleanEmail}`);
-        return res.json({ success: true, profile: account, isNewAccount: true, supabaseConfig: db.systemSettings?.supabaseConfig || null });
       }
 
-      // Check password match
+      // Strict password match verification
       const storedPass = (account.passwordHash || '').trim();
-      const isMatch =
-        storedPass === cleanPassword ||
-        account.passwordHash === password ||
-        !storedPass ||
-        (cleanEmail.includes('shirlene') && (cleanPassword === 'teacher123' || storedPass === cleanPassword)) ||
-        (cleanEmail.includes('admin') && (cleanPassword === 'admin2025' || storedPass === cleanPassword));
+      const isMatch = storedPass === cleanPassword;
 
       if (!isMatch) {
-        // If password doesn't match default passwords, allow update if it's default
-        if (storedPass === 'deped2025' || storedPass === 'teacher123') {
-          account.passwordHash = cleanPassword;
-        } else if (cleanEmail === 'shirlene.mandapat@depedqc.ph' || cleanEmail.includes('shirlene')) {
-          account.passwordHash = cleanPassword;
-        } else {
-          return res.status(401).json({
-            success: false,
-            message: 'Incorrect password for this account. You can switch to "Register / Setup" or click "Reset Password" to update it.',
-          });
-        }
+        return res.status(401).json({
+          success: false,
+          message: 'Incorrect password for this account. Please enter your valid registered password.',
+        });
       }
 
       // Successful login -> update last login timestamp and ensure Active status
@@ -681,7 +617,7 @@ async function startServer() {
 
       writeDb(db);
 
-      console.log(`[AUTH] Teacher logged in and recorded for admin monitoring: ${cleanEmail}`);
+      console.log(`[AUTH] Teacher logged in successfully: ${cleanEmail}`);
       res.json({ success: true, profile: account, supabaseConfig: db.systemSettings?.supabaseConfig || null });
     } catch (err: any) {
       console.error('[AUTH ERROR] Login failed:', err);
@@ -754,7 +690,7 @@ async function startServer() {
 
       const rawEmail = (req.query.email as string || '').trim().toLowerCase();
       const profile = db.accounts[rawEmail] || null;
-      const isAdmin = rawEmail === 'admin@projectsmile' || rawEmail.includes('admin') || (profile && profile.role === 'admin');
+      const isAdmin = rawEmail === 'admin@projectsmile' || (profile && profile.role === 'admin') || rawEmail.includes('admin');
 
       let matchedStudents: any[] = [];
       let matchedSessions: any[] = [];
@@ -762,7 +698,7 @@ async function startServer() {
       if (rawEmail && !isAdmin) {
         matchedStudents = (db.students || []).filter((s: any) => {
           const sEmail = (s.teacherEmail || s.teacher_email || '').toLowerCase().trim();
-          return sEmail === rawEmail;
+          return Boolean(sEmail && sEmail === rawEmail);
         });
 
         const studentIdSet = new Set(matchedStudents.map((s) => String(s.id)));
@@ -773,7 +709,7 @@ async function startServer() {
           const stId = String(sess.studentId || sess.student_id || '');
           return Boolean(stId && studentIdSet.has(stId));
         });
-      } else {
+      } else if (isAdmin) {
         matchedStudents = db.students || [];
         matchedSessions = db.sessions || [];
       }
@@ -784,11 +720,12 @@ async function startServer() {
         profile,
         students: matchedStudents,
         sessions: matchedSessions,
-        allStudents: db.students || [],
-        allSessions: db.sessions || [],
+        allStudents: isAdmin ? (db.students || []) : matchedStudents,
+        allSessions: isAdmin ? (db.sessions || []) : matchedSessions,
         programs: db.programs || [],
         classes: db.classes || [],
         announcements: db.announcements || [],
+        auditLogs: db.auditLogs || [],
         systemSettings: db.systemSettings,
       });
     } catch (err: any) {
@@ -961,6 +898,22 @@ async function startServer() {
       });
       db.sessions = Array.from(sessionMap.values());
 
+      // Record session activity in server audit log for Admin monitoring
+      validIncoming.forEach((sess: any) => {
+        const tEmail = (sess.teacherEmail || sess.teacher_email || '').toLowerCase().trim();
+        const account = db.accounts[tEmail];
+        const teacherName = account?.name || tEmail || 'Teacher';
+        db.auditLogs.unshift({
+          id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          userEmail: tEmail || 'teacher',
+          action: 'LOG_SESSION',
+          details: `Teacher ${teacherName} logged daily remediation session for ${sess.studentName || 'Student'} (${sess.score || 0}% score - ${sess.masteryLevel || 'Evaluated'}).`,
+          targetUser: tEmail,
+          timestamp: new Date().toISOString(),
+        });
+      });
+      db.auditLogs = (db.auditLogs || []).slice(0, 300);
+
       writeDb(db);
       console.log(`[SYNC SUCCESS]: Upserted ${validIncoming.length} session(s). Total on server: ${db.sessions.length}`);
 
@@ -1045,6 +998,22 @@ async function startServer() {
         });
       });
       db.students = Array.from(studentMap.values());
+
+      // Record student enrollment in server audit log for Admin monitoring
+      validIncoming.forEach((s: any) => {
+        const tEmail = (s.teacherEmail || s.teacher_email || '').toLowerCase().trim();
+        const account = db.accounts[tEmail];
+        const teacherName = account?.name || tEmail || 'Teacher';
+        db.auditLogs.unshift({
+          id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          userEmail: tEmail || 'teacher',
+          action: 'ENROLL_STUDENT',
+          details: `Teacher ${teacherName} enrolled learner: ${s.lastName}, ${s.firstName} (${s.gradeLevel || 'Grade 7'} - ${s.section || ''}) in ${s.programType || 'Remediation'}.`,
+          targetUser: tEmail,
+          timestamp: new Date().toISOString(),
+        });
+      });
+      db.auditLogs = (db.auditLogs || []).slice(0, 300);
 
       writeDb(db);
 
