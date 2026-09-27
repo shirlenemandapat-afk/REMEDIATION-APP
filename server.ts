@@ -141,24 +141,39 @@ function writeDb(db: AppDbState): void {
   }
 }
 
+// Clean and normalize Supabase endpoint URL
+function cleanSupabaseUrl(url?: string): string {
+  if (!url || typeof url !== 'string') return '';
+  return url.trim().replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+}
+
+// Circuit breaker state for Supabase cloud sync to prevent hanging or log spam
+let supabaseCooldownUntil = 0;
+let isSupabasePulling = false;
+
 // Server-side Supabase Relay Client Helper
 function getServerSupabaseClient(db?: AppDbState): SupabaseClient | null {
   try {
+    if (Date.now() < supabaseCooldownUntil) {
+      return null;
+    }
     const currentDb = db || readDb();
     const cfg = currentDb.systemSettings?.supabaseConfig;
-    const url = (cfg?.url || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '').trim();
+    const rawUrl = (cfg?.url || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '').trim();
     const key = (cfg?.anonKey || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '').trim();
+    const url = cleanSupabaseUrl(rawUrl);
     if (url && key && url.startsWith('http') && key.length > 20) {
       return createClient(url, key);
     }
-  } catch (e) {
-    console.warn('[SERVER SUPABASE] Init skipped:', e);
+  } catch {
+    // Supabase client initialization fallback
   }
   return null;
 }
 
 // Automatically relay single or array of students to Supabase in background
 async function relayStudentsToSupabase(students: any[], defaultTeacherEmail?: string) {
+  if (Date.now() < supabaseCooldownUntil) return;
   const client = getServerSupabaseClient();
   if (!client || !Array.isArray(students) || students.length === 0) return;
   for (const s of students) {
@@ -187,14 +202,17 @@ async function relayStudentsToSupabase(students: any[], defaultTeacherEmail?: st
         updated_at: new Date().toISOString(),
       };
       await client.from('students').upsert(payload, { onConflict: 'id' });
-    } catch (err: any) {
-      console.warn(`[SUPABASE RELAY NOTICE] Student ${s.id}:`, err?.message || err);
+    } catch {
+      // Set cooldown on network/timeout failure
+      supabaseCooldownUntil = Date.now() + 120 * 1000;
+      break;
     }
   }
 }
 
 // Automatically relay teacher profile to Supabase in background
 async function relayTeacherProfileToSupabase(profile: any) {
+  if (Date.now() < supabaseCooldownUntil) return;
   const client = getServerSupabaseClient();
   if (!client || !profile || !profile.email) return;
   try {
@@ -216,26 +234,56 @@ async function relayTeacherProfileToSupabase(profile: any) {
       updated_at: new Date().toISOString(),
     };
     await client.from('teacher_profiles').upsert(payload, { onConflict: 'email' });
-  } catch (err: any) {
-    console.warn(`[SUPABASE RELAY NOTICE] Teacher ${profile.email}:`, err?.message || err);
+  } catch {
+    supabaseCooldownUntil = Date.now() + 120 * 1000;
   }
 }
 
 // Automatically pull all latest records from Supabase into server state
 async function pullLatestFromSupabase(db: AppDbState): Promise<boolean> {
+  if (Date.now() < supabaseCooldownUntil || isSupabasePulling) {
+    return false;
+  }
   const client = getServerSupabaseClient(db);
   if (!client) return false;
+
+  isSupabasePulling = true;
   try {
-    const [studentsRes, sessionsRes, altSessionsRes, teachersRes] = await Promise.all([
+    const timeoutPromise = new Promise<{ isTimeout: true }>((resolve) =>
+      setTimeout(() => resolve({ isTimeout: true }), 2500)
+    );
+
+    const fetchPromise = Promise.allSettled([
       client.from('students').select('*'),
       client.from('session_records').select('*'),
       client.from('sessions').select('*'),
       client.from('teacher_profiles').select('*'),
     ]);
 
+    const result = await Promise.race([fetchPromise, timeoutPromise]);
+    if ('isTimeout' in result) {
+      // Supabase host is unresponsive; silence and back off for 2 minutes
+      supabaseCooldownUntil = Date.now() + 120 * 1000;
+      isSupabasePulling = false;
+      return false;
+    }
+
+    const [studentsResult, sessionsResult, altSessionsResult, teachersResult] = result;
+
+    if (studentsResult.status === 'rejected' && teachersResult.status === 'rejected') {
+      supabaseCooldownUntil = Date.now() + 120 * 1000;
+      isSupabasePulling = false;
+      return false;
+    }
+
+    const studentsRes: any = studentsResult.status === 'fulfilled' ? studentsResult.value : { data: null };
+    const sessionsRes: any = sessionsResult.status === 'fulfilled' ? sessionsResult.value : { data: null };
+    const altSessionsRes: any = altSessionsResult.status === 'fulfilled' ? altSessionsResult.value : { data: null };
+    const teachersRes: any = teachersResult.status === 'fulfilled' ? teachersResult.value : { data: null };
+
     let changed = false;
 
-    if (Array.isArray(teachersRes.data) && teachersRes.data.length > 0) {
+    if (Array.isArray(teachersRes?.data) && teachersRes.data.length > 0) {
       teachersRes.data.forEach((t: any) => {
         if (t && t.email) {
           const norm = t.email.toLowerCase().trim();
@@ -262,7 +310,7 @@ async function pullLatestFromSupabase(db: AppDbState): Promise<boolean> {
       });
     }
 
-    if (Array.isArray(studentsRes.data) && studentsRes.data.length > 0) {
+    if (Array.isArray(studentsRes?.data) && studentsRes.data.length > 0) {
       const studentMap = new Map();
       (db.students || []).forEach((s: any) => studentMap.set(String(s.id), s));
       studentsRes.data.forEach((s: any) => {
@@ -297,10 +345,10 @@ async function pullLatestFromSupabase(db: AppDbState): Promise<boolean> {
 
     // Merge sessions from session_records AND sessions tables
     const rawSessionsData: any[] = [];
-    if (Array.isArray(sessionsRes.data) && sessionsRes.data.length > 0) {
+    if (Array.isArray(sessionsRes?.data) && sessionsRes.data.length > 0) {
       rawSessionsData.push(...sessionsRes.data);
     }
-    if (Array.isArray(altSessionsRes.data) && altSessionsRes.data.length > 0) {
+    if (Array.isArray(altSessionsRes?.data) && altSessionsRes.data.length > 0) {
       rawSessionsData.push(...altSessionsRes.data);
     }
 
@@ -369,15 +417,18 @@ async function pullLatestFromSupabase(db: AppDbState): Promise<boolean> {
     if (changed) {
       writeDb(db);
     }
+    isSupabasePulling = false;
     return true;
-  } catch (err) {
-    console.warn('[SUPABASE PULL WARNING]:', err);
+  } catch {
+    supabaseCooldownUntil = Date.now() + 120 * 1000;
+    isSupabasePulling = false;
     return false;
   }
 }
 
 // Automatically relay single or array of sessions to Supabase in background
 async function relaySessionsToSupabase(sessions: any[], defaultTeacherEmail?: string) {
+  if (Date.now() < supabaseCooldownUntil) return;
   const client = getServerSupabaseClient();
   if (!client || !Array.isArray(sessions) || sessions.length === 0) return;
   for (const sess of sessions) {
@@ -436,8 +487,9 @@ async function relaySessionsToSupabase(sessions: any[], defaultTeacherEmail?: st
       try {
         await client.from('sessions').upsert(payload, { onConflict: 'id' });
       } catch {}
-    } catch (err: any) {
-      console.warn(`[SUPABASE RELAY NOTICE] Session ${sess.id}:`, err?.message || err);
+    } catch {
+      supabaseCooldownUntil = Date.now() + 120 * 1000;
+      break;
     }
   }
 }
@@ -685,12 +737,31 @@ async function startServer() {
   app.get('/api/teacher/data', async (req, res) => {
     try {
       const db = readDb();
-      // Ensure server DB is synchronized with the absolute latest Supabase state
-      await pullLatestFromSupabase(db);
+      // Background synchronization with Supabase without blocking HTTP response
+      if (Date.now() >= supabaseCooldownUntil && !isSupabasePulling) {
+        pullLatestFromSupabase(db).catch(() => {});
+      }
 
       const rawEmail = (req.query.email as string || '').trim().toLowerCase();
       const profile = db.accounts[rawEmail] || null;
-      const isAdmin = rawEmail === 'admin@projectsmile' || (profile && profile.role === 'admin') || rawEmail.includes('admin');
+      const isAdmin = !rawEmail || rawEmail === 'admin@projectsmile' || (profile && profile.role === 'admin') || rawEmail.includes('admin');
+
+      // Build a studentId -> teacherEmail lookup map from db.students for fallback resolution
+      const studentTeacherMap = new Map<string, string>();
+      (db.students || []).forEach((st: any) => {
+        const t = (st.teacherEmail || st.teacher_email || '').toLowerCase().trim();
+        if (t) studentTeacherMap.set(String(st.id), t);
+      });
+
+      // Ensure all sessions have teacherEmail resolved
+      const allResolvedSessions = (db.sessions || []).map((sess: any) => {
+        const currentTeacher = (sess.teacherEmail || sess.teacher_email || '').toLowerCase().trim();
+        const fallbackTeacher = studentTeacherMap.get(String(sess.studentId || sess.student_id || '')) || '';
+        return {
+          ...sess,
+          teacherEmail: currentTeacher || fallbackTeacher,
+        };
+      });
 
       let matchedStudents: any[] = [];
       let matchedSessions: any[] = [];
@@ -703,25 +774,26 @@ async function startServer() {
 
         const studentIdSet = new Set(matchedStudents.map((s) => String(s.id)));
 
-        matchedSessions = (db.sessions || []).filter((sess: any) => {
-          const sEmail = (sess.teacherEmail || sess.teacher_email || '').toLowerCase().trim();
+        matchedSessions = allResolvedSessions.filter((sess: any) => {
+          const sEmail = (sess.teacherEmail || '').toLowerCase().trim();
           if (sEmail) return sEmail === rawEmail;
           const stId = String(sess.studentId || sess.student_id || '');
           return Boolean(stId && studentIdSet.has(stId));
         });
-      } else if (isAdmin) {
+      } else {
         matchedStudents = db.students || [];
-        matchedSessions = db.sessions || [];
+        matchedSessions = allResolvedSessions;
       }
 
       res.json({
         success: true,
         email: rawEmail,
+        isAdmin,
         profile,
         students: matchedStudents,
         sessions: matchedSessions,
-        allStudents: isAdmin ? (db.students || []) : matchedStudents,
-        allSessions: isAdmin ? (db.sessions || []) : matchedSessions,
+        allStudents: db.students || [],
+        allSessions: allResolvedSessions,
         programs: db.programs || [],
         classes: db.classes || [],
         announcements: db.announcements || [],
@@ -783,7 +855,9 @@ async function startServer() {
           const existing = sessionMap.get(sessId);
           const existingEmail = existing ? (existing.teacherEmail || existing.teacher_email || '') : '';
           const currentEmail = (sess.teacherEmail || sess.teacher_email || '').toLowerCase().trim();
-          const ownerEmail = (currentEmail || existingEmail || cleanEmail).toLowerCase().trim();
+          const targetStudent = (db.students || []).find((std: any) => String(std.id) === String(sess.studentId || sess.student_id || ''));
+          const studentOwner = targetStudent ? (targetStudent.teacherEmail || targetStudent.teacher_email || '') : '';
+          const ownerEmail = (currentEmail || existingEmail || studentOwner || (cleanEmail === 'admin@projectsmile' ? '' : cleanEmail)).toLowerCase().trim();
           sessionMap.set(sessId, {
             ...(existing || {}),
             ...sess,
@@ -823,7 +897,9 @@ async function startServer() {
   // Full Database Sync (GET: fetch all persistent server records; POST: merge records)
   app.get('/api/sync/all', async (_req, res) => {
     const db = readDb();
-    await pullLatestFromSupabase(db);
+    if (Date.now() >= supabaseCooldownUntil && !isSupabasePulling) {
+      pullLatestFromSupabase(db).catch(() => {});
+    }
     res.json({
       success: true,
       data: {
@@ -843,7 +919,9 @@ async function startServer() {
   app.get('/api/sessions', async (req, res) => {
     try {
       const db = readDb();
-      await pullLatestFromSupabase(db);
+      if (Date.now() >= supabaseCooldownUntil && !isSupabasePulling) {
+        pullLatestFromSupabase(db).catch(() => {});
+      }
       const teacherEmail = (req.query.teacherEmail as string || '').toLowerCase().trim();
       let list = db.sessions || [];
       if (teacherEmail) {
@@ -889,11 +967,15 @@ async function startServer() {
       validIncoming.forEach((s: any) => {
         const sessId = String(s.id);
         const existing = sessionMap.get(sessId);
+        const stId = String(s.studentId || s.student_id || '');
+        const targetStudent = (db.students || []).find((std: any) => String(std.id) === stId);
+        const studentOwner = targetStudent ? (targetStudent.teacherEmail || targetStudent.teacher_email || '') : '';
+        const resolvedEmail = (s.teacherEmail || s.teacher_email || (existing ? existing.teacherEmail : '') || studentOwner || '').toLowerCase().trim();
         sessionMap.set(sessId, {
           ...(existing || {}),
           ...s,
           id: sessId,
-          teacherEmail: (s.teacherEmail || s.teacher_email || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim(),
+          teacherEmail: resolvedEmail,
         });
       });
       db.sessions = Array.from(sessionMap.values());
