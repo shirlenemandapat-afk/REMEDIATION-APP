@@ -101,18 +101,20 @@ export default function App() {
   const handleManualSync = async () => {
     setIsSyncing(true);
     try {
-      const activeEmail = teacher?.email || storage.getActiveUserEmail();
-      const res = await storage.syncFromServer(activeEmail);
-      if (res && res.success) {
-        setStudents(res.students);
-        setSessions(res.sessions);
-        setTeacher(storage.getTeacherProfile());
-        setLastSyncTime(new Date());
-        showToast(
-          `Sync complete: Loaded ${res.sessions.length} session logs and ${res.students.length} students across devices.`,
-          'success'
-        );
-      }
+      const activeEmail = (teacher?.email || storage.getActiveUserEmail() || '').toLowerCase().trim();
+      if (!activeEmail) return;
+      await storage.syncFromServer(activeEmail);
+      const isAdmin = storage.isAdminEmail(activeEmail);
+      const myStudents = isAdmin ? storage.getAllStudents() : storage.getStudents(activeEmail);
+      const mySessions = isAdmin ? storage.getAllSessions() : storage.getSessions(activeEmail);
+      setStudents(myStudents);
+      setSessions(mySessions);
+      setTeacher(storage.getTeacherProfile());
+      setLastSyncTime(new Date());
+      showToast(
+        `Sync complete: Loaded ${mySessions.length} session logs and ${myStudents.length} students enrolled in ${isAdmin ? 'school database' : 'your account'}.`,
+        'success'
+      );
     } catch (err) {
       console.warn('Sync failed:', err);
       showToast('Device sync notice: Connected with local cache.', 'info');
@@ -125,31 +127,34 @@ export default function App() {
   useEffect(() => {
     const loggedIn = storage.isLoggedIn();
     setIsLoggedIn(loggedIn);
-    const activeEmail = storage.getActiveUserEmail();
-    if (loggedIn) {
-      const localTeacher = storage.getTeacherProfile();
-      setTeacher(localTeacher);
-      setStudents(storage.getStudents(localTeacher.email));
-      setSessions(storage.getSessions(localTeacher.email));
+    const currentTeacher = storage.getTeacherProfile();
+    const activeEmail = (currentTeacher?.email || storage.getActiveUserEmail() || '').toLowerCase().trim();
+    const isAdmin = storage.isAdminEmail(activeEmail);
+    if (loggedIn && activeEmail) {
+      setTeacher(currentTeacher);
+      setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(activeEmail));
+      setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(activeEmail));
+    } else {
+      setStudents([]);
+      setSessions([]);
     }
 
     // Initial server & Supabase cloud sync
-    storage.syncFromServer(activeEmail).then((res) => {
-      const isNowLoggedIn = storage.isLoggedIn();
-      setIsLoggedIn(isNowLoggedIn);
-      if (isNowLoggedIn) {
-        const localTeacher = storage.getTeacherProfile();
-        setTeacher(localTeacher);
-        if (res && res.students && res.sessions) {
-          setStudents(res.students);
-          setSessions(res.sessions);
-        } else {
-          setStudents(storage.getStudents(localTeacher.email));
-          setSessions(storage.getSessions(localTeacher.email));
+    if (activeEmail) {
+      storage.syncFromServer(activeEmail).then(() => {
+        const isNowLoggedIn = storage.isLoggedIn();
+        setIsLoggedIn(isNowLoggedIn);
+        if (isNowLoggedIn) {
+          const freshTeacher = storage.getTeacherProfile();
+          setTeacher(freshTeacher);
+          const email = (freshTeacher?.email || activeEmail).toLowerCase().trim();
+          const isFreshAdmin = storage.isAdminEmail(email);
+          setStudents(isFreshAdmin ? storage.getAllStudents() : storage.getStudents(email));
+          setSessions(isFreshAdmin ? storage.getAllSessions() : storage.getSessions(email));
+          setLastSyncTime(new Date());
         }
-        setLastSyncTime(new Date());
-      }
-    });
+      });
+    }
   }, []);
 
   // Multi-Device Auto-Sync: Listen for tab focus/visibility and background poll every 20 seconds
@@ -157,19 +162,18 @@ export default function App() {
     if (!isLoggedIn) return;
 
     const pullUpdates = async () => {
-      const activeEmail = teacher?.email || storage.getActiveUserEmail();
+      const activeEmail = (teacher?.email || storage.getActiveUserEmail() || '').toLowerCase().trim();
       if (!activeEmail) return;
       try {
-        const res = await storage.syncFromServer(activeEmail);
-        if (res && res.success) {
-          const freshTeacher = storage.getTeacherProfile();
-          if (freshTeacher && freshTeacher.email) {
-            setTeacher(freshTeacher);
-          }
-          setStudents(res.students);
-          setSessions(res.sessions);
-          setLastSyncTime(new Date());
+        await storage.syncFromServer(activeEmail);
+        const freshTeacher = storage.getTeacherProfile();
+        if (freshTeacher && freshTeacher.email) {
+          setTeacher(freshTeacher);
         }
+        const isAdmin = storage.isAdminEmail(activeEmail);
+        setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(activeEmail));
+        setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(activeEmail));
+        setLastSyncTime(new Date());
       } catch (e) {
         // silent background sync
       }
@@ -201,37 +205,39 @@ export default function App() {
   const refreshData = () => {
     const currentTeacher = storage.getTeacherProfile();
     setTeacher(currentTeacher);
-    const isAdmin = storage.isAdminEmail(currentTeacher?.email) || currentTeacher?.role === 'admin';
-    setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(currentTeacher?.email));
-    setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(currentTeacher?.email));
+    const activeEmail = (currentTeacher?.email || storage.getActiveUserEmail() || '').toLowerCase().trim();
+    const isAdmin = storage.isAdminEmail(activeEmail);
+    setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(activeEmail));
+    setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(activeEmail));
   };
 
   const handleLoginSuccess = async (profile: TeacherProfile) => {
-    storage.setActiveUserEmail(profile.email);
+    const cleanEmail = profile.email.toLowerCase().trim();
+    storage.setActiveUserEmail(cleanEmail);
     setTeacher(profile);
     setIsLoggedIn(true);
 
-    if (profile.role === 'admin' || profile.email === 'admin@projectsmile') {
+    const isAdmin = profile.role === 'admin' || profile.email === 'admin@projectsmile' || storage.isAdminEmail(cleanEmail);
+    if (isAdmin) {
       setActiveTab('admin-portal');
     } else {
       setActiveTab('students');
     }
 
+    // Immediately load this teacher's own students and sessions (or global for admin)
+    setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(cleanEmail));
+    setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(cleanEmail));
+
     // Immediately synchronize server database & Supabase records for this account
     setIsSyncing(true);
     try {
-      const res = await storage.syncFromServer(profile.email);
-      if (res && res.success) {
-        setStudents(res.students);
-        setSessions(res.sessions);
-        setLastSyncTime(new Date());
-      } else {
-        setStudents(storage.getStudents(profile.email));
-        setSessions(storage.getSessions(profile.email));
-      }
+      await storage.syncFromServer(cleanEmail);
+      setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(cleanEmail));
+      setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(cleanEmail));
+      setLastSyncTime(new Date());
     } catch (e) {
-      setStudents(storage.getStudents(profile.email));
-      setSessions(storage.getSessions(profile.email));
+      setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(cleanEmail));
+      setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(cleanEmail));
     } finally {
       setIsSyncing(false);
     }
@@ -247,6 +253,10 @@ export default function App() {
 
   const handleLogout = () => {
     storage.logout();
+    setTeacher(storage.getTeacherProfile());
+    setStudents([]);
+    setSessions([]);
+    setSelectedSection('ALL');
     setIsLoggedIn(false);
   };
 
@@ -619,8 +629,8 @@ export default function App() {
         {activeTab === 'admin-portal' && (
           <AdminDashboard
             currentAdmin={teacher}
-            students={storage.getAllStudents()}
-            sessions={storage.getAllSessions()}
+            students={students}
+            sessions={sessions}
             onRefreshData={refreshData}
             onSelectStudent={(stud) => setViewStudent(stud)}
             onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}

@@ -23,12 +23,10 @@ interface AuthScreenProps {
 }
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
-  const initialEmail = storage.getLastLoginEmail();
+  const initialEmail = storage.getLastLoginEmail() || 'shirlene.mandapat@depedqc.ph';
   const isInitialRegistered = storage.isAccountRegistered(initialEmail);
 
-  const [authMode, setAuthMode] = useState<'signin' | 'register'>(
-    isInitialRegistered ? 'signin' : 'signin'
-  );
+  const [authMode, setAuthMode] = useState<'signin' | 'register'>('signin');
   
   const [email, setEmail] = useState<string>(initialEmail);
   const [password, setPassword] = useState<string>('');
@@ -46,7 +44,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   // Sync latest accounts from server on component mount so mobile devices immediately get registered accounts
   useEffect(() => {
     storage.syncFromServer().then(() => {
-      // Re-trigger email lookup if needed
       const found = storage.findAccountByEmail(email);
       if (found) {
         if (found.name) setName(found.name);
@@ -69,7 +66,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
       if (registeredAccount.schoolName) setSchoolName(registeredAccount.schoolName);
       if (registeredAccount.department) setDepartment(registeredAccount.department);
     }
-  }, [email]);
+  }, [email, registeredAccount]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,9 +85,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
     try {
       if (authMode === 'register') {
-        // Register or Reset Password flow
+        // Register New Account flow
         if (!cleanPassword || cleanPassword.length < 4) {
-          setError('Please set a password with at least 4 characters.');
+          setError('Please create a password with at least 4 characters.');
           setIsLoading(false);
           return;
         }
@@ -111,13 +108,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
           setSuccessMsg(`Account for ${cleanEmail} registered successfully! Loading your portal...`);
           setTimeout(() => {
             onLoginSuccess(result.profile);
-          }, 400);
+          }, 350);
         } else {
-          setError(result.message || 'Failed to save account.');
+          setError(result.message || 'Failed to save account credentials.');
           setIsLoading(false);
         }
       } else {
-        // Sign in flow for registered account
+        // Sign in flow with strict credential verification
         if (!cleanPassword) {
           setError('Please enter your password.');
           setIsLoading(false);
@@ -126,17 +123,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
         const result = await storage.verifyPasswordAsync(cleanEmail, cleanPassword);
         if (result.success && result.profile) {
-          setSuccessMsg(`Welcome back, ${result.profile.name}!`);
+          setSuccessMsg(`Welcome back, ${result.profile.name}! Logging you in...`);
           setTimeout(() => {
             onLoginSuccess(result.profile!);
           }, 350);
         } else {
-          setError(result.message || 'Incorrect password or email. If you haven\'t set up your teacher account yet, switch to "Register / Setup".');
+          setError(
+            result.message ||
+              'Incorrect password for this account. Please enter your valid registered password.'
+          );
           setIsLoading(false);
         }
       }
     } catch (err: any) {
-      setError('Authentication error. Please try again.');
+      setError('Authentication error. Please check your connection and try again.');
       setIsLoading(false);
     }
   };
@@ -202,7 +202,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
             }`}
           >
             <UserPlus className="w-4 h-4 text-amber-600" />
-            Register / Setup
+            Register Account
           </button>
         </div>
 
@@ -210,12 +210,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         <div className="p-5 sm:p-8 space-y-4 bg-white">
           <div className="text-center">
             <h2 className="text-base sm:text-lg font-extrabold text-slate-800">
-              {authMode === 'signin' ? 'DepEd Faculty & Administrator Sign In' : 'Register / Reset Teacher Account'}
+              {authMode === 'signin'
+                ? 'DepEd Faculty & Administrator Sign In'
+                : 'Register Faculty Account'}
             </h2>
             <p className="text-xs text-slate-500 mt-1">
               {authMode === 'signin'
-                ? 'Enter your registered DepEd credentials to access your student records.'
-                : 'Set up your credentials and DepEd details for personal classroom records.'}
+                ? 'Enter your registered email and password to access your student records.'
+                : 'Create your credentials and DepEd details for personal classroom records.'}
             </p>
           </div>
 
@@ -242,7 +244,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                 </label>
                 {isCurrentEmailRegistered && (
                   <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Registered
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Account Registered
                   </span>
                 )}
               </div>
@@ -405,9 +407,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                 <ShieldCheck className="w-4 h-4 text-amber-300" />
               )}
               {isLoading
-                ? 'VERIFYING...'
+                ? 'VERIFYING CREDENTIALS...'
                 : authMode === 'register'
-                ? 'SAVE ACCOUNT & SIGN IN'
+                ? 'CREATE ACCOUNT & SIGN IN'
                 : 'SIGN IN TO PORTAL'}
             </button>
           </form>

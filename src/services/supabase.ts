@@ -9,14 +9,20 @@ export interface SupabaseConfig {
   autoSync: boolean;
 }
 
+// Clean and normalize Supabase endpoint URL (strip extraneous /rest/v1 paths)
+export function cleanSupabaseUrl(url?: string): string {
+  if (!url || typeof url !== 'string') return '';
+  return url.trim().replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+}
+
 // Check if a URL is a syntactically and structurally valid Supabase endpoint
 export function isValidSupabaseUrl(url?: string): boolean {
   if (!url || typeof url !== 'string') return false;
-  const trimmed = url.trim();
-  if (!trimmed.startsWith('https://') && !trimmed.startsWith('http://')) return false;
-  if (trimmed.includes('eyJhbGciOi')) return false; // Accidentally pasted JWT key
+  const cleaned = cleanSupabaseUrl(url);
+  if (!cleaned.startsWith('https://') && !cleaned.startsWith('http://')) return false;
+  if (cleaned.includes('eyJhbGciOi')) return false; // Accidentally pasted JWT key
   try {
-    const parsed = new URL(trimmed);
+    const parsed = new URL(cleaned);
     return Boolean(parsed.hostname && parsed.hostname.length > 3 && parsed.hostname.includes('.'));
   } catch {
     return false;
@@ -37,28 +43,29 @@ export async function syncSupabaseConfigFromRemote(): Promise<boolean> {
       const data = await res.json();
       if (data && data.success && data.config) {
         const { url, anonKey, autoSync } = data.config;
-        if (isValidSupabaseUrl(url) && isValidSupabaseKey(anonKey)) {
-          saveSupabaseConfig({ url, anonKey, autoSync: autoSync !== false }, false);
+        const cleaned = cleanSupabaseUrl(url);
+        if (isValidSupabaseUrl(cleaned) && isValidSupabaseKey(anonKey)) {
+          saveSupabaseConfig({ url: cleaned, anonKey, autoSync: autoSync !== false }, false);
           return true;
         }
       }
     }
   } catch (e) {
-    console.warn('Sync Supabase config from server skipped:', e);
+    // Sync Supabase config from server skipped
   }
   return false;
 }
 
 // 1. Get Stored / Environment Credentials
 export function getSupabaseConfig(): SupabaseConfig {
-  const envUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+  const envUrl = cleanSupabaseUrl(import.meta.env.VITE_SUPABASE_URL || '');
   const envKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
   try {
     const stored = localStorage.getItem(SUPABASE_CONFIG_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      const url = (parsed.url || '').trim();
+      const url = cleanSupabaseUrl(parsed.url || '');
       const anonKey = (parsed.anonKey || '').trim();
 
       // If stored value is corrupted or invalid, clear it and fall back to env
@@ -73,7 +80,7 @@ export function getSupabaseConfig(): SupabaseConfig {
       }
     }
   } catch (e) {
-    console.warn('Error reading Supabase config from storage', e);
+    // Stored config fallback
   }
 
   return {
@@ -84,14 +91,15 @@ export function getSupabaseConfig(): SupabaseConfig {
 }
 
 export function saveSupabaseConfig(config: SupabaseConfig, syncToServer: boolean = true): void {
-  localStorage.setItem(SUPABASE_CONFIG_KEY, JSON.stringify(config));
+  const cleanedConfig = { ...config, url: cleanSupabaseUrl(config.url) };
+  localStorage.setItem(SUPABASE_CONFIG_KEY, JSON.stringify(cleanedConfig));
   _supabaseClient = null; // Reset singleton
   if (syncToServer) {
     fetch('/api/config/supabase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config),
-    }).catch((e) => console.warn('Supabase config server sync notice:', e));
+      body: JSON.stringify(cleanedConfig),
+    }).catch(() => {});
   }
 }
 
@@ -112,14 +120,15 @@ let _supabaseClient: SupabaseClient | null = null;
 export function getSupabaseClient(): SupabaseClient | null {
   if (_supabaseClient) return _supabaseClient;
   const config = getSupabaseConfig();
-  if (isValidSupabaseUrl(config.url) && isValidSupabaseKey(config.anonKey)) {
+  const cleanedUrl = cleanSupabaseUrl(config.url);
+  if (isValidSupabaseUrl(cleanedUrl) && isValidSupabaseKey(config.anonKey)) {
     try {
-      _supabaseClient = createClient(config.url, config.anonKey, {
+      _supabaseClient = createClient(cleanedUrl, config.anonKey, {
         auth: { persistSession: true },
       });
       return _supabaseClient;
-    } catch (e) {
-      console.warn('Failed to initialize Supabase client:', e);
+    } catch {
+      // Supabase client initialization fallback
     }
   }
   return null;
@@ -309,11 +318,25 @@ export const supabaseService = {
         ? client.from('teacher_profiles').select('*').eq('email', targetUserEmail).maybeSingle()
         : client.from('teacher_profiles').select('*').limit(1).maybeSingle();
 
+      const isMasterAdmin = targetUserEmail === 'admin@projectsmile';
+
+      const studentsQuery = (targetUserEmail && !isMasterAdmin)
+        ? client.from('students').select('*').eq('teacher_email', targetUserEmail).order('last_name', { ascending: true })
+        : client.from('students').select('*').order('last_name', { ascending: true });
+
+      const sessionsQuery = (targetUserEmail && !isMasterAdmin)
+        ? client.from('session_records').select('*').eq('teacher_email', targetUserEmail).order('date', { ascending: false })
+        : client.from('session_records').select('*').order('date', { ascending: false });
+
+      const altSessionsQuery = (targetUserEmail && !isMasterAdmin)
+        ? client.from('sessions').select('*').eq('teacher_email', targetUserEmail).order('date', { ascending: false })
+        : client.from('sessions').select('*').order('date', { ascending: false });
+
       const [teacherRes, studentsRes, sessionsRes, altSessionsRes] = await Promise.all([
         teacherQuery,
-        client.from('students').select('*').order('last_name', { ascending: true }),
-        client.from('session_records').select('*').order('date', { ascending: false }),
-        client.from('sessions').select('*').order('date', { ascending: false }),
+        studentsQuery,
+        sessionsQuery,
+        altSessionsQuery,
       ]);
 
       let teacher: TeacherProfile | undefined;
@@ -445,8 +468,8 @@ export const supabaseService = {
       const sessions = Array.from(sessionMap.values());
 
       return { teacher, students, sessions };
-    } catch (e: any) {
-      console.warn('Unable to reach Supabase during fetch (offline/network fallback active):', e?.message || e);
+    } catch {
+      // Supabase is offline or unreachable; fall back to local storage
       return null;
     }
   },

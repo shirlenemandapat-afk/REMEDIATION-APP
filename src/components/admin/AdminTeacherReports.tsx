@@ -44,14 +44,11 @@ export const AdminTeacherReports: React.FC<AdminTeacherReportsProps> = ({
 
     // Filter sessions matching this teacher strictly by session teacherEmail or student.teacherEmail
     const teacherSessions = sessions.filter((s) => {
-      const student = students.find((st) => st.id === s.studentId);
-      const isDirectSessionEmailMatch = Boolean(
-        s.teacherEmail && s.teacherEmail.toLowerCase().trim() === tEmailNorm
-      );
-      const isStudentEmailMatch = Boolean(
-        student?.teacherEmail &&
-        student.teacherEmail.toLowerCase().trim() === tEmailNorm
-      );
+      const student = students.find((st) => String(st.id) === String(s.studentId));
+      const sEmail = (s.teacherEmail || (s as any).teacher_email || '').toLowerCase().trim();
+      const stEmail = (student?.teacherEmail || (student as any)?.teacher_email || '').toLowerCase().trim();
+      const isDirectSessionEmailMatch = Boolean(sEmail && sEmail === tEmailNorm);
+      const isStudentEmailMatch = Boolean(stEmail && stEmail === tEmailNorm);
 
       return isDirectSessionEmailMatch || isStudentEmailMatch;
     });

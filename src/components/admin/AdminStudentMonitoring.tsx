@@ -68,7 +68,9 @@ export const AdminStudentMonitoring: React.FC<AdminStudentMonitoringProps> = ({
 
   // Student specific session logs
   const studentSessions = currentStudent
-    ? sessions.filter((sess) => sess.studentId === currentStudent.id).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    ? sessions
+        .filter((sess) => String(sess.studentId || (sess as any).student_id) === String(currentStudent.id))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     : [];
 
   // Attendance Record

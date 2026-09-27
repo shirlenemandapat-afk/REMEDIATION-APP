@@ -22,7 +22,7 @@ export const INITIAL_TEACHER: TeacherProfile = {
   region: 'National Capital Region (NCR)',
   academicYear: '2025-2026',
   department: 'Technology and Livelihood Education (TLE)',
-  assignedSubjects: ['ICT - Computer Programming', 'ICT - Computer Systems Servicing'],
+  assignedSubjects: [], // Coordinators do not hold teaching subject areas
   reportsSubmissionStatus: 'Submitted',
   registeredAt: '2025-06-15',
 
@@ -49,7 +49,7 @@ export const DEFAULT_ADMIN_ACCOUNT: TeacherProfile = {
   region: 'National Capital Region (NCR)',
   academicYear: '2025-2026',
   department: 'Technology and Livelihood Education (TLE)',
-  assignedSubjects: ['ICT - Computer Programming', 'Electronics and Electricity Servicing', 'Food Preservation'],
+  assignedSubjects: [], // Administrators do not hold teaching subject areas
   reportsSubmissionStatus: 'Submitted',
   registeredAt: '2025-06-01',
 
@@ -61,7 +61,54 @@ export const DEFAULT_ADMIN_ACCOUNT: TeacherProfile = {
   principalPosition: 'Secondary School Principal IV',
 };
 
-export const SAMPLE_FACULTY_ACCOUNTS: TeacherProfile[] = [];
+export const SAMPLE_FACULTY_ACCOUNTS: TeacherProfile[] = [
+  {
+    email: 'juan.delacruz@depedqc.ph',
+    passwordHash: 'teacher123',
+    isPasswordSet: true,
+    role: 'teacher',
+    accountStatus: 'Active',
+    name: 'Juan P. Dela Cruz',
+    title: 'Teacher III / ICT Instructor',
+    schoolName: 'Ramon Magsaysay (Cubao) High School',
+    division: 'SDO Quezon City • TLE Department',
+    region: 'National Capital Region (NCR)',
+    academicYear: '2025-2026',
+    department: 'Technology and Livelihood Education (TLE)',
+    assignedSubjects: ['ICT - Computer Systems Servicing', 'ICT - Computer Programming'],
+    reportsSubmissionStatus: 'Submitted',
+    registeredAt: '2025-06-20',
+    masterTeacherName: 'Shirlene M. Mandapat',
+    masterTeacherPosition: 'Master Teacher I / TLE Subject Coordinator',
+    headTeacherName: 'Dr. Corazon V. Santos',
+    headTeacherPosition: 'Head Teacher III / TLE Department',
+    principalName: 'Dr. Maria Luisa T. Ramos',
+    principalPosition: 'Secondary School Principal IV',
+  },
+  {
+    email: 'maria.santos@depedqc.ph',
+    passwordHash: 'teacher123',
+    isPasswordSet: true,
+    role: 'teacher',
+    accountStatus: 'Active',
+    name: 'Maria Clara Santos',
+    title: 'Teacher II / Home Economics',
+    schoolName: 'Ramon Magsaysay (Cubao) High School',
+    division: 'SDO Quezon City • TLE Department',
+    region: 'National Capital Region (NCR)',
+    academicYear: '2025-2026',
+    department: 'Technology and Livelihood Education (TLE)',
+    assignedSubjects: ['Cookery & Bread/Pastry', 'Food Preservation & Processing'],
+    reportsSubmissionStatus: 'Submitted',
+    registeredAt: '2025-06-22',
+    masterTeacherName: 'Shirlene M. Mandapat',
+    masterTeacherPosition: 'Master Teacher I / TLE Subject Coordinator',
+    headTeacherName: 'Dr. Corazon V. Santos',
+    headTeacherPosition: 'Head Teacher III / TLE Department',
+    principalName: 'Dr. Maria Luisa T. Ramos',
+    principalPosition: 'Secondary School Principal IV',
+  },
+];
 
 export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   schoolName: 'Ramon Magsaysay (Cubao) High School',

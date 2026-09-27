@@ -332,6 +332,93 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({
         </div>
       </div>
 
+      {/* Teacher Accounts Activities Monitoring Section */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+          <div>
+            <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+              <Users className="w-5 h-5 text-emerald-700" />
+              Teacher Account Activities: Enrolled Students & Logged Sessions
+            </h2>
+            <p className="text-xs text-slate-500">
+              Real-time administrative visibility into student enrollments and session logs recorded by each faculty member
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('reports')}
+            className="text-xs font-extrabold text-emerald-800 hover:text-emerald-950 flex items-center gap-1 cursor-pointer self-start sm:self-auto"
+          >
+            All Teacher Reports & MOVs <ArrowUpRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          {teachers.map((t) => {
+            const tEmailNorm = (t.email || '').toLowerCase().trim();
+            const enrolledByTeacher = (students || []).filter((s) => {
+              const sEmail = (s.teacherEmail || (s as any).teacher_email || '').toLowerCase().trim();
+              return Boolean(sEmail && sEmail === tEmailNorm);
+            });
+            const studentIdsForTeacher = new Set(enrolledByTeacher.map((s) => String(s.id)));
+            const sessionsByTeacher = (sessions || []).filter((sess) => {
+              const sessEmail = (sess.teacherEmail || (sess as any).teacher_email || '').toLowerCase().trim();
+              if (sessEmail && sessEmail === tEmailNorm) return true;
+              return Boolean(sess.studentId && studentIdsForTeacher.has(String(sess.studentId)));
+            });
+            const latestSession = sessionsByTeacher[0];
+
+            return (
+              <div
+                key={t.email}
+                className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-slate-50 hover:border-emerald-300 transition space-y-2.5"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-extrabold text-slate-900 text-xs truncate">{t.name}</p>
+                    <p className="text-[10px] text-slate-500 font-mono truncate">{t.email}</p>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-200 shrink-0">
+                    {t.title || 'Teacher'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1 text-center">
+                  <div className="bg-white p-2 rounded-lg border border-slate-100 shadow-2xs">
+                    <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-slate-500 uppercase">
+                      <GraduationCap className="w-3 h-3 text-emerald-600" /> Students
+                    </div>
+                    <p className="text-base font-black text-slate-800 mt-0.5">{enrolledByTeacher.length}</p>
+                    <span className="text-[9px] text-slate-400">Enrolled</span>
+                  </div>
+
+                  <div className="bg-white p-2 rounded-lg border border-slate-100 shadow-2xs">
+                    <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-slate-500 uppercase">
+                      <Clock className="w-3 h-3 text-amber-600" /> Sessions
+                    </div>
+                    <p className="text-base font-black text-slate-800 mt-0.5">{sessionsByTeacher.length}</p>
+                    <span className="text-[9px] text-slate-400">Recorded</span>
+                  </div>
+                </div>
+
+                <div className="pt-1 flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-200/60">
+                  <span className="truncate">
+                    {latestSession ? `Latest: ${latestSession.date}` : 'No session logs yet'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => navigate('students')}
+                    className="font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer shrink-0"
+                  >
+                    View Students →
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Announcements & Recent System Activities */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Announcements */}

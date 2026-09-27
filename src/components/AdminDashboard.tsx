@@ -280,6 +280,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             currentAdmin={currentAdmin}
             teachers={teachers}
             programs={programs}
+            students={liveStudents}
+            sessions={liveSessions}
             onRefresh={handleRefreshAll}
           />
         )}
@@ -290,7 +292,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             programs={programs}
             teachers={teachers}
             students={liveStudents}
+            sessions={liveSessions}
             onRefresh={handleRefreshAll}
+            onSelectStudent={onSelectStudent}
           />
         )}
 

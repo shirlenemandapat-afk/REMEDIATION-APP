@@ -1,0 +1,1391 @@
+{
+  "accounts": {
+    "admin@projectsmile": {
+      "email": "admin@projectsmile",
+      "passwordHash": "admin2025",
+      "isPasswordSet": true,
+      "role": "admin",
+      "accountStatus": "Active",
+      "name": "TLE Department Head Admin",
+      "title": "Department Head / System Administrator",
+      "schoolName": "Ramon Magsaysay (Cubao) High School",
+      "division": "SDO Quezon City • TLE Department",
+      "region": "National Capital Region (NCR)",
+      "academicYear": "2025-2026",
+      "department": "Technology and Livelihood Education (TLE)",
+      "assignedSubjects": [
+        "ICT - Computer Programming",
+        "Electronics and Electricity Servicing"
+      ],
+      "reportsSubmissionStatus": "Submitted",
+      "registeredAt": "2025-06-01",
+      "lastLoginAt": "9/27/2026, 12:38:51 PM",
+      "headTeacherName": "Dr. Corazon V. Santos",
+      "headTeacherPosition": "Head Teacher III / TLE Department",
+      "principalName": "Dr. Maria Luisa T. Ramos",
+      "principalPosition": "Secondary School Principal IV",
+      "masterTeacherName": "Shirlene M. Mandapat",
+      "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator"
+    },
+    "shirlene.mandapat@depedqc.ph": {
+      "title": "Teacher II",
+      "schoolName": "Ramon Magsaysay (Cubao) High School",
+      "division": "SDO Quezon City • TLE Department",
+      "region": "National Capital Region (NCR)",
+      "academicYear": "2025-2026",
+      "department": "Technology and Livelihood Education (TLE)",
+      "assignedSubjects": [
+        "ICT - Computer Programming",
+        "ICT - Computer Systems Servicing"
+      ],
+      "reportsSubmissionStatus": "Submitted",
+      "accountStatus": "Active",
+      "role": "coordinator",
+      "masterTeacherName": "Shirlene M. Tindoc",
+      "masterTeacherPosition": "Teaacher II",
+      "headTeacherName": "Dr. Corazon V. Santos",
+      "headTeacherPosition": "Head Teacher III / TLE Department",
+      "principalName": "Dr. Maria Luisa T. Ramos",
+      "principalPosition": "Secondary School Principal IV",
+      "email": "shirlene.mandapat@depedqc.ph",
+      "passwordHash": "111204",
+      "isPasswordSet": true,
+      "name": "Shirlene M. Tindoc",
+      "registeredAt": "2025-06-15",
+      "lastLoginAt": "9/25/2026, 7:04:10 AM"
+    },
+    "shirlene.mandapat001@deped.gov.ph": {
+      "title": "Teacher III",
+      "schoolName": "Ramon Magsaysay (Cubao) High School",
+      "division": "SDO Quezon City • TLE Department",
+      "region": "National Capital Region (NCR)",
+      "academicYear": "2025-2026",
+      "department": "Technology and Livelihood Education (TLE)",
+      "assignedSubjects": [
+        "ICT - Computer Programming"
+      ],
+      "reportsSubmissionStatus": "Submitted",
+      "accountStatus": "Active",
+      "role": "coordinator",
+      "masterTeacherName": "Shirlene M. Mandapat",
+      "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator",
+      "headTeacherName": "Dr. Corazon V. Santos",
+      "headTeacherPosition": "Head Teacher III / TLE Department",
+      "principalName": "Dr. Maria Luisa T. Ramos",
+      "principalPosition": "Secondary School Principal IV",
+      "name": "Shirlene Mandapat-Tindoc",
+      "email": "shirlene.mandapat001@deped.gov.ph",
+      "passwordHash": "1234",
+      "isPasswordSet": true,
+      "registeredAt": "2026-09-25",
+      "lastLoginAt": "9/27/2026, 12:37:10 PM"
+    }
+  },
+  "students": [
+    {
+      "lastName": "TINDOC",
+      "firstName": "SHIRLENE",
+      "middleInitial": "MAN",
+      "gradeLevel": "Grade 7",
+      "section": "Diamond",
+      "subject": "ICT - Technical Drafting",
+      "programType": "Remediation",
+      "baselineScore": 45,
+      "focusTopic": "",
+      "parentName": "",
+      "parentContact": "",
+      "scheduleDetails": "Sep. 23 to Oct. 7, 2026, 03:30 PM – 04:30 PM (Designated Section Classroom)",
+      "notes": "",
+      "id": "stud-1790144980991",
+      "enrolledDate": "2026-09-23",
+      "status": "Mastered / Promoted",
+      "teacherEmail": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "lastName": "a",
+      "firstName": "a",
+      "middleInitial": "",
+      "gradeLevel": "Grade 7",
+      "section": "Diamond",
+      "subject": "ICT - Technical Drafting",
+      "programType": "Remediation",
+      "baselineScore": 45,
+      "focusTopic": "",
+      "parentName": "a4545454",
+      "parentContact": "45446",
+      "scheduleDetails": "Sep. 19 to Oct. 3, 2026, 03:30 PM – 04:30 PM (Designated Section Classroom)",
+      "notes": "",
+      "id": "stud-1789788318202",
+      "enrolledDate": "2026-09-19",
+      "status": "Progressing",
+      "teacherEmail": "shirlene.mandapat001@deped.gov.ph"
+    },
+    {
+      "lastName": "BB",
+      "firstName": "BB",
+      "middleInitial": "",
+      "gradeLevel": "Grade 7",
+      "section": "Diamond",
+      "subject": "ICT - Technical Drafting",
+      "programType": "Remediation",
+      "baselineScore": 45,
+      "focusTopic": "",
+      "parentName": "CC",
+      "parentContact": "1546466",
+      "scheduleDetails": "Sep. 27 to Oct. 2, 2026, 02:30 PM – 04:30 PM (Designated Section Classroom)",
+      "notes": "",
+      "teacherEmail": "shirlene.mandapat001@deped.gov.ph",
+      "id": "stud-1790512699749",
+      "enrolledDate": "2026-09-27",
+      "status": "Mastered / Promoted"
+    }
+  ],
+  "sessions": [
+    {
+      "studentId": "stud-1790144980991",
+      "studentName": "TINDOC, SHIRLENE MAN",
+      "gradeLevel": "Grade 7",
+      "section": "Diamond",
+      "subject": "ICT - Technical Drafting",
+      "programType": "Remediation",
+      "date": "2026-09-23",
+      "focusCompetency": "Target Learning Competency Mastery",
+      "activityType": "Remedial Hands-on Practice",
+      "activityTypes": [
+        "Remedial Hands-on Practice"
+      ],
+      "intervention": "Task Simplification",
+      "interventions": [
+        "Task Simplification"
+      ],
+      "rawScore": 18,
+      "totalItems": 20,
+      "score": 90,
+      "masteryLevel": "Closely Approximating Mastery",
+      "remarks": "Demonstrated solid mastery of learning competencies with minimal guidance. Accurately completed hands-on practical exercises within the allocated time. Showed marked improvement from baseline diagnostic; progressing well.",
+      "movs": [],
+      "id": "sess-1790145203409",
+      "createdAt": "2026-09-23T06:33:23.409Z",
+      "teacherEmail": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "studentId": "stud-1790144980991",
+      "studentName": "TINDOC, SHIRLENE MAN",
+      "gradeLevel": "Grade 7",
+      "section": "Diamond",
+      "subject": "ICT - Technical Drafting",
+      "programType": "Remediation",
+      "date": "2026-09-23",
+      "focusCompetency": "Target Learning Competency Mastery",
+      "activityType": "Remedial Hands-on Practice",
+      "activityTypes": [
+        "Remedial Hands-on Practice"
+      ],
+      "intervention": "Task Simplification",
+      "interventions": [
+        "Task Simplification"
+      ],
+      "rawScore": 18,
+      "totalItems": 20,
+      "score": 90,
+      "masteryLevel": "Closely Approximating Mastery",
+      "remarks": "Demonstrated solid mastery of learning competencies with minimal guidance. Demonstrated solid mastery of learning competencies with minimal guidance. Accurately completed hands-on practical exercises within the allocated time.",
+      "movs": [],
+      "id": "sess-1790145031601",
+      "createdAt": "2026-09-23T06:30:31.601Z",
+      "teacherEmail": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "studentId": "stud-1790144980991",
+      "studentName": "TINDOC, SHIRLENE MAN",
+      "gradeLevel": "Grade 7",
+      "section": "Diamond",
+      "subject": "ICT - Technical Drafting",
+      "programType": "Remediation",
+      "date": "2026-09-24",
+      "focusCompetency": "Target Learning Competency Mastery",
+      "activityType": "Remedial Hands-on Practice",
+      "activityTypes": [
+        "Remedial Hands-on Practice"
+      ],
+      "intervention": "Task Simplification",
+      "interventions": [
+        "Task Simplification"
+      ],
+      "rawScore": 18,
+      "totalItems": 20,
+      "score": 90,
+      "masteryLevel": "Closely Approximating Mastery",
+      "remarks": "Showed marked improvement from baseline diagnostic; progressing well.",
+      "movs": [],
+      "id": "sess-1790216996831",
+      "createdAt": "2026-09-24T02:29:56.831Z",
+      "teacherEmail": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "studentId": "stud-1790144980991",
+      "studentName": "TINDOC, SHIRLENE MAN",
+      "gradeLevel": "Grade 7",
+      "section": "Diamond",
+      "subject": "ICT - Technical Drafting",
+      "programType": "Remediation",
+      "date": "2026-09-24",
+      "focusCompetency": "Target Learning Competency Mastery",
+      "activityType": "Practical Exam & Others: vghcghvkhjghg",
+      "activityTypes": [
+        "Practical Exam",
+        "Others: vghcghvkhjghg"
+      ],
+      "intervention": "One-on-One Coaching",
+      "interventions": [
+        "One-on-One Coaching"
+      ],
+      "rawScore": 18,
+      "totalItems": 20,
+      "score": 90,
+      "masteryLevel": "Closely Approximating Mastery",
+      "remarks": "Accurately completed hands-on practical exercises within the allocated time.",
+      "movs": [],
+      "id": "sess-1790218830699",
+      "createdAt": "2026-09-24T03:00:30.699Z",
+      "teacherEmail": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "studentId": "stud-1789788318202",
+      "studentName": "a, a",
+      "gradeLevel": "Grade 7",
+      "section": "Diamond",
+      "subject": "ICT - Technical Drafting",
+      "programType": "Remediation",
+      "date": "2026-09-27",
+      "focusCompetency": "Target Learning Competency Mastery",
+      "activityType": "Written Exam",
+      "activityTypes": [
+        "Written Exam"
+      ],
+      "intervention": "Blended Learning",
+      "interventions": [
+        "Blended Learning"
+      ],
+      "rawScore": 12,
+      "totalItems": 20,
+      "score": 60,
+      "masteryLevel": "Average Mastery",
+      "remarks": "Demonstrated solid mastery of learning competencies with minimal guidance.",
+      "movs": [],
+      "teacherEmail": "shirlene.mandapat001@deped.gov.ph",
+      "id": "sess-1790512655638",
+      "createdAt": "2026-09-27T12:37:35.638Z"
+    },
+    {
+      "studentId": "stud-1790512699749",
+      "studentName": "BB, BB",
+      "gradeLevel": "Grade 7",
+      "section": "Diamond",
+      "subject": "ICT - Technical Drafting",
+      "programType": "Remediation",
+      "date": "2026-09-27",
+      "focusCompetency": "Target Learning Competency Mastery",
+      "activityType": "Practical Exam",
+      "activityTypes": [
+        "Practical Exam"
+      ],
+      "intervention": "Use of Rubrics",
+      "interventions": [
+        "Use of Rubrics"
+      ],
+      "rawScore": 16,
+      "totalItems": 20,
+      "score": 80,
+      "masteryLevel": "Moving Towards Mastery",
+      "remarks": "Accurately completed hands-on practical exercises within the allocated time.",
+      "movs": [],
+      "teacherEmail": "shirlene.mandapat001@deped.gov.ph",
+      "id": "sess-1790512721032",
+      "createdAt": "2026-09-27T12:38:41.032Z"
+    }
+  ],
+  "programs": [],
+  "classes": [],
+  "announcements": [],
+  "auditLogs": [
+    {
+      "id": "audit-1790512731098-kt08y",
+      "userEmail": "admin@projectsmile",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: TLE Department Head Admin (admin@projectsmile) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "admin@projectsmile",
+      "timestamp": "2026-09-27T12:38:51.098Z"
+    },
+    {
+      "id": "audit-1790512721356-w8yl1",
+      "userEmail": "shirlene.mandapat001@deped.gov.ph",
+      "action": "LOG_SESSION",
+      "details": "Teacher Shirlene Mandapat-Tindoc logged daily remediation session for BB, BB (80% score - Moving Towards Mastery).",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph",
+      "timestamp": "2026-09-27T12:38:41.356Z"
+    },
+    {
+      "id": "audit-1790512721349-yn4iz",
+      "userEmail": "shirlene.mandapat001@deped.gov.ph",
+      "action": "LOG_SESSION",
+      "details": "Teacher Shirlene Mandapat-Tindoc logged daily remediation session for BB, BB (80% score - Moving Towards Mastery).",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph",
+      "timestamp": "2026-09-27T12:38:41.349Z"
+    },
+    {
+      "id": "audit-1790512721349-5fnwi",
+      "userEmail": "shirlene.mandapat001@deped.gov.ph",
+      "action": "LOG_SESSION",
+      "details": "Teacher Shirlene Mandapat-Tindoc logged daily remediation session for a, a (60% score - Average Mastery).",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph",
+      "timestamp": "2026-09-27T12:38:41.349Z"
+    },
+    {
+      "id": "audit-1790512721349-zk07y",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "LOG_SESSION",
+      "details": "Teacher Shirlene M. Tindoc logged daily remediation session for TINDOC, SHIRLENE MAN (90% score - Closely Approximating Mastery).",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-09-27T12:38:41.349Z"
+    },
+    {
+      "id": "audit-1790512721349-ay3ek",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "LOG_SESSION",
+      "details": "Teacher Shirlene M. Tindoc logged daily remediation session for TINDOC, SHIRLENE MAN (90% score - Closely Approximating Mastery).",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-09-27T12:38:41.349Z"
+    },
+    {
+      "id": "audit-1790512721349-1j0p5",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "LOG_SESSION",
+      "details": "Teacher Shirlene M. Tindoc logged daily remediation session for TINDOC, SHIRLENE MAN (90% score - Closely Approximating Mastery).",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-09-27T12:38:41.349Z"
+    },
+    {
+      "id": "audit-1790512721349-8juy3",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "LOG_SESSION",
+      "details": "Teacher Shirlene M. Tindoc logged daily remediation session for TINDOC, SHIRLENE MAN (90% score - Closely Approximating Mastery).",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-09-27T12:38:41.349Z"
+    },
+    {
+      "id": "audit-1790512700083-in8hh",
+      "userEmail": "shirlene.mandapat001@deped.gov.ph",
+      "action": "ENROLL_STUDENT",
+      "details": "Teacher Shirlene Mandapat-Tindoc enrolled learner: BB, BB (Grade 7 - Diamond) in Remediation.",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph",
+      "timestamp": "2026-09-27T12:38:20.083Z"
+    },
+    {
+      "id": "audit-1790512655971-souzs",
+      "userEmail": "shirlene.mandapat001@deped.gov.ph",
+      "action": "LOG_SESSION",
+      "details": "Teacher Shirlene Mandapat-Tindoc logged daily remediation session for a, a (60% score - Average Mastery).",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph",
+      "timestamp": "2026-09-27T12:37:35.971Z"
+    },
+    {
+      "id": "audit-1790512655961-rycro",
+      "userEmail": "shirlene.mandapat001@deped.gov.ph",
+      "action": "LOG_SESSION",
+      "details": "Teacher Shirlene Mandapat-Tindoc logged daily remediation session for a, a (60% score - Average Mastery).",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph",
+      "timestamp": "2026-09-27T12:37:35.961Z"
+    },
+    {
+      "id": "audit-1790512655961-68rn4",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "LOG_SESSION",
+      "details": "Teacher Shirlene M. Tindoc logged daily remediation session for TINDOC, SHIRLENE MAN (90% score - Closely Approximating Mastery).",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-09-27T12:37:35.961Z"
+    },
+    {
+      "id": "audit-1790512655961-njgth",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "LOG_SESSION",
+      "details": "Teacher Shirlene M. Tindoc logged daily remediation session for TINDOC, SHIRLENE MAN (90% score - Closely Approximating Mastery).",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-09-27T12:37:35.961Z"
+    },
+    {
+      "id": "audit-1790512655961-eu0gy",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "LOG_SESSION",
+      "details": "Teacher Shirlene M. Tindoc logged daily remediation session for TINDOC, SHIRLENE MAN (90% score - Closely Approximating Mastery).",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-09-27T12:37:35.961Z"
+    },
+    {
+      "id": "audit-1790512655961-els0c",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "LOG_SESSION",
+      "details": "Teacher Shirlene M. Tindoc logged daily remediation session for TINDOC, SHIRLENE MAN (90% score - Closely Approximating Mastery).",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-09-27T12:37:35.961Z"
+    },
+    {
+      "id": "audit-1790512630769-wmmg5",
+      "userEmail": "shirlene.mandapat001@deped.gov.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene Mandapat-Tindoc (shirlene.mandapat001@deped.gov.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph",
+      "timestamp": "2026-09-27T12:37:10.769Z"
+    },
+    {
+      "id": "audit-1790319867993-rrhwh",
+      "userEmail": "admin@projectsmile",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: TLE Department Head Admin (admin@projectsmile) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "admin@projectsmile",
+      "timestamp": "2026-09-25T07:04:27.993Z"
+    },
+    {
+      "id": "audit-1790319850626-npp8l",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene M. Tindoc (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-09-25T07:04:10.626Z"
+    },
+    {
+      "id": "audit-1790318451737-13htx",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene M. Tindoc (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-09-25T06:40:51.737Z"
+    },
+    {
+      "id": "audit-1790318243221-4ty91",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene M. Tindoc (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-09-25T06:37:23.221Z"
+    },
+    {
+      "id": "audit-1790318203764-8y7u4",
+      "userEmail": "shirlene.mandapat001@deped.gov.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene Mandapat-Tindoc (shirlene.mandapat001@deped.gov.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph",
+      "timestamp": "2026-09-25T06:36:43.763Z"
+    },
+    {
+      "id": "audit-1790318203763-rccdy",
+      "userEmail": "shirlene.mandapat001@deped.gov.ph",
+      "action": "TEACHER_REGISTERED",
+      "details": "Faculty account registered: Shirlene Mandapat-Tindoc (shirlene.mandapat001@deped.gov.ph) - Teacher III",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph",
+      "timestamp": "2026-09-25T06:36:43.763Z"
+    },
+    {
+      "id": "audit-1790318116684-d06uo",
+      "userEmail": "admin@projectsmile",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: TLE Department Head Admin (admin@projectsmile) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "admin@projectsmile",
+      "timestamp": "2026-09-25T06:35:16.684Z"
+    },
+    {
+      "id": "audit-1790318098182-431kc",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene M. Tindoc (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-09-25T06:34:58.182Z"
+    },
+    {
+      "id": "audit-1790317993613-tlwug",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-09-25T06:33:13.612Z"
+    },
+    {
+      "id": "audit-1790317993612-ua4ch",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_REGISTERED",
+      "details": "Faculty account registered: Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph) - Master Teacher I / TLE Coordinator",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-09-25T06:33:13.612Z"
+    },
+    {
+      "id": "audit-1790317319169-w32rt",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-09-25T06:21:59.169Z"
+    },
+    {
+      "id": "audit-1790317318966-5xc2",
+      "timestamp": "9/25/2026, 2:21:58 PM",
+      "adminEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1790215676759",
+      "timestamp": "9/24/2026, 10:07:56 AM",
+      "adminEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1790132394121",
+      "timestamp": "9/23/2026, 10:59:54 AM",
+      "adminEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1790131468128",
+      "timestamp": "9/23/2026, 10:44:28 AM",
+      "adminEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1789878152772",
+      "timestamp": "9/20/2026, 12:22:32 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: TLE Department Head Admin (admin@projectsmile) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "admin@projectsmile"
+    },
+    {
+      "id": "audit-1789822456076",
+      "timestamp": "9/19/2026, 8:54:16 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_TEACHER",
+      "details": "Updated profile & credentials for Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph).",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1789821960573",
+      "timestamp": "9/19/2026, 8:46:00 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_TEACHER",
+      "details": "Updated profile & credentials for Shirlene Mandapat-Tindoc (shirlene.mandapat001@deped.gov.ph).",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph"
+    },
+    {
+      "id": "audit-1789821943280",
+      "timestamp": "9/19/2026, 8:45:43 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_TEACHER",
+      "details": "Updated profile & credentials for Shirlene Mandapat-Tindoc (shirlene.mandapat001@deped.gov.ph).",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph"
+    },
+    {
+      "id": "audit-1789821714019",
+      "timestamp": "9/19/2026, 8:41:54 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_TEACHER",
+      "details": "Updated profile & credentials for Shirlene Mandapat-Tindoc (shirlene.mandapat001@deped.gov.ph).",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph"
+    },
+    {
+      "id": "audit-1789821599203",
+      "timestamp": "9/19/2026, 8:39:59 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_TEACHER",
+      "details": "Updated profile & credentials for SHIRLENE MANDAPAT (admin@projectsmile).",
+      "targetUser": "admin@projectsmile"
+    },
+    {
+      "id": "audit-1789821562927",
+      "timestamp": "9/19/2026, 8:39:22 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: TLE Department Head Admin (admin@projectsmile) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "admin@projectsmile"
+    },
+    {
+      "id": "audit-1789799589117",
+      "timestamp": "9/19/2026, 2:33:09 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_TEACHER",
+      "details": "Updated profile & credentials for Shirlene Mandapat-Tindoc (shirlene.mandapat001@deped.gov.ph).",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph"
+    },
+    {
+      "id": "audit-1789799564409",
+      "timestamp": "9/19/2026, 2:32:44 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_TEACHER",
+      "details": "Updated profile & credentials for Shirlene Mandapat-Tindoc (shirlene.mandapat001@deped.gov.ph).",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph"
+    },
+    {
+      "id": "audit-1789799405926",
+      "timestamp": "9/19/2026, 2:30:05 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_TEACHER",
+      "details": "Updated profile & credentials for Shirlene Mandapat (shirlene.mandapat001@deped.gov.ph).",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph"
+    },
+    {
+      "id": "audit-1789799085345",
+      "timestamp": "9/19/2026, 2:24:45 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_TEACHER",
+      "details": "Updated profile & credentials for Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph).",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1789798011815",
+      "timestamp": "9/19/2026, 2:06:51 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: TLE Department Head Admin (admin@projectsmile) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "admin@projectsmile"
+    },
+    {
+      "id": "audit-1789796658389",
+      "timestamp": "9/19/2026, 1:44:18 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_TEACHER",
+      "details": "Updated profile & credentials for Shirlene Mandapat-Tindoc (shirlene.mandapat001@deped.gov.ph).",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph"
+    },
+    {
+      "id": "audit-1789796631305",
+      "timestamp": "9/19/2026, 1:43:51 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: TLE Department Head Admin (admin@projectsmile) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "admin@projectsmile"
+    },
+    {
+      "id": "audit-1789796484960",
+      "timestamp": "9/19/2026, 1:41:24 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_TEACHER",
+      "details": "Updated profile & credentials for Shirlene Mandapat (shirlene.mandapat001@deped.gov.ph).",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph"
+    },
+    {
+      "id": "audit-1789796275746",
+      "timestamp": "9/19/2026, 1:37:55 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_TEACHER",
+      "details": "Updated profile & credentials for Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph).",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1789796029846",
+      "timestamp": "9/19/2026, 1:33:49 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_TEACHER",
+      "details": "Updated profile & credentials for Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph).",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1789796007906",
+      "timestamp": "9/19/2026, 1:33:27 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_TEACHER",
+      "details": "Updated profile & credentials for Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph).",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1789794578889",
+      "timestamp": "9/19/2026, 1:09:38 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "DELETE_TEACHER",
+      "details": "Admin permanently deleted teacher account: Melani R. Santos (melani.santos@depedqc.ph).",
+      "targetUser": "melani.santos@depedqc.ph"
+    },
+    {
+      "id": "audit-1789789564720",
+      "timestamp": "9/19/2026, 11:46:04 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "ACTIVATE_ACCOUNT",
+      "details": "Account for Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph) was set to Active.",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1789789546635",
+      "timestamp": "9/19/2026, 11:45:46 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "DEACTIVATE_ACCOUNT",
+      "details": "Account for Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph) was set to Inactive.",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1789789330641",
+      "timestamp": "9/19/2026, 11:42:10 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "DEACTIVATE_ACCOUNT",
+      "details": "Account for Melani R. Santos (melani.santos@depedqc.ph) was set to Inactive.",
+      "targetUser": "melani.santos@depedqc.ph"
+    },
+    {
+      "id": "audit-1789788332499",
+      "timestamp": "9/19/2026, 11:25:32 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: TLE Department Head Admin (admin@projectsmile) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "admin@projectsmile"
+    },
+    {
+      "id": "audit-1789788305401",
+      "timestamp": "9/19/2026, 11:25:05 AM",
+      "adminEmail": "shirlene.mandapat001@deped.gov.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene Mandapat (shirlene.mandapat001@deped.gov.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph"
+    },
+    {
+      "id": "audit-1789788291814",
+      "timestamp": "9/19/2026, 11:24:51 AM",
+      "adminEmail": "shirlene.mandapat001@deped.gov.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene Mandapat (shirlene.mandapat001@deped.gov.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph"
+    },
+    {
+      "id": "audit-1789788272029",
+      "timestamp": "9/19/2026, 11:24:32 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: TLE Department Head Admin (admin@projectsmile) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "admin@projectsmile"
+    },
+    {
+      "id": "audit-1789788247273",
+      "timestamp": "9/19/2026, 11:24:07 AM",
+      "adminEmail": "shirlene.mandapat001@deped.gov.ph",
+      "action": "TEACHER_REGISTERED",
+      "details": "Faculty account registered: Shirlene Mandapat (shirlene.mandapat001@deped.gov.ph) - Department Head / System Administrator",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph"
+    },
+    {
+      "id": "audit-1789787665097",
+      "timestamp": "9/19/2026, 11:14:25 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: TLE Department Head Admin (admin@projectsmile) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "admin@projectsmile"
+    },
+    {
+      "id": "audit-1789739631750",
+      "timestamp": "9/18/2026, 9:53:51 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789739631675",
+      "timestamp": "9/18/2026, 9:53:51 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789739631619",
+      "timestamp": "9/18/2026, 9:53:51 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789739631558",
+      "timestamp": "9/18/2026, 9:53:51 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789713195468",
+      "timestamp": "9/18/2026, 2:33:15 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789713195417",
+      "timestamp": "9/18/2026, 2:33:15 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789713195368",
+      "timestamp": "9/18/2026, 2:33:15 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789713195324",
+      "timestamp": "9/18/2026, 2:33:15 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789703281460",
+      "timestamp": "9/18/2026, 11:48:01 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789703281412",
+      "timestamp": "9/18/2026, 11:48:01 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789703281331",
+      "timestamp": "9/18/2026, 11:48:01 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789703281251",
+      "timestamp": "9/18/2026, 11:48:01 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789699568232",
+      "timestamp": "9/18/2026, 10:46:08 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789699568102",
+      "timestamp": "9/18/2026, 10:46:08 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789699568055",
+      "timestamp": "9/18/2026, 10:46:08 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789699567939",
+      "timestamp": "9/18/2026, 10:46:07 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789696655285",
+      "timestamp": "9/18/2026, 9:57:35 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789696655216",
+      "timestamp": "9/18/2026, 9:57:35 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789696655178",
+      "timestamp": "9/18/2026, 9:57:35 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789696655163",
+      "timestamp": "9/18/2026, 9:57:35 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789693083276",
+      "timestamp": "9/18/2026, 8:58:03 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789693083229",
+      "timestamp": "9/18/2026, 8:58:03 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789693083206",
+      "timestamp": "9/18/2026, 8:58:03 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789693083179",
+      "timestamp": "9/18/2026, 8:58:03 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789690557005",
+      "timestamp": "9/18/2026, 8:15:57 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789690556959",
+      "timestamp": "9/18/2026, 8:15:56 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789690556914",
+      "timestamp": "9/18/2026, 8:15:56 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789690556867",
+      "timestamp": "9/18/2026, 8:15:56 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789690298490",
+      "timestamp": "9/18/2026, 8:11:38 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789690298445",
+      "timestamp": "9/18/2026, 8:11:38 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789690298397",
+      "timestamp": "9/18/2026, 8:11:38 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789690298352",
+      "timestamp": "9/18/2026, 8:11:38 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789689858797",
+      "timestamp": "9/18/2026, 8:04:18 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789689858747",
+      "timestamp": "9/18/2026, 8:04:18 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789689858695",
+      "timestamp": "9/18/2026, 8:04:18 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789689858647",
+      "timestamp": "9/18/2026, 8:04:18 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789688945654",
+      "timestamp": "9/18/2026, 7:49:05 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789688945603",
+      "timestamp": "9/18/2026, 7:49:05 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789688945554",
+      "timestamp": "9/18/2026, 7:49:05 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789688945505",
+      "timestamp": "9/18/2026, 7:49:05 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789686981240",
+      "timestamp": "9/18/2026, 7:16:21 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789686981162",
+      "timestamp": "9/18/2026, 7:16:21 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789686981069",
+      "timestamp": "9/18/2026, 7:16:21 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789686980998",
+      "timestamp": "9/18/2026, 7:16:20 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789628711795",
+      "timestamp": "9/17/2026, 3:05:11 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789628711786",
+      "timestamp": "9/17/2026, 3:05:11 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789628711713",
+      "timestamp": "9/17/2026, 3:05:11 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789628711711",
+      "timestamp": "9/17/2026, 3:05:11 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789628528141",
+      "timestamp": "9/17/2026, 3:02:08 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789628528036",
+      "timestamp": "9/17/2026, 3:02:08 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789628527977",
+      "timestamp": "9/17/2026, 3:02:07 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789628527934",
+      "timestamp": "9/17/2026, 3:02:07 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789619675361",
+      "timestamp": "9/17/2026, 12:34:35 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789619675358",
+      "timestamp": "9/17/2026, 12:34:35 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789619675243",
+      "timestamp": "9/17/2026, 12:34:35 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789619675180",
+      "timestamp": "9/17/2026, 12:34:35 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789618390158",
+      "timestamp": "9/17/2026, 12:13:10 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789618390060",
+      "timestamp": "9/17/2026, 12:13:10 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789618389981",
+      "timestamp": "9/17/2026, 12:13:09 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789618389879",
+      "timestamp": "9/17/2026, 12:13:09 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789618282801",
+      "timestamp": "9/17/2026, 12:11:22 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789618282711",
+      "timestamp": "9/17/2026, 12:11:22 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789618282653",
+      "timestamp": "9/17/2026, 12:11:22 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789618282473",
+      "timestamp": "9/17/2026, 12:11:22 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789618051809",
+      "timestamp": "9/17/2026, 12:07:31 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789618051750",
+      "timestamp": "9/17/2026, 12:07:31 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789618051687",
+      "timestamp": "9/17/2026, 12:07:31 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789618051641",
+      "timestamp": "9/17/2026, 12:07:31 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1789617703031",
+      "timestamp": "9/17/2026, 12:01:43 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_SETTINGS",
+      "details": "Updated school & system settings: Ramon Magsaysay (Cubao) High School, SY 2025-2026 (Q1)."
+    },
+    {
+      "id": "audit-1790317993433-6h1o",
+      "timestamp": "9/25/2026, 2:33:13 PM",
+      "adminEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_REGISTERED",
+      "details": "Faculty account registered: Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph) - Master Teacher I / TLE Coordinator",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1790318098001-i9ci",
+      "timestamp": "9/25/2026, 2:34:58 PM",
+      "adminEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene M. Tindoc (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1790318116495-a45u",
+      "timestamp": "9/25/2026, 2:35:16 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: TLE Department Head Admin (admin@projectsmile) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "admin@projectsmile"
+    },
+    {
+      "id": "audit-1790318203588-xu65",
+      "timestamp": "9/25/2026, 2:36:43 PM",
+      "adminEmail": "shirlene.mandapat001@deped.gov.ph",
+      "action": "TEACHER_REGISTERED",
+      "details": "Faculty account registered: Shirlene Mandapat-Tindoc (shirlene.mandapat001@deped.gov.ph) - Teacher III",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph"
+    },
+    {
+      "id": "audit-1790318243035-6el7",
+      "timestamp": "9/25/2026, 2:37:23 PM",
+      "adminEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene M. Tindoc (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1790318451530-ufsx",
+      "timestamp": "9/25/2026, 2:40:51 PM",
+      "adminEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene M. Tindoc (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1790319850426-ov5c",
+      "timestamp": "9/25/2026, 3:04:10 PM",
+      "adminEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene M. Tindoc (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1790319867790-iwan",
+      "timestamp": "9/25/2026, 3:04:27 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: TLE Department Head Admin (admin@projectsmile) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "admin@projectsmile"
+    },
+    {
+      "id": "audit-1790512630583-jxg5",
+      "timestamp": "9/27/2026, 8:37:10 PM",
+      "adminEmail": "shirlene.mandapat001@deped.gov.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene Mandapat-Tindoc (shirlene.mandapat001@deped.gov.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph"
+    },
+    {
+      "id": "audit-1790512655640-6h59",
+      "timestamp": "9/27/2026, 8:37:35 PM",
+      "adminEmail": "shirlene.mandapat001@deped.gov.ph",
+      "action": "LOG_SESSION",
+      "details": "Teacher Shirlene Mandapat-Tindoc logged remediation session for a, a (60% - Average Mastery).",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph"
+    },
+    {
+      "id": "audit-1790512699749-pplp",
+      "timestamp": "9/27/2026, 8:38:19 PM",
+      "adminEmail": "shirlene.mandapat001@deped.gov.ph",
+      "action": "ENROLL_STUDENT",
+      "details": "Teacher Shirlene Mandapat-Tindoc enrolled learner: BB, BB (Grade 7 - Diamond) in Remediation.",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph"
+    },
+    {
+      "id": "audit-1790512721033-fnst",
+      "timestamp": "9/27/2026, 8:38:41 PM",
+      "adminEmail": "shirlene.mandapat001@deped.gov.ph",
+      "action": "LOG_SESSION",
+      "details": "Teacher Shirlene Mandapat-Tindoc logged remediation session for BB, BB (80% - Moving Towards Mastery).",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph"
+    },
+    {
+      "id": "audit-1790512730900-3obq",
+      "timestamp": "9/27/2026, 8:38:50 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: TLE Department Head Admin (admin@projectsmile) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "admin@projectsmile"
+    }
+  ],
+  "systemSettings": {
+    "schoolName": "Ramon Magsaysay (Cubao) High School",
+    "schoolYear": "2025-2026",
+    "academicYear": "2025-2026",
+    "currentQuarter": "Q1",
+    "semester": "1st Semester",
+    "division": "SDO Quezon City • TLE Department",
+    "region": "National Capital Region (NCR)",
+    "department": "Technology and Livelihood Education (TLE)",
+    "departmentName": "Technology and Livelihood Education (TLE)",
+    "systemName": "Project S.M.I.L.E.",
+    "passingScoreThreshold": 75,
+    "defaultPassingGrade": 75,
+    "allowTeacherSelfRegistration": true,
+    "requireApprovalForRegistration": false,
+    "maintenanceMode": false,
+    "backupFrequency": "Daily",
+    "autoArchiveInactiveDays": 90
+  }
+}

@@ -59,11 +59,13 @@ export const storage = {
       accounts[adminNorm] = {
         ...DEFAULT_ADMIN_ACCOUNT,
         role: 'admin',
+        assignedSubjects: [],
         passwordHash: DEFAULT_ADMIN_ACCOUNT.passwordHash || 'admin2025',
         isPasswordSet: true,
       };
     } else {
       accounts[adminNorm].role = 'admin';
+      accounts[adminNorm].assignedSubjects = [];
     }
 
     // Ensure Master Teacher / Coordinator account for Shirlene M. Mandapat exists
@@ -72,10 +74,29 @@ export const storage = {
       accounts[teacherNorm] = {
         ...INITIAL_TEACHER,
         role: 'coordinator',
+        assignedSubjects: [],
         passwordHash: INITIAL_TEACHER.passwordHash || 'teacher123',
         isPasswordSet: true,
       };
+    } else if (accounts[teacherNorm].role === 'coordinator' || accounts[teacherNorm].role === 'admin' || accounts[teacherNorm].role === 'school_head') {
+      accounts[teacherNorm].assignedSubjects = [];
     }
+
+    // Seed sample teaching faculty accounts if not present
+    SAMPLE_FACULTY_ACCOUNTS.forEach((fac) => {
+      const facNorm = fac.email.trim().toLowerCase();
+      if (!accounts[facNorm]) {
+        accounts[facNorm] = { ...fac };
+      }
+    });
+
+    // Enforce: Admin, School Head, and Remediation Coordinator must NOT have assigned subject areas
+    Object.keys(accounts).forEach((key) => {
+      const acc = accounts[key];
+      if (acc && ['admin', 'school_head', 'coordinator'].includes(acc.role || '')) {
+        acc.assignedSubjects = [];
+      }
+    });
 
     if (!localStorage.getItem(STORAGE_KEYS.REGISTERED_ACCOUNTS)) {
       localStorage.setItem(STORAGE_KEYS.REGISTERED_ACCOUNTS, JSON.stringify(accounts));
@@ -179,6 +200,9 @@ export const storage = {
       return { success: false, message: `An account with email ${teacherData.email} already exists.` };
     }
 
+    const effectiveRole = teacherData.role || 'teacher';
+    const isTeachingRole = !['admin', 'school_head', 'coordinator'].includes(effectiveRole);
+
     const newTeacher: TeacherProfile = {
       title: 'Teacher I',
       schoolName: 'Ramon Magsaysay (Cubao) High School',
@@ -186,14 +210,14 @@ export const storage = {
       region: 'National Capital Region (NCR)',
       academicYear: '2025-2026',
       department: 'Technology and Livelihood Education (TLE)',
-      assignedSubjects: [],
+      assignedSubjects: isTeachingRole ? (teacherData.assignedSubjects || []) : [],
       ...teacherData,
       name: teacherData.name,
       email: norm,
       passwordHash: teacherData.passwordHash || teacherData.password || 'deped2025',
       isPasswordSet: true,
       accountStatus: teacherData.accountStatus || 'Active',
-      role: teacherData.role || 'teacher',
+      role: effectiveRole,
       reportsSubmissionStatus: teacherData.reportsSubmissionStatus || 'Submitted',
       registeredAt: teacherData.registeredAt || new Date().toISOString().split('T')[0],
     };
@@ -331,9 +355,14 @@ export const storage = {
       return { success: false, message: `Teacher ${targetEmail} not found.` };
     }
 
+    const effectiveRole = updates.role || accounts[norm].role || 'teacher';
+    const isTeachingRole = !['admin', 'school_head', 'coordinator'].includes(effectiveRole);
+
     const updated: TeacherProfile = {
       ...accounts[norm],
       ...updates,
+      role: effectiveRole,
+      assignedSubjects: isTeachingRole ? (updates.assignedSubjects ?? accounts[norm].assignedSubjects ?? []) : [],
       email: accounts[norm].email, // preserve canonical email
     };
 
@@ -439,6 +468,16 @@ export const storage = {
     const accounts = this.getRegisteredAccounts();
     if (!accounts[norm]) {
       return { success: false, message: `Account ${targetEmail} not found.` };
+    }
+
+    const targetRole = accounts[norm].role || 'teacher';
+    if (['admin', 'school_head', 'coordinator'].includes(targetRole)) {
+      accounts[norm].assignedSubjects = [];
+      this.saveRegisteredAccounts(accounts);
+      return {
+        success: false,
+        message: 'Administrators, School Heads, and Remediation Coordinators cannot have assigned subject areas.',
+      };
     }
 
     accounts[norm].assignedSubjects = subjects;
@@ -915,11 +954,12 @@ export const storage = {
     students.forEach((s) => {
       const sid = String(s.id);
       const existing = studentMap.get(sid);
+      const tEmail = (s.teacherEmail || (s as any).teacher_email || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim();
       studentMap.set(sid, {
         ...(existing || {}),
         ...s,
         id: sid,
-        teacherEmail: (s.teacherEmail || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim(),
+        teacherEmail: tEmail,
       });
     });
     try {
@@ -931,16 +971,28 @@ export const storage = {
 
   saveSessionsDirectly(sessions: SessionRecord[]): void {
     if (!Array.isArray(sessions)) return;
+    const allStudents = this.getAllStudents();
+    const studentMap = new Map<string, string>();
+    allStudents.forEach((st) => {
+      const em = (st.teacherEmail || (st as any).teacher_email || '').toLowerCase().trim();
+      if (em) studentMap.set(String(st.id), em);
+    });
+
     const sessionMap = new Map<string, SessionRecord>();
     this.getAllSessions().forEach((s) => sessionMap.set(String(s.id), s));
     sessions.forEach((s) => {
       const sessId = String(s.id);
       const existing = sessionMap.get(sessId);
+      const directEmail = (s.teacherEmail || (s as any).teacher_email || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim();
+      const stId = String(s.studentId || (s as any).student_id || '');
+      const studentEmail = studentMap.get(stId) || '';
+      const resolvedEmail = directEmail || studentEmail;
+
       sessionMap.set(sessId, {
         ...(existing || {}),
         ...s,
         id: sessId,
-        teacherEmail: (s.teacherEmail || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim(),
+        teacherEmail: resolvedEmail,
       });
     });
     try {
@@ -1002,6 +1054,12 @@ export const storage = {
           parsed.masterTeacherName = INITIAL_TEACHER.masterTeacherName;
           parsed.masterTeacherPosition = INITIAL_TEACHER.masterTeacherPosition;
           modified = true;
+        }
+        if (['admin', 'school_head', 'coordinator'].includes(parsed.role || '')) {
+          if (parsed.assignedSubjects && parsed.assignedSubjects.length > 0) {
+            parsed.assignedSubjects = [];
+            modified = true;
+          }
         }
         if (modified) {
           this.saveTeacherProfile(parsed);
@@ -1137,27 +1195,17 @@ export const storage = {
           }
 
           // Authoritative Synchronization for Students - Preserve exact owner teacherEmail
-          if (Array.isArray(allStudents) && allStudents.length > 0) {
+          const incomingStudents = (Array.isArray(allStudents) && allStudents.length > 0)
+            ? allStudents
+            : (Array.isArray(students) ? students : []);
+
+          if (incomingStudents.length > 0) {
             const studentMap = new Map<string, Student>();
             this.getAllStudents().forEach((s) => studentMap.set(String(s.id), s));
-            allStudents.forEach((s: Student) => {
+            incomingStudents.forEach((s: any) => {
               const sid = String(s.id);
               const existing = studentMap.get(sid);
-              const tEmail = (s.teacherEmail || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim();
-              studentMap.set(sid, {
-                ...s,
-                id: sid,
-                teacherEmail: tEmail,
-              });
-            });
-            localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(Array.from(studentMap.values())));
-          } else if (Array.isArray(students)) {
-            const studentMap = new Map<string, Student>();
-            this.getAllStudents().forEach((s) => studentMap.set(String(s.id), s));
-            students.forEach((s: Student) => {
-              const sid = String(s.id);
-              const existing = studentMap.get(sid);
-              const tEmail = (s.teacherEmail || (existing ? existing.teacherEmail : '') || (activeEmail ? activeEmail : '')).toLowerCase().trim();
+              const tEmail = (s.teacherEmail || s.teacher_email || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim();
               studentMap.set(sid, {
                 ...s,
                 id: sid,
@@ -1168,31 +1216,32 @@ export const storage = {
           }
 
           // Authoritative Synchronization for Sessions - Preserve exact owner teacherEmail
-          if (Array.isArray(allSessions) && allSessions.length > 0) {
-            const sessionMap = new Map<string, SessionRecord>();
-            this.getAllSessions().forEach((sess) => sessionMap.set(String(sess.id), sess));
-            allSessions.forEach((sess: SessionRecord) => {
-              const sessId = String(sess.id);
-              const existing = sessionMap.get(sessId);
-              const tEmail = (sess.teacherEmail || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim();
-              sessionMap.set(sessId, {
-                ...sess,
-                id: sessId,
-                teacherEmail: tEmail,
-              });
+          const incomingSessions = (Array.isArray(allSessions) && allSessions.length > 0)
+            ? allSessions
+            : (Array.isArray(sessions) ? sessions : []);
+
+          if (incomingSessions.length > 0) {
+            const allCurrentStudents = this.getAllStudents();
+            const studentOwnerMap = new Map<string, string>();
+            allCurrentStudents.forEach((st) => {
+              const em = (st.teacherEmail || (st as any).teacher_email || '').toLowerCase().trim();
+              if (em) studentOwnerMap.set(String(st.id), em);
             });
-            localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(Array.from(sessionMap.values())));
-          } else if (Array.isArray(sessions)) {
+
             const sessionMap = new Map<string, SessionRecord>();
             this.getAllSessions().forEach((sess) => sessionMap.set(String(sess.id), sess));
-            sessions.forEach((sess: SessionRecord) => {
+            incomingSessions.forEach((sess: any) => {
               const sessId = String(sess.id);
               const existing = sessionMap.get(sessId);
-              const tEmail = (sess.teacherEmail || (existing ? existing.teacherEmail : '') || (activeEmail ? activeEmail : '')).toLowerCase().trim();
+              const directEmail = (sess.teacherEmail || sess.teacher_email || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim();
+              const stId = String(sess.studentId || sess.student_id || '');
+              const studentEmail = studentOwnerMap.get(stId) || '';
+              const finalTeacher = directEmail || studentEmail;
+
               sessionMap.set(sessId, {
                 ...sess,
                 id: sessId,
-                teacherEmail: tEmail,
+                teacherEmail: finalTeacher,
               });
             });
             localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(Array.from(sessionMap.values())));
@@ -1324,6 +1373,9 @@ export const storage = {
     const isAdmin = norm === DEFAULT_ADMIN_ACCOUNT.email.toLowerCase() || norm === 'admin@projectsmile';
     const isShirlene = norm === INITIAL_TEACHER.email.toLowerCase();
     
+    const effectiveRole = isAdmin ? 'admin' : (existing?.role || (isShirlene ? 'coordinator' : 'teacher'));
+    const isTeachingRole = !['admin', 'school_head', 'coordinator'].includes(effectiveRole);
+    
     const newProfile: TeacherProfile = {
       ...INITIAL_TEACHER,
       ...(existing || {}),
@@ -1331,7 +1383,8 @@ export const storage = {
       email: email.trim(),
       passwordHash: cleanPass,
       isPasswordSet: true,
-      role: isAdmin ? 'admin' : (existing?.role || (isShirlene ? 'coordinator' : 'teacher')),
+      role: effectiveRole,
+      assignedSubjects: isTeachingRole ? (additionalDetails?.assignedSubjects || existing?.assignedSubjects || []) : [],
       name: additionalDetails?.name || existing?.name || (isAdmin ? 'TLE Department Head Admin' : (isShirlene ? INITIAL_TEACHER.name : 'Teacher')),
       title: additionalDetails?.title || existing?.title || (isAdmin ? 'Department Head / System Administrator' : (isShirlene ? INITIAL_TEACHER.title : 'Teacher I')),
       schoolName: additionalDetails?.schoolName || existing?.schoolName || 'Ramon Magsaysay (Cubao) High School',
@@ -1598,53 +1651,42 @@ export const storage = {
     const account = accounts[norm];
 
     // Check specific registered account on this device
-    if (account) {
-      const storedPass = account.passwordHash ? account.passwordHash.trim() : '';
-      const isMatch =
-        account.passwordHash === password ||
-        account.passwordHash === cleanPass ||
-        storedPass === cleanPass ||
-        (norm.includes('shirlene') && (cleanPass === 'teacher123' || storedPass === cleanPass)) ||
-        (norm.includes('admin') && (cleanPass === 'admin2025' || storedPass === cleanPass));
-
-      if (isMatch || norm.includes('shirlene')) {
-        // Successful login
-        account.passwordHash = cleanPass;
-        account.lastLoginAt = new Date().toLocaleString();
-        accounts[norm] = account;
-        this.saveRegisteredAccounts(accounts);
-
-        localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, norm);
-        localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, email.trim());
-        this.saveTeacherProfile(account);
-        this.setLoggedIn(true);
-
-        // Record audit log for local login
-        this.addAuditLog(
-          norm,
-          'TEACHER_LOGGED_IN',
-          `Faculty login: ${account.name} (${norm}) accessed Project S.M.I.L.E. Portal.`,
-          norm
-        );
-
-        return { success: true, profile: account };
-      } else {
-        return {
-          success: false,
-          message: 'Incorrect password for this account. Please enter your registered password or switch to "Register / Setup".',
-        };
-      }
+    if (!account || !account.isPasswordSet || !account.passwordHash) {
+      return {
+        success: false,
+        message: 'Account not found. Please switch to "Register Account" to create your teacher profile.',
+      };
     }
 
-    // Auto-provision teacher account so they are immediately accounted for in the admin portal!
-    const newProf = this.setPassword(email, password);
+    const storedPass = (account.passwordHash || '').trim();
+    const isMatch = storedPass === cleanPass;
+
+    if (!isMatch) {
+      return {
+        success: false,
+        message: 'Incorrect password for this account. Please enter your valid registered password.',
+      };
+    }
+
+    // Successful login
+    account.lastLoginAt = new Date().toLocaleString();
+    accounts[norm] = account;
+    this.saveRegisteredAccounts(accounts);
+
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, norm);
+    localStorage.setItem(STORAGE_KEYS.LAST_LOGIN_EMAIL, email.trim());
+    this.saveTeacherProfile(account);
+    this.setLoggedIn(true);
+
+    // Record audit log for local login
     this.addAuditLog(
       norm,
       'TEACHER_LOGGED_IN',
-      `Faculty login: ${newProf.name} (${norm}) accessed Project S.M.I.L.E. Portal.`,
+      `Faculty login: ${account.name} (${norm}) accessed Project S.M.I.L.E. Portal.`,
       norm
     );
-    return { success: true, profile: newProf };
+
+    return { success: true, profile: account };
   },
 
   // Safe Quick Demo Login without wiping or corrupting registered teacher accounts
@@ -1671,6 +1713,7 @@ export const storage = {
       sessionStorage.removeItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
       localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
       localStorage.removeItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
+      localStorage.removeItem(STORAGE_KEYS.TEACHER);
     } catch (e) {
       console.error('Logout cleanup error:', e);
     }
@@ -1769,10 +1812,15 @@ export const storage = {
       return [];
     }
 
-    // Filter strictly by teacher email
+    // Admin account has global visibility to all students enrolled across all teachers
+    if (this.isAdminEmail(activeEmail)) {
+      return all;
+    }
+
+    // Teacher account sees ONLY the students they enrolled
     return all.filter((s) => {
       const sTeacher = (s.teacherEmail || '').toLowerCase().trim();
-      return sTeacher === activeEmail;
+      return Boolean(sTeacher && sTeacher === activeEmail);
     });
   },
 
@@ -2136,6 +2184,11 @@ export const storage = {
 
     if (!activeEmail) {
       return [];
+    }
+
+    // Admin account has global visibility to all sessions logged across all teachers
+    if (this.isAdminEmail(activeEmail)) {
+      return all;
     }
 
     const myStudents = this.getStudents(activeEmail);
