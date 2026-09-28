@@ -332,6 +332,7 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({
         </div>
       </div>
 
+
       {/* Teacher Accounts Activities Monitoring Section */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
@@ -358,7 +359,7 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({
             const tEmailNorm = (t.email || '').toLowerCase().trim();
             const enrolledByTeacher = (students || []).filter((s) => {
               const sEmail = (s.teacherEmail || (s as any).teacher_email || '').toLowerCase().trim();
-              return Boolean(sEmail && sEmail === tEmailNorm);
+              return Boolean(sEmail && sEmail === tEmailNorm && !s.isArchived); // Filtered archived students
             });
             const studentIdsForTeacher = new Set(enrolledByTeacher.map((s) => String(s.id)));
             const sessionsByTeacher = (sessions || []).filter((sess) => {
