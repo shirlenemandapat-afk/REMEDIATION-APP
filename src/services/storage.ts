@@ -947,6 +947,15 @@ export const storage = {
     }
   },
 
+  overwriteStudents(students: Student[]): void {
+    if (!Array.isArray(students)) return;
+    try {
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+    } catch (e) {
+      console.error('Error overwriting students', e);
+    }
+  },
+
   saveSessionsDirectly(sessions: SessionRecord[]): void {
     if (!Array.isArray(sessions)) return;
     const allStudents = this.getAllStudents();
@@ -977,6 +986,15 @@ export const storage = {
       localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(Array.from(sessionMap.values())));
     } catch (e) {
       console.error('Error saving sessions directly', e);
+    }
+  },
+
+  overwriteSessions(sessions: SessionRecord[]): void {
+    if (!Array.isArray(sessions)) return;
+    try {
+      localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+    } catch (e) {
+      console.error('Error overwriting sessions', e);
     }
   },
 

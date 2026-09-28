@@ -98,11 +98,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           const json = await res.json();
           if (json && json.success && json.data) {
             const { students: allStuds, sessions: allSess, auditLogs: allLogs, programs: allProgs, classes: allCls, announcements: allAnc } = json.data;
-            if (Array.isArray(allStuds) && allStuds.length > 0) {
-              storage.saveStudentsDirectly(allStuds);
+            if (Array.isArray(allStuds)) {
+              storage.overwriteStudents(allStuds);
             }
-            if (Array.isArray(allSess) && allSess.length > 0) {
-              storage.saveSessionsDirectly(allSess);
+            if (Array.isArray(allSess)) {
+              storage.overwriteSessions(allSess);
             }
             if (Array.isArray(allLogs) && allLogs.length > 0) {
               storage.saveAuditLogsDirectly(allLogs);
