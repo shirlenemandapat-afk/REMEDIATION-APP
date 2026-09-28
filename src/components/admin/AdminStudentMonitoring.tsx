@@ -37,18 +37,21 @@ export const AdminStudentMonitoring: React.FC<AdminStudentMonitoringProps> = ({
     students[0]?.id || null
   );
 
-  const activeStudents = students.filter((s) => !s.isArchived);
+  const [showArchived, setShowArchived] = useState(false);
 
   // Unique teacher emails gathered from both registered faculty accounts and active student profiles
   const allTeacherEmails = Array.from(
     new Set([
       ...teachers.map((t) => (t.email || '').toLowerCase().trim()),
-      ...activeStudents.map((s) => (s.teacherEmail || '').toLowerCase().trim()),
+      ...students.map((s) => (s.teacherEmail || '').toLowerCase().trim()),
     ])
   ).filter(Boolean);
 
   // Filtered Students
-  const filteredStudents = activeStudents.filter((s) => {
+  const filteredStudents = students.filter((s) => {
+    const isArchived = s.isArchived;
+    if (!showArchived && isArchived) return false;
+    
     const matchesSearch =
       `${s.lastName}, ${s.firstName} ${s.middleInitial}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.section.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -64,7 +67,7 @@ export const AdminStudentMonitoring: React.FC<AdminStudentMonitoringProps> = ({
     return matchesSearch && matchesGrade && matchesStatus && matchesTeacher;
   });
 
-  const currentStudent = activeStudents.find((s) => s.id === selectedStudentId) || filteredStudents[0] || null;
+  const currentStudent = (showArchived ? students : students.filter(s => !s.isArchived)).find((s) => s.id === selectedStudentId) || filteredStudents[0] || null;
 
   // Student specific session logs
   const studentSessions = currentStudent
@@ -194,6 +197,18 @@ export const AdminStudentMonitoring: React.FC<AdminStudentMonitoringProps> = ({
                 </select>
               </div>
             )}
+            
+            <div className="pt-2">
+              <label className="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={showArchived}
+                  onChange={(e) => setShowArchived(e.target.checked)}
+                  className="rounded text-emerald-700 focus:ring-emerald-500"
+                />
+                Show Archived Students
+              </label>
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
