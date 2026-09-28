@@ -68,28 +68,6 @@ export const storage = {
       accounts[adminNorm].assignedSubjects = [];
     }
 
-    // Ensure Master Teacher / Coordinator account for Shirlene M. Mandapat exists
-    const teacherNorm = INITIAL_TEACHER.email.trim().toLowerCase();
-    if (!accounts[teacherNorm]) {
-      accounts[teacherNorm] = {
-        ...INITIAL_TEACHER,
-        role: 'coordinator',
-        assignedSubjects: [],
-        passwordHash: INITIAL_TEACHER.passwordHash || 'teacher123',
-        isPasswordSet: true,
-      };
-    } else if (accounts[teacherNorm].role === 'coordinator' || accounts[teacherNorm].role === 'admin' || accounts[teacherNorm].role === 'school_head') {
-      accounts[teacherNorm].assignedSubjects = [];
-    }
-
-    // Seed sample teaching faculty accounts if not present
-    SAMPLE_FACULTY_ACCOUNTS.forEach((fac) => {
-      const facNorm = fac.email.trim().toLowerCase();
-      if (!accounts[facNorm]) {
-        accounts[facNorm] = { ...fac };
-      }
-    });
-
     // Enforce: Admin, School Head, and Remediation Coordinator must NOT have assigned subject areas
     Object.keys(accounts).forEach((key) => {
       const acc = accounts[key];
