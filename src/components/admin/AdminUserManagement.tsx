@@ -62,7 +62,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   const [editRole, setEditRole] = useState<UserRole>('teacher');
   const [editAssignedSubjects, setEditAssignedSubjects] = useState<string[]>([]);
   const [editSubjectInput, setEditSubjectInput] = useState('');
-  const [editFeedback, setEditFeedback] = useState<string | null>(null);
+  const [editFeedback, setEditFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Reset Password Modal
   const [resetTeacher, setResetTeacher] = useState<TeacherProfile | null>(null);
@@ -155,26 +155,34 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
     e.preventDefault();
     if (!editTeacher) return;
 
-    const res = await storage.adminUpdateTeacher(currentAdmin.email, editTeacher.email, {
-      name: editName.trim(),
-      title: editTitle.trim(),
-      role: editRole,
-      assignedSubjects: editRole === 'teacher' ? editAssignedSubjects : [],
-    });
+    try {
+      const res = await storage.adminUpdateTeacher(currentAdmin.email, editTeacher.email, {
+        name: editName.trim(),
+        title: editTitle.trim(),
+        role: editRole,
+        assignedSubjects: editRole === 'teacher' ? editAssignedSubjects : [],
+      });
 
-    if (res.success) {
-      setEditFeedback('Teacher profile updated successfully.');
-      onRefresh();
-      setTimeout(() => {
-        setEditTeacher(null);
-        setEditFeedback(null);
-      }, 1000);
+      if (res.success) {
+        setEditFeedback({ type: 'success', message: res.message || 'Teacher profile updated successfully.' });
+        await onRefresh();
+        setTimeout(() => {
+          setEditTeacher(null);
+          setEditFeedback(null);
+        }, 1200);
+      } else {
+        setEditFeedback({ type: 'error', message: res.message || 'Failed to update teacher profile.' });
+      }
+    } catch (err: any) {
+      setEditFeedback({ type: 'error', message: err?.message || 'Error updating teacher profile.' });
     }
   };
 
   // Handle Toggle Status
   const handleToggleStatusPrompt = (t: TeacherProfile) => {
     setToggleTeacher(t);
+    setTogglePasswordInput('');
+    setToggleFeedback(null);
   };
 
   // Handle Delete Teacher Prompt
@@ -184,76 +192,88 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
     setDeleteFeedback(null);
   };
 
-  const handleExecuteDeleteTeacher = (e: React.FormEvent) => {
+  const handleExecuteDeleteTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!deleteTeacher || !deletePasswordInput) return;
 
-    const res = storage.adminDeleteTeacherWithPassword(
-      currentAdmin.email,
-      deletePasswordInput,
-      deleteTeacher.email
-    );
+    try {
+      const res = await storage.adminDeleteTeacherWithPassword(
+        currentAdmin.email,
+        deletePasswordInput,
+        deleteTeacher.email
+      );
 
-    if (res.success) {
-      setDeleteFeedback({ type: 'success', message: res.message });
-      onRefresh();
-      setTimeout(() => {
-        setDeleteTeacher(null);
-        setDeletePasswordInput('');
-        setDeleteFeedback(null);
-      }, 1200);
-    } else {
-      setDeleteFeedback({ type: 'error', message: res.message });
+      if (res.success) {
+        setDeleteFeedback({ type: 'success', message: res.message });
+        await onRefresh();
+        setTimeout(() => {
+          setDeleteTeacher(null);
+          setDeletePasswordInput('');
+          setDeleteFeedback(null);
+        }, 1200);
+      } else {
+        setDeleteFeedback({ type: 'error', message: res.message });
+      }
+    } catch (err: any) {
+      setDeleteFeedback({ type: 'error', message: err?.message || 'Error deleting account.' });
     }
   };
 
-  const handleExecuteToggleStatus = (e: React.FormEvent) => {
+  const handleExecuteToggleStatus = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!toggleTeacher || !togglePasswordInput) return;
 
     const nextStatus = toggleTeacher.accountStatus === 'Inactive' ? 'Active' : 'Inactive';
     
-    const res = storage.adminToggleAccountStatus(
-      currentAdmin.email,
-      togglePasswordInput,
-      toggleTeacher.email,
-      nextStatus
-    );
-    
-    if (res.success) {
-      setToggleFeedback({ type: 'success', message: res.message });
-      onRefresh();
-      setTimeout(() => {
-        setToggleTeacher(null);
-        setTogglePasswordInput('');
-        setToggleFeedback(null);
-      }, 1200);
-    } else {
-      setToggleFeedback({ type: 'error', message: res.message });
+    try {
+      const res = await storage.adminToggleAccountStatus(
+        currentAdmin.email,
+        togglePasswordInput,
+        toggleTeacher.email,
+        nextStatus
+      );
+      
+      if (res.success) {
+        setToggleFeedback({ type: 'success', message: res.message });
+        await onRefresh();
+        setTimeout(() => {
+          setToggleTeacher(null);
+          setTogglePasswordInput('');
+          setToggleFeedback(null);
+        }, 1200);
+      } else {
+        setToggleFeedback({ type: 'error', message: res.message });
+      }
+    } catch (err: any) {
+      setToggleFeedback({ type: 'error', message: err?.message || 'Error updating status.' });
     }
   };
 
   // Handle Reset Password
-  const handleExecuteResetPassword = (e: React.FormEvent) => {
+  const handleExecuteResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resetTeacher || !resetPasswordInput) return;
 
-    const res = storage.adminResetTeacherPassword(
-      currentAdmin.email,
-      resetTeacher.email,
-      resetPasswordInput.trim()
-    );
+    try {
+      const res = await storage.adminResetTeacherPassword(
+        currentAdmin.email,
+        resetTeacher.email,
+        resetPasswordInput.trim()
+      );
 
-    if (res.success) {
-      setResetFeedback({ type: 'success', message: res.message });
-      onRefresh();
-      setTimeout(() => {
-        setResetTeacher(null);
-        setResetPasswordInput('');
-        setResetFeedback(null);
-      }, 1200);
-    } else {
-      setResetFeedback({ type: 'error', message: res.message });
+      if (res.success) {
+        setResetFeedback({ type: 'success', message: res.message });
+        await onRefresh();
+        setTimeout(() => {
+          setResetTeacher(null);
+          setResetPasswordInput('');
+          setResetFeedback(null);
+        }, 1200);
+      } else {
+        setResetFeedback({ type: 'error', message: res.message });
+      }
+    } catch (err: any) {
+      setResetFeedback({ type: 'error', message: err?.message || 'Error resetting password.' });
     }
   };
 
@@ -980,9 +1000,19 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
               )}
 
               {editFeedback && (
-                <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>{editFeedback}</span>
+                <div
+                  className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                    editFeedback.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'bg-rose-50 text-rose-800 border border-rose-200'
+                  }`}
+                >
+                  {editFeedback.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  )}
+                  <span>{editFeedback.message}</span>
                 </div>
               )}
 

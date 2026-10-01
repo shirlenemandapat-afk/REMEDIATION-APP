@@ -34,10 +34,7 @@
       "region": "National Capital Region (NCR)",
       "academicYear": "2025-2026",
       "department": "Technology and Livelihood Education (TLE)",
-      "assignedSubjects": [
-        "ICT - Computer Programming",
-        "ICT - Computer Systems Servicing"
-      ],
+      "assignedSubjects": [],
       "reportsSubmissionStatus": "Submitted",
       "accountStatus": "Active",
       "role": "coordinator",
@@ -61,9 +58,7 @@
       "region": "National Capital Region (NCR)",
       "academicYear": "2025-2026",
       "department": "Technology and Livelihood Education (TLE)",
-      "assignedSubjects": [
-        "ICT - Computer Programming"
-      ],
+      "assignedSubjects": [],
       "reportsSubmissionStatus": "Submitted",
       "accountStatus": "Active",
       "role": "coordinator",
@@ -78,7 +73,7 @@
       "passwordHash": "1234",
       "isPasswordSet": true,
       "registeredAt": "2026-09-25",
-      "lastLoginAt": "9/27/2026, 12:37:10 PM"
+      "lastLoginAt": "9/29/2026, 3:19:39 AM"
     }
   },
   "students": [
@@ -309,6 +304,22 @@
   "classes": [],
   "announcements": [],
   "auditLogs": [
+    {
+      "id": "audit-1790651979695-gptu3",
+      "userEmail": "admin@projectsmile",
+      "action": "TOGGLE_STATUS",
+      "details": "Administrator set account status for Shirlene Mandapat-Tindoc (shirlene.mandapat001@deped.gov.ph) to Active.",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph",
+      "timestamp": "2026-09-29T03:19:39.695Z"
+    },
+    {
+      "id": "audit-1790651979680-5dhh7",
+      "userEmail": "admin@projectsmile",
+      "action": "UPDATE_TEACHER",
+      "details": "Administrator updated profile for Shirlene Mandapat-Tindoc (shirlene.mandapat001@deped.gov.ph).",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph",
+      "timestamp": "2026-09-29T03:19:39.680Z"
+    },
     {
       "id": "audit-1790512731098-kt08y",
       "userEmail": "admin@projectsmile",

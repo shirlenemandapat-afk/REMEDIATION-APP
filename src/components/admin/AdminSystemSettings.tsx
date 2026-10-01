@@ -87,7 +87,7 @@ export const AdminSystemSettings: React.FC<AdminSystemSettingsProps> = ({
     setTimeout(() => setFeedback(null), 2500);
   };
 
-  const handleUpdatePassword = (e: React.FormEvent) => {
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword || newPassword.length < 4) {
       setPasswordFeedback({ type: 'error', message: 'Password must be at least 4 characters.' });
@@ -98,7 +98,7 @@ export const AdminSystemSettings: React.FC<AdminSystemSettingsProps> = ({
       return;
     }
 
-    const res = storage.adminResetTeacherPassword(currentAdmin.email, currentAdmin.email, newPassword);
+    const res = await storage.adminResetTeacherPassword(currentAdmin.email, currentAdmin.email, newPassword);
     if (res.success) {
       setPasswordFeedback({ type: 'success', message: 'Admin security password updated successfully.' });
       setNewPassword('');

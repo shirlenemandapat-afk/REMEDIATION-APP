@@ -96,6 +96,12 @@ function readDb(): AppDbState {
       const parsed = JSON.parse(raw);
       const accounts = parsed.accounts || {};
       
+      // Purge legacy mock teachers
+      const legacyMockEmails = ['juan.delacruz@depedqc.ph', 'maria.santos@depedqc.ph', 'eduardo.reyes@depedqc.ph'];
+      legacyMockEmails.forEach((lem) => {
+        delete accounts[lem];
+      });
+
       // Ensure master admin and coordinator exist
       if (!accounts['admin@projectsmile']) {
         accounts['admin@projectsmile'] = INITIAL_DEFAULT_DB.accounts['admin@projectsmile'];
@@ -538,6 +544,144 @@ async function startServer() {
     }
   });
 
+  // Permanently delete a teacher account
+  app.delete('/api/accounts/:email', (req, res) => {
+    try {
+      const db = readDb();
+      const targetEmail = (req.params.email || '').trim().toLowerCase();
+      if (!targetEmail) {
+        return res.status(400).json({ success: false, message: 'Email is required.' });
+      }
+      if (targetEmail === 'admin@projectsmile') {
+        return res.status(403).json({ success: false, message: 'Cannot delete primary System Administrator account.' });
+      }
+      if (!db.accounts[targetEmail]) {
+        return res.status(404).json({ success: false, message: `Account ${targetEmail} not found on server.` });
+      }
+
+      const teacherName = db.accounts[targetEmail].name || targetEmail;
+      delete db.accounts[targetEmail];
+
+      // Add audit log
+      db.auditLogs.unshift({
+        id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        userEmail: 'admin@projectsmile',
+        action: 'DELETE_TEACHER',
+        details: `Administrator permanently deleted account: ${teacherName} (${targetEmail}).`,
+        targetUser: targetEmail,
+        timestamp: new Date().toISOString(),
+      });
+      db.auditLogs = (db.auditLogs || []).slice(0, 300);
+
+      writeDb(db);
+      console.log(`[DELETE ACCOUNT]: Successfully deleted account ${targetEmail} from server.`);
+
+      // Also delete from Supabase if connected
+      const client = getServerSupabaseClient(db);
+      if (client) {
+        Promise.resolve(client.from('teacher_profiles').delete().eq('email', targetEmail)).catch(() => {});
+      }
+
+      res.json({ success: true, message: `Account for ${teacherName} was deleted permanently from server.` });
+    } catch (err: any) {
+      console.error('[DELETE /api/accounts/:email ERROR]:', err);
+      res.status(500).json({ success: false, message: 'Failed to delete account from server.' });
+    }
+  });
+
+  // Update a teacher account profile (name, title, role, assignedSubjects)
+  app.put('/api/accounts/:email', (req, res) => {
+    try {
+      const db = readDb();
+      const targetEmail = (req.params.email || '').trim().toLowerCase();
+      if (!targetEmail) {
+        return res.status(400).json({ success: false, message: 'Email is required.' });
+      }
+      if (!db.accounts[targetEmail]) {
+        return res.status(404).json({ success: false, message: `Account ${targetEmail} not found on server.` });
+      }
+
+      const updates = req.body.profile || req.body.updates || req.body;
+      const existing = db.accounts[targetEmail];
+      const effectiveRole = updates.role || existing.role || 'teacher';
+      const isTeachingRole = !['admin', 'school_head', 'coordinator'].includes(effectiveRole);
+
+      db.accounts[targetEmail] = {
+        ...existing,
+        ...updates,
+        role: effectiveRole,
+        assignedSubjects: isTeachingRole ? (updates.assignedSubjects ?? existing.assignedSubjects ?? []) : [],
+        email: existing.email, // preserve canonical email
+      };
+
+      // Add audit log
+      db.auditLogs.unshift({
+        id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        userEmail: 'admin@projectsmile',
+        action: 'UPDATE_TEACHER',
+        details: `Administrator updated profile for ${db.accounts[targetEmail].name} (${targetEmail}).`,
+        targetUser: targetEmail,
+        timestamp: new Date().toISOString(),
+      });
+      db.auditLogs = (db.auditLogs || []).slice(0, 300);
+
+      writeDb(db);
+      console.log(`[UPDATE ACCOUNT]: Successfully updated account ${targetEmail} on server.`);
+
+      res.json({
+        success: true,
+        profile: db.accounts[targetEmail],
+        message: `Account for ${db.accounts[targetEmail].name} was updated successfully on server.`,
+      });
+    } catch (err: any) {
+      console.error('[PUT /api/accounts/:email ERROR]:', err);
+      res.status(500).json({ success: false, message: 'Failed to update account on server.' });
+    }
+  });
+
+  // Toggle account status (Active / Inactive)
+  app.post('/api/accounts/:email/status', (req, res) => {
+    try {
+      const db = readDb();
+      const targetEmail = (req.params.email || '').trim().toLowerCase();
+      if (!targetEmail) {
+        return res.status(400).json({ success: false, message: 'Email is required.' });
+      }
+      if (!db.accounts[targetEmail]) {
+        return res.status(404).json({ success: false, message: `Account ${targetEmail} not found on server.` });
+      }
+      if (targetEmail === 'admin@projectsmile' && req.body.status === 'Inactive') {
+        return res.status(403).json({ success: false, message: 'Cannot deactivate primary System Administrator account.' });
+      }
+
+      const status = req.body.status === 'Inactive' ? 'Inactive' : 'Active';
+      db.accounts[targetEmail].accountStatus = status;
+
+      // Add audit log
+      db.auditLogs.unshift({
+        id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        userEmail: 'admin@projectsmile',
+        action: 'TOGGLE_STATUS',
+        details: `Administrator set account status for ${db.accounts[targetEmail].name} (${targetEmail}) to ${status}.`,
+        targetUser: targetEmail,
+        timestamp: new Date().toISOString(),
+      });
+      db.auditLogs = (db.auditLogs || []).slice(0, 300);
+
+      writeDb(db);
+      console.log(`[STATUS ACCOUNT]: Successfully set account ${targetEmail} status to ${status} on server.`);
+
+      res.json({
+        success: true,
+        status,
+        message: `Account status for ${db.accounts[targetEmail].name} was set to ${status}.`,
+      });
+    } catch (err: any) {
+      console.error('[POST /api/accounts/:email/status ERROR]:', err);
+      res.status(500).json({ success: false, message: 'Failed to update account status on server.' });
+    }
+  });
+
   // User Registration / Password Setup
   app.post('/api/auth/register', (req, res) => {
     try {
@@ -744,7 +888,12 @@ async function startServer() {
 
       const rawEmail = (req.query.email as string || '').trim().toLowerCase();
       const profile = db.accounts[rawEmail] || null;
-      const isAdmin = !rawEmail || rawEmail === 'admin@projectsmile' || (profile && profile.role === 'admin') || rawEmail.includes('admin');
+      const isAdmin =
+        !rawEmail ||
+        rawEmail === 'admin@projectsmile' ||
+        rawEmail === 'shirlene.mandapat@depedqc.ph' ||
+        (profile && ['admin', 'coordinator', 'school_head'].includes(profile.role)) ||
+        rawEmail.includes('admin');
 
       // Build a studentId -> teacherEmail lookup map from db.students for fallback resolution
       const studentTeacherMap = new Map<string, string>();
@@ -1175,8 +1324,19 @@ async function startServer() {
       const { accounts, students, sessions, programs, classes, announcements, auditLogs, systemSettings } = req.body;
       const db = readDb();
 
-      if (accounts && typeof accounts === 'object') {
-        db.accounts = { ...db.accounts, ...accounts };
+      if (accounts && typeof accounts === 'object' && Object.keys(accounts).length > 0) {
+        // Authoritative update of accounts from admin sync
+        const legacyMockEmails = ['juan.delacruz@depedqc.ph', 'maria.santos@depedqc.ph', 'eduardo.reyes@depedqc.ph'];
+        const cleanAccounts: Record<string, any> = {};
+        for (const [k, v] of Object.entries(accounts)) {
+          if (!legacyMockEmails.includes(k.toLowerCase())) {
+            cleanAccounts[k.toLowerCase()] = v;
+          }
+        }
+        if (!cleanAccounts['admin@projectsmile'] && db.accounts['admin@projectsmile']) {
+          cleanAccounts['admin@projectsmile'] = db.accounts['admin@projectsmile'];
+        }
+        db.accounts = cleanAccounts;
       }
       if (Array.isArray(students)) {
         // Merge students by ID

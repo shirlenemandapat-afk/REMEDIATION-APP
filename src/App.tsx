@@ -36,6 +36,7 @@ import {
   CheckCircle,
   X,
   ShieldAlert,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface ConfirmConfig {
@@ -549,9 +550,24 @@ export default function App() {
           </div>
         )}
 
-        {/* Navigation Tabs Styled with Green & Gold Accents (For Classroom Teacher views) */}
+        {/* Navigation Tabs Styled with Green & Gold Accents */}
         {teacher.role !== 'admin' && teacher.email !== 'admin@projectsmile' && (
           <div className="bg-white rounded-2xl p-1.5 border border-emerald-100 shadow-sm flex items-center gap-1.5 overflow-x-auto">
+            {storage.isAdminEmail(teacher?.email) && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('admin-portal')}
+                className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'admin-portal'
+                    ? 'bg-purple-900 text-yellow-300 shadow-md border border-purple-700 ring-1 ring-purple-600'
+                    : 'text-purple-900 bg-purple-50 hover:bg-purple-100 hover:text-purple-950 font-black'
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4 text-amber-400" />
+                ADMIN COMMAND CENTER
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => setActiveTab('students')}
