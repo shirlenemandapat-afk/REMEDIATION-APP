@@ -223,30 +223,39 @@ export default function App() {
   const handleLoginSuccess = async (profile: TeacherProfile) => {
     const cleanEmail = profile.email.toLowerCase().trim();
     storage.setActiveUserEmail(cleanEmail);
+    storage.saveTeacherProfile(profile);
+    storage.setLoggedIn(true);
     setTeacher(profile);
     setIsLoggedIn(true);
 
-    const isAdmin = profile.role === 'admin' || profile.email === 'admin@projectsmile';
+    const isAdmin = profile.role === 'admin' || cleanEmail === 'admin@projectsmile';
     if (isAdmin) {
       setActiveTab('admin-portal');
     } else {
       setActiveTab('students');
     }
 
-    // Immediately load this teacher's own students and sessions (or global for admin)
+    // Immediately load currently cached students and sessions
     setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(cleanEmail));
     setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(cleanEmail));
 
-    // Immediately synchronize server database & Supabase records for this account
+    // Immediately trigger authoritative cross-device sync from server database & Supabase
     setIsSyncing(true);
     try {
-      await storage.syncFromServer(cleanEmail);
-      setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(cleanEmail));
-      setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(cleanEmail));
+      const syncResult = await storage.syncFromServer(cleanEmail);
+      if (syncResult && syncResult.profile) {
+        setTeacher(syncResult.profile);
+      }
+      const myStudents = isAdmin ? storage.getAllStudents() : storage.getStudents(cleanEmail);
+      const mySessions = isAdmin ? storage.getAllSessions() : storage.getSessions(cleanEmail);
+      setStudents(myStudents);
+      setSessions(mySessions);
       setLastSyncTime(new Date());
     } catch (e) {
-      setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(cleanEmail));
-      setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(cleanEmail));
+      const myStudents = isAdmin ? storage.getAllStudents() : storage.getStudents(cleanEmail);
+      const mySessions = isAdmin ? storage.getAllSessions() : storage.getSessions(cleanEmail);
+      setStudents(myStudents);
+      setSessions(mySessions);
     } finally {
       setIsSyncing(false);
     }
@@ -278,12 +287,13 @@ export default function App() {
   const handleEnrollStudent = async (
     studentData: Omit<Student, 'id' | 'enrolledDate' | 'status'>
   ) => {
+    const activeEmail = (teacher?.email || storage.getActiveUserEmail() || '').toLowerCase().trim();
     const newStudent = storage.addStudent({
       ...studentData,
-      teacherEmail: teacher?.email,
+      teacherEmail: activeEmail,
     });
     if (isSupabaseConfigured()) {
-      await supabaseService.upsertStudent(newStudent, teacher.email);
+      await supabaseService.upsertStudent(newStudent, activeEmail);
     }
     refreshData();
     setParentLetterStudent(newStudent);
@@ -398,33 +408,35 @@ export default function App() {
 
   // Session CRUD
   const handleAddSession = async (sessionData: Omit<SessionRecord, 'id' | 'createdAt'>) => {
+    const activeEmail = (teacher?.email || storage.getActiveUserEmail() || '').toLowerCase().trim();
     const saved = storage.addSession({
       ...sessionData,
-      teacherEmail: teacher?.email,
+      teacherEmail: activeEmail,
     });
     if (isSupabaseConfigured()) {
-      await supabaseService.upsertSession(saved, teacher.email);
+      await supabaseService.upsertSession(saved, activeEmail);
     }
     refreshData();
     showToast(`Daily session log saved for ${sessionData.studentName} (${sessionData.score}% Mastery)!`, 'success');
     if (viewStudent && viewStudent.id === sessionData.studentId) {
-      const updated = storage.getStudents(teacher?.email).find((s) => s.id === sessionData.studentId);
+      const updated = storage.getStudents(activeEmail).find((s) => s.id === sessionData.studentId);
       if (updated) setViewStudent(updated);
     }
   };
 
   const handleUpdateSession = async (updatedSession: SessionRecord) => {
+    const activeEmail = (teacher?.email || storage.getActiveUserEmail() || '').toLowerCase().trim();
     storage.updateSession({
       ...updatedSession,
-      teacherEmail: updatedSession.teacherEmail || teacher?.email,
+      teacherEmail: updatedSession.teacherEmail || activeEmail,
     });
     if (isSupabaseConfigured()) {
-      await supabaseService.upsertSession(updatedSession, teacher.email);
+      await supabaseService.upsertSession(updatedSession, activeEmail);
     }
     refreshData();
     showToast(`Session record for ${updatedSession.studentName} has been updated successfully!`, 'success');
     if (viewStudent && viewStudent.id === updatedSession.studentId) {
-      const updated = storage.getStudents(teacher?.email).find((s) => s.id === updatedSession.studentId);
+      const updated = storage.getStudents(activeEmail).find((s) => s.id === updatedSession.studentId);
       if (updated) setViewStudent(updated);
     }
   };
@@ -650,6 +662,7 @@ export default function App() {
           <StudentList
             students={students}
             sessions={sessions}
+            teacher={teacher}
             onOpenEnrollModal={() => setIsEnrollModalOpen(true)}
             onOpenAddSession={(studId) => {
               setAddSessionStudentId(studId);

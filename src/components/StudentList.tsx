@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Student, SessionRecord, interpretMasteryLevel } from '../types';
+import { Student, SessionRecord, interpretMasteryLevel, TeacherProfile } from '../types';
 import {
   UserPlus,
   Search,
@@ -17,11 +17,13 @@ import {
   FolderArchive,
   Layers,
   Pencil,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface StudentListProps {
   students: Student[];
   sessions: SessionRecord[];
+  teacher?: TeacherProfile;
   onOpenEnrollModal: () => void;
   onOpenAddSession: (studentId: string) => void;
   onSelectStudent: (student: Student) => void;
@@ -40,6 +42,7 @@ interface StudentListProps {
 export const StudentList: React.FC<StudentListProps> = ({
   students,
   sessions,
+  teacher,
   onOpenEnrollModal,
   onOpenAddSession,
   onSelectStudent,
@@ -83,11 +86,17 @@ export const StudentList: React.FC<StudentListProps> = ({
       {/* Directory Banner Header */}
       <div className="bg-white p-4 sm:p-5 rounded-2xl border border-emerald-100 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-base sm:text-lg font-extrabold text-emerald-950 flex items-center gap-2">
               <User className="w-5 h-5 text-emerald-700" />
               Enrolled Students Roster ({filteredStudents.length})
             </h2>
+            {teacher?.email && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                Account: {teacher.name || teacher.email}
+              </span>
+            )}
             {archivedCount > 0 && onOpenArchiveTab && (
               <button
                 type="button"
@@ -101,7 +110,7 @@ export const StudentList: React.FC<StudentListProps> = ({
             )}
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Technology & Livelihood Education (TLE) • Daily Remediation & Skills Enhancement Registry
+            Learners officially enrolled under your teacher account &bull; Remediation & Skills Enhancement Registry
           </p>
         </div>
 
@@ -369,7 +378,16 @@ export const StudentList: React.FC<StudentListProps> = ({
       ) : (
         <div className="p-8 text-center bg-white rounded-2xl border border-emerald-100 text-slate-500 space-y-2">
           <User className="w-8 h-8 text-emerald-300 mx-auto" />
-          <p className="text-sm font-bold text-slate-700">No active student records found matching filter.</p>
+          <p className="text-sm font-bold text-slate-700">
+            {students.length === 0
+              ? `No students currently enrolled under ${teacher?.name || 'your account'}.`
+              : 'No active student records found matching the selected filter.'}
+          </p>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
+            {students.length === 0
+              ? 'Each teacher manages their own enrolled learners. Click below to enroll students directly under your account.'
+              : 'Adjust search keyword, section, or program filter to view enrolled learners.'}
+          </p>
           <div className="flex items-center justify-center gap-3 pt-2">
             <button
               type="button"

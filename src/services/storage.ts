@@ -1307,7 +1307,7 @@ export const storage = {
             localStorage.setItem(STORAGE_KEYS.TEACHER, JSON.stringify(localAccounts[activeEmail]));
           }
 
-          // Authoritative Synchronization for Students - Preserve exact owner teacherEmail
+          // Authoritative Synchronization for Students - Preserve exact owner teacherEmail or default to activeEmail
           const incomingStudents = (Array.isArray(allStudents) && allStudents.length > 0)
             ? allStudents
             : (Array.isArray(students) ? students : []);
@@ -1318,7 +1318,7 @@ export const storage = {
             incomingStudents.forEach((s: any) => {
               const sid = String(s.id);
               const existing = studentMap.get(sid);
-              const tEmail = (s.teacherEmail || s.teacher_email || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim();
+              const tEmail = (s.teacherEmail || s.teacher_email || (existing ? existing.teacherEmail : '') || (activeEmail ? activeEmail : '') || '').toLowerCase().trim();
               studentMap.set(sid, {
                 ...s,
                 id: sid,
@@ -1328,7 +1328,7 @@ export const storage = {
             localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(Array.from(studentMap.values())));
           }
 
-          // Authoritative Synchronization for Sessions - Preserve exact owner teacherEmail
+          // Authoritative Synchronization for Sessions - Preserve exact owner teacherEmail or default to activeEmail
           const incomingSessions = (Array.isArray(allSessions) && allSessions.length > 0)
             ? allSessions
             : (Array.isArray(sessions) ? sessions : []);
@@ -1349,7 +1349,7 @@ export const storage = {
               const directEmail = (sess.teacherEmail || sess.teacher_email || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim();
               const stId = String(sess.studentId || sess.student_id || '');
               const studentEmail = studentOwnerMap.get(stId) || '';
-              const finalTeacher = directEmail || studentEmail;
+              const finalTeacher = directEmail || studentEmail || (activeEmail ? activeEmail : '');
 
               sessionMap.set(sessId, {
                 ...sess,
@@ -1640,6 +1640,51 @@ export const storage = {
         this.saveTeacherProfile(profile);
         this.setLoggedIn(true);
 
+        // Immediately cache incoming students and sessions on login
+        if (Array.isArray(json.allStudents) && json.allStudents.length > 0) {
+          const studentMap = new Map<string, Student>();
+          this.getAllStudents().forEach((s) => studentMap.set(String(s.id), s));
+          json.allStudents.forEach((s: any) => {
+            const sid = String(s.id);
+            const existing = studentMap.get(sid);
+            const tEmail = (s.teacherEmail || s.teacher_email || (existing ? existing.teacherEmail : '') || cleanEmail).toLowerCase().trim();
+            studentMap.set(sid, { ...s, id: sid, teacherEmail: tEmail });
+          });
+          localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(Array.from(studentMap.values())));
+        } else if (Array.isArray(json.students) && json.students.length > 0) {
+          const studentMap = new Map<string, Student>();
+          this.getAllStudents().forEach((s) => studentMap.set(String(s.id), s));
+          json.students.forEach((s: any) => {
+            const sid = String(s.id);
+            studentMap.set(sid, { ...s, id: sid, teacherEmail: (s.teacherEmail || cleanEmail).toLowerCase().trim() });
+          });
+          localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(Array.from(studentMap.values())));
+        }
+
+        if (Array.isArray(json.allSessions) && json.allSessions.length > 0) {
+          const sessionMap = new Map<string, SessionRecord>();
+          this.getAllSessions().forEach((s) => sessionMap.set(String(s.id), s));
+          json.allSessions.forEach((s: any) => {
+            const sessId = String(s.id);
+            const existing = sessionMap.get(sessId);
+            const tEmail = (s.teacherEmail || s.teacher_email || (existing ? existing.teacherEmail : '') || cleanEmail).toLowerCase().trim();
+            sessionMap.set(sessId, { ...s, id: sessId, teacherEmail: tEmail });
+          });
+          localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(Array.from(sessionMap.values())));
+        } else if (Array.isArray(json.sessions) && json.sessions.length > 0) {
+          const sessionMap = new Map<string, SessionRecord>();
+          this.getAllSessions().forEach((s) => sessionMap.set(String(s.id), s));
+          json.sessions.forEach((s: any) => {
+            const sessId = String(s.id);
+            sessionMap.set(sessId, { ...s, id: sessId, teacherEmail: (s.teacherEmail || cleanEmail).toLowerCase().trim() });
+          });
+          localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(Array.from(sessionMap.values())));
+        }
+
+        if (json.programs && Array.isArray(json.programs) && json.programs.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.PROGRAMS, JSON.stringify(json.programs));
+        }
+
         // Record audit log for faculty login
         this.addAuditLog(
           cleanEmail,
@@ -1654,7 +1699,7 @@ export const storage = {
         }
 
         // Background sync to ensure all teacher accounts and rosters are aligned
-        this.syncFromServer().catch(() => {});
+        this.syncFromServer(cleanEmail).catch(() => {});
 
         return { success: true, profile };
       } else {
@@ -1884,9 +1929,17 @@ export const storage = {
     const e1 = email1.toLowerCase().trim();
     const e2 = email2.toLowerCase().trim();
     if (e1 === e2) return true;
-    const isShirlene1 = e1.includes('shirlene.mandapat') || e1 === 'shirlene.mandapat@depedqc.ph' || e1 === 'shirlene.mandapat001@deped.gov.ph';
-    const isShirlene2 = e2.includes('shirlene.mandapat') || e2 === 'shirlene.mandapat@depedqc.ph' || e2 === 'shirlene.mandapat001@deped.gov.ph';
+
+    // Extract username prefix before '@' (e.g. shirlene.mandapat, shirlene.mandapat001)
+    const u1 = e1.split('@')[0].replace(/[^a-z0-9]/g, '');
+    const u2 = e2.split('@')[0].replace(/[^a-z0-9]/g, '');
+    if (u1 && u2 && (u1 === u2 || u1.includes(u2) || u2.includes(u1))) return true;
+
+    // DepEd domain alias matching (e.g. shirlene.mandapat variants)
+    const isShirlene1 = e1.includes('shirlene') && (e1.includes('mandapat') || e1.includes('tindoc'));
+    const isShirlene2 = e2.includes('shirlene') && (e2.includes('mandapat') || e2.includes('tindoc'));
     if (isShirlene1 && isShirlene2) return true;
+
     return false;
   },
 
@@ -1941,10 +1994,23 @@ export const storage = {
       return all;
     }
 
-    // Teacher account sees ONLY the students they enrolled (with alias support)
+    // Find student IDs associated with this teacher's session logs
+    const allSessions = this.getAllSessions();
+    const studentIdsWithMySessions = new Set<string>();
+    allSessions.forEach((sess) => {
+      const sessTeacher = (sess.teacherEmail || '').toLowerCase().trim();
+      if (this.isSameTeacherEmail(sessTeacher, activeEmail) && sess.studentId) {
+        studentIdsWithMySessions.add(String(sess.studentId));
+      }
+    });
+
+    // Teacher account sees students they enrolled, sessions associated with them, or unassigned fallback
     return all.filter((s) => {
       const sTeacher = (s.teacherEmail || '').toLowerCase().trim();
-      return this.isSameTeacherEmail(sTeacher, activeEmail);
+      if (!sTeacher) return true; // Keep unassigned students for active teacher
+      if (this.isSameTeacherEmail(sTeacher, activeEmail)) return true;
+      if (studentIdsWithMySessions.has(String(s.id))) return true;
+      return false;
     });
   },
 
@@ -2326,11 +2392,13 @@ export const storage = {
 
     return all.filter((sess) => {
       const sTeacher = (sess.teacherEmail || '').toLowerCase().trim();
-      const stId = String(sess.studentId);
+      const stId = String(sess.studentId || '');
       const studentOwner = studentOwnerMap.get(stId) || '';
       if (this.isSameTeacherEmail(sTeacher, activeEmail)) return true;
       if (this.isSameTeacherEmail(studentOwner, activeEmail)) return true;
-      return myStudentIdSet.has(stId);
+      if (myStudentIdSet.has(stId)) return true;
+      if (!sTeacher && !studentOwner) return true; // Keep unassigned sessions
+      return false;
     });
   },
 

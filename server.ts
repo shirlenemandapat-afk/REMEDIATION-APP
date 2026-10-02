@@ -147,15 +147,23 @@ function writeDb(db: AppDbState): void {
   }
 }
 
-// Case-insensitive teacher email matching with DepEd alias support
+// Case-insensitive teacher email matching with DepEd alias and username support
 function isSameTeacher(email1?: string | null, email2?: string | null): boolean {
   if (!email1 || !email2) return false;
   const e1 = email1.toLowerCase().trim();
   const e2 = email2.toLowerCase().trim();
   if (e1 === e2) return true;
-  const isShirlene1 = e1.includes('shirlene.mandapat') || e1 === 'shirlene.mandapat@depedqc.ph' || e1 === 'shirlene.mandapat001@deped.gov.ph';
-  const isShirlene2 = e2.includes('shirlene.mandapat') || e2 === 'shirlene.mandapat@depedqc.ph' || e2 === 'shirlene.mandapat001@deped.gov.ph';
+
+  // Extract username prefix before '@' (e.g. shirlene.mandapat, shirlene.mandapat001)
+  const u1 = e1.split('@')[0].replace(/[^a-z0-9]/g, '');
+  const u2 = e2.split('@')[0].replace(/[^a-z0-9]/g, '');
+  if (u1 && u2 && (u1 === u2 || u1.includes(u2) || u2.includes(u1))) return true;
+
+  // Specific DepEd domain alias matching (e.g. shirlene.mandapat variants across qc.ph and deped.gov.ph)
+  const isShirlene1 = e1.includes('shirlene') && (e1.includes('mandapat') || e1.includes('tindoc'));
+  const isShirlene2 = e2.includes('shirlene') && (e2.includes('mandapat') || e2.includes('tindoc'));
   if (isShirlene1 && isShirlene2) return true;
+
   return false;
 }
 
@@ -831,10 +839,61 @@ async function startServer() {
         timestamp: new Date().toISOString(),
       });
 
+      // Resolve students and sessions for instant cross-device delivery on login
+      const isAdmin = cleanEmail === 'admin@projectsmile' || account.role === 'admin';
+      const studentTeacherMap = new Map<string, string>();
+      (db.students || []).forEach((st: any) => {
+        const t = (st.teacherEmail || st.teacher_email || '').toLowerCase().trim();
+        if (t) studentTeacherMap.set(String(st.id), t);
+      });
+
+      const allResolvedSessions = (db.sessions || []).map((sess: any) => {
+        const currentTeacher = (sess.teacherEmail || sess.teacher_email || '').toLowerCase().trim();
+        const fallbackTeacher = studentTeacherMap.get(String(sess.studentId || sess.student_id || '')) || '';
+        return {
+          ...sess,
+          teacherEmail: currentTeacher || fallbackTeacher,
+        };
+      });
+
+      let matchedStudents: any[] = [];
+      let matchedSessions: any[] = [];
+
+      if (!isAdmin) {
+        matchedStudents = (db.students || []).filter((s: any) => {
+          const sEmail = (s.teacherEmail || s.teacher_email || '').toLowerCase().trim();
+          return isSameTeacher(sEmail, cleanEmail);
+        });
+
+        const studentIdSet = new Set(matchedStudents.map((s) => String(s.id)));
+
+        matchedSessions = allResolvedSessions.filter((sess: any) => {
+          const sEmail = (sess.teacherEmail || '').toLowerCase().trim();
+          const stId = String(sess.studentId || sess.student_id || '');
+          const studentEmail = studentTeacherMap.get(stId) || '';
+          return isSameTeacher(sEmail, cleanEmail) || isSameTeacher(studentEmail, cleanEmail) || studentIdSet.has(stId);
+        });
+      } else {
+        matchedStudents = db.students || [];
+        matchedSessions = allResolvedSessions;
+      }
+
       writeDb(db);
 
       console.log(`[AUTH] Teacher logged in successfully across device: ${cleanEmail}`);
-      res.json({ success: true, profile: account, supabaseConfig: db.systemSettings?.supabaseConfig || null });
+      res.json({
+        success: true,
+        profile: account,
+        supabaseConfig: db.systemSettings?.supabaseConfig || null,
+        students: matchedStudents,
+        sessions: matchedSessions,
+        allStudents: db.students || [],
+        allSessions: allResolvedSessions,
+        programs: db.programs || [],
+        classes: db.classes || [],
+        announcements: db.announcements || [],
+        systemSettings: db.systemSettings,
+      });
     } catch (err: any) {
       console.error('[AUTH ERROR] Login failed:', err);
       res.status(500).json({ success: false, message: 'Server error processing login.' });
@@ -859,8 +918,59 @@ async function startServer() {
       db.accounts[cleanEmail] = account;
       writeDb(db);
 
+      // Resolve students and sessions for instant delivery
+      const isAdmin = cleanEmail === 'admin@projectsmile' || account.role === 'admin';
+      const studentTeacherMap = new Map<string, string>();
+      (db.students || []).forEach((st: any) => {
+        const t = (st.teacherEmail || st.teacher_email || '').toLowerCase().trim();
+        if (t) studentTeacherMap.set(String(st.id), t);
+      });
+
+      const allResolvedSessions = (db.sessions || []).map((sess: any) => {
+        const currentTeacher = (sess.teacherEmail || sess.teacher_email || '').toLowerCase().trim();
+        const fallbackTeacher = studentTeacherMap.get(String(sess.studentId || sess.student_id || '')) || '';
+        return {
+          ...sess,
+          teacherEmail: currentTeacher || fallbackTeacher,
+        };
+      });
+
+      let matchedStudents: any[] = [];
+      let matchedSessions: any[] = [];
+
+      if (!isAdmin) {
+        matchedStudents = (db.students || []).filter((s: any) => {
+          const sEmail = (s.teacherEmail || s.teacher_email || '').toLowerCase().trim();
+          return isSameTeacher(sEmail, cleanEmail);
+        });
+
+        const studentIdSet = new Set(matchedStudents.map((s) => String(s.id)));
+
+        matchedSessions = allResolvedSessions.filter((sess: any) => {
+          const sEmail = (sess.teacherEmail || '').toLowerCase().trim();
+          const stId = String(sess.studentId || sess.student_id || '');
+          const studentEmail = studentTeacherMap.get(stId) || '';
+          return isSameTeacher(sEmail, cleanEmail) || isSameTeacher(studentEmail, cleanEmail) || studentIdSet.has(stId);
+        });
+      } else {
+        matchedStudents = db.students || [];
+        matchedSessions = allResolvedSessions;
+      }
+
       console.log(`[AUTH] 1-Tap Quick login: ${cleanEmail}`);
-      res.json({ success: true, profile: account });
+      res.json({
+        success: true,
+        profile: account,
+        supabaseConfig: db.systemSettings?.supabaseConfig || null,
+        students: matchedStudents,
+        sessions: matchedSessions,
+        allStudents: db.students || [],
+        allSessions: allResolvedSessions,
+        programs: db.programs || [],
+        classes: db.classes || [],
+        announcements: db.announcements || [],
+        systemSettings: db.systemSettings,
+      });
     } catch (err: any) {
       console.error('[AUTH ERROR] Quick login failed:', err);
       res.status(500).json({ success: false, message: 'Server error processing quick login.' });
