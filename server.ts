@@ -147,6 +147,18 @@ function writeDb(db: AppDbState): void {
   }
 }
 
+// Case-insensitive teacher email matching with DepEd alias support
+function isSameTeacher(email1?: string | null, email2?: string | null): boolean {
+  if (!email1 || !email2) return false;
+  const e1 = email1.toLowerCase().trim();
+  const e2 = email2.toLowerCase().trim();
+  if (e1 === e2) return true;
+  const isShirlene1 = e1.includes('shirlene.mandapat') || e1 === 'shirlene.mandapat@depedqc.ph' || e1 === 'shirlene.mandapat001@deped.gov.ph';
+  const isShirlene2 = e2.includes('shirlene.mandapat') || e2 === 'shirlene.mandapat@depedqc.ph' || e2 === 'shirlene.mandapat001@deped.gov.ph';
+  if (isShirlene1 && isShirlene2) return true;
+  return false;
+}
+
 // Clean and normalize Supabase endpoint URL
 function cleanSupabaseUrl(url?: string): string {
   if (!url || typeof url !== 'string') return '';
@@ -924,16 +936,16 @@ async function startServer() {
       if (rawEmail && !isAdmin) {
         matchedStudents = (db.students || []).filter((s: any) => {
           const sEmail = (s.teacherEmail || s.teacher_email || '').toLowerCase().trim();
-          return Boolean(sEmail && sEmail === rawEmail);
+          return isSameTeacher(sEmail, rawEmail);
         });
 
         const studentIdSet = new Set(matchedStudents.map((s) => String(s.id)));
 
         matchedSessions = allResolvedSessions.filter((sess: any) => {
           const sEmail = (sess.teacherEmail || '').toLowerCase().trim();
-          if (sEmail) return sEmail === rawEmail;
           const stId = String(sess.studentId || sess.student_id || '');
-          return Boolean(stId && studentIdSet.has(stId));
+          const studentEmail = studentTeacherMap.get(stId) || '';
+          return isSameTeacher(sEmail, rawEmail) || isSameTeacher(studentEmail, rawEmail) || studentIdSet.has(stId);
         });
       } else {
         matchedStudents = db.students || [];
@@ -1078,11 +1090,28 @@ async function startServer() {
         pullLatestFromSupabase(db).catch(() => {});
       }
       const teacherEmail = (req.query.teacherEmail as string || '').toLowerCase().trim();
-      let list = db.sessions || [];
+      
+      const studentTeacherMap = new Map<string, string>();
+      (db.students || []).forEach((st: any) => {
+        const t = (st.teacherEmail || st.teacher_email || '').toLowerCase().trim();
+        if (t) studentTeacherMap.set(String(st.id), t);
+      });
+
+      let list = (db.sessions || []).map((sess: any) => {
+        const currentTeacher = (sess.teacherEmail || sess.teacher_email || '').toLowerCase().trim();
+        const fallbackTeacher = studentTeacherMap.get(String(sess.studentId || sess.student_id || '')) || '';
+        return {
+          ...sess,
+          teacherEmail: currentTeacher || fallbackTeacher,
+        };
+      });
+
       if (teacherEmail) {
         list = list.filter((s: any) => {
-          const sTeacher = (s.teacherEmail || s.teacher_email || '').toLowerCase().trim();
-          return sTeacher === teacherEmail;
+          const sTeacher = (s.teacherEmail || '').toLowerCase().trim();
+          const stId = String(s.studentId || s.student_id || '');
+          const studentOwner = studentTeacherMap.get(stId) || '';
+          return isSameTeacher(sTeacher, teacherEmail) || isSameTeacher(studentOwner, teacherEmail);
         });
       }
       res.json({ success: true, sessions: list });

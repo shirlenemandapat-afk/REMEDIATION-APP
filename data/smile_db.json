@@ -1,5 +1,29 @@
 {
   "accounts": {
+    "shirlene.mandapat@depedqc.ph": {
+      "title": "Master Teacher I / TLE Coordinator",
+      "schoolName": "Ramon Magsaysay (Cubao) High School",
+      "division": "SDO Quezon City • TLE Department",
+      "region": "National Capital Region (NCR)",
+      "academicYear": "2025-2026",
+      "department": "Technology and Livelihood Education (TLE)",
+      "assignedSubjects": [],
+      "reportsSubmissionStatus": "Submitted",
+      "accountStatus": "Active",
+      "role": "coordinator",
+      "masterTeacherName": "Shirlene M. Tindoc",
+      "masterTeacherPosition": "Teaacher II",
+      "headTeacherName": "Dr. Corazon V. Santos",
+      "headTeacherPosition": "Head Teacher III / TLE Department",
+      "principalName": "Dr. Maria Luisa T. Ramos",
+      "principalPosition": "Secondary School Principal IV",
+      "email": "shirlene.mandapat@depedqc.ph",
+      "passwordHash": "111204",
+      "isPasswordSet": true,
+      "name": "Shirlene M. Mandapat",
+      "registeredAt": "2025-06-15",
+      "lastLoginAt": "10/1/2026, 11:24:13 PM"
+    },
     "admin@projectsmile": {
       "email": "admin@projectsmile",
       "passwordHash": "admin2025",
@@ -19,61 +43,13 @@
       ],
       "reportsSubmissionStatus": "Submitted",
       "registeredAt": "2025-06-01",
-      "lastLoginAt": "9/27/2026, 12:38:51 PM",
+      "lastLoginAt": "10/1/2026, 11:21:35 PM",
       "headTeacherName": "Dr. Corazon V. Santos",
       "headTeacherPosition": "Head Teacher III / TLE Department",
       "principalName": "Dr. Maria Luisa T. Ramos",
       "principalPosition": "Secondary School Principal IV",
       "masterTeacherName": "Shirlene M. Mandapat",
       "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator"
-    },
-    "shirlene.mandapat@depedqc.ph": {
-      "title": "Teacher II",
-      "schoolName": "Ramon Magsaysay (Cubao) High School",
-      "division": "SDO Quezon City • TLE Department",
-      "region": "National Capital Region (NCR)",
-      "academicYear": "2025-2026",
-      "department": "Technology and Livelihood Education (TLE)",
-      "assignedSubjects": [],
-      "reportsSubmissionStatus": "Submitted",
-      "accountStatus": "Active",
-      "role": "coordinator",
-      "masterTeacherName": "Shirlene M. Tindoc",
-      "masterTeacherPosition": "Teaacher II",
-      "headTeacherName": "Dr. Corazon V. Santos",
-      "headTeacherPosition": "Head Teacher III / TLE Department",
-      "principalName": "Dr. Maria Luisa T. Ramos",
-      "principalPosition": "Secondary School Principal IV",
-      "email": "shirlene.mandapat@depedqc.ph",
-      "passwordHash": "111204",
-      "isPasswordSet": true,
-      "name": "Shirlene M. Tindoc",
-      "registeredAt": "2025-06-15",
-      "lastLoginAt": "9/25/2026, 7:04:10 AM"
-    },
-    "shirlene.mandapat001@deped.gov.ph": {
-      "title": "Teacher III",
-      "schoolName": "Ramon Magsaysay (Cubao) High School",
-      "division": "SDO Quezon City • TLE Department",
-      "region": "National Capital Region (NCR)",
-      "academicYear": "2025-2026",
-      "department": "Technology and Livelihood Education (TLE)",
-      "assignedSubjects": [],
-      "reportsSubmissionStatus": "Submitted",
-      "accountStatus": "Active",
-      "role": "coordinator",
-      "masterTeacherName": "Shirlene M. Mandapat",
-      "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator",
-      "headTeacherName": "Dr. Corazon V. Santos",
-      "headTeacherPosition": "Head Teacher III / TLE Department",
-      "principalName": "Dr. Maria Luisa T. Ramos",
-      "principalPosition": "Secondary School Principal IV",
-      "name": "Shirlene Mandapat-Tindoc",
-      "email": "shirlene.mandapat001@deped.gov.ph",
-      "passwordHash": "1234",
-      "isPasswordSet": true,
-      "registeredAt": "2026-09-25",
-      "lastLoginAt": "9/29/2026, 3:19:39 AM"
     }
   },
   "students": [
@@ -113,7 +89,7 @@
       "id": "stud-1789788318202",
       "enrolledDate": "2026-09-19",
       "status": "Progressing",
-      "teacherEmail": "shirlene.mandapat001@deped.gov.ph"
+      "teacherEmail": "shirlene.mandapat@depedqc.ph"
     },
     {
       "lastName": "BB",
@@ -129,7 +105,7 @@
       "parentContact": "1546466",
       "scheduleDetails": "Sep. 27 to Oct. 2, 2026, 02:30 PM – 04:30 PM (Designated Section Classroom)",
       "notes": "",
-      "teacherEmail": "shirlene.mandapat001@deped.gov.ph",
+      "teacherEmail": "shirlene.mandapat@depedqc.ph",
       "id": "stud-1790512699749",
       "enrolledDate": "2026-09-27",
       "status": "Mastered / Promoted"
@@ -268,7 +244,7 @@
       "masteryLevel": "Average Mastery",
       "remarks": "Demonstrated solid mastery of learning competencies with minimal guidance.",
       "movs": [],
-      "teacherEmail": "shirlene.mandapat001@deped.gov.ph",
+      "teacherEmail": "shirlene.mandapat@depedqc.ph",
       "id": "sess-1790512655638",
       "createdAt": "2026-09-27T12:37:35.638Z"
     },
@@ -295,7 +271,7 @@
       "masteryLevel": "Moving Towards Mastery",
       "remarks": "Accurately completed hands-on practical exercises within the allocated time.",
       "movs": [],
-      "teacherEmail": "shirlene.mandapat001@deped.gov.ph",
+      "teacherEmail": "shirlene.mandapat@depedqc.ph",
       "id": "sess-1790512721032",
       "createdAt": "2026-09-27T12:38:41.032Z"
     }
@@ -304,6 +280,38 @@
   "classes": [],
   "announcements": [],
   "auditLogs": [
+    {
+      "id": "audit-1790897053093-ghpyb",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-10-01T23:24:13.093Z"
+    },
+    {
+      "id": "audit-1790897031701-ot93c",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-10-01T23:23:51.700Z"
+    },
+    {
+      "id": "audit-1790897031700-i2840",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_REGISTERED",
+      "details": "Faculty account registered: Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph) - Master Teacher I / TLE Coordinator",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-10-01T23:23:51.700Z"
+    },
+    {
+      "id": "audit-1790896895947-1dwhe",
+      "userEmail": "admin@projectsmile",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: TLE Department Head Admin (admin@projectsmile) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "admin@projectsmile",
+      "timestamp": "2026-10-01T23:21:35.947Z"
+    },
     {
       "id": "audit-1790651979695-gptu3",
       "userEmail": "admin@projectsmile",
@@ -1378,6 +1386,46 @@
       "action": "TEACHER_LOGGED_IN",
       "details": "Faculty login: TLE Department Head Admin (admin@projectsmile) accessed Project S.M.I.L.E. Portal.",
       "targetUser": "admin@projectsmile"
+    },
+    {
+      "id": "audit-1790896896019-8sny",
+      "timestamp": "10/2/2026, 7:21:36 AM",
+      "adminEmail": "admin@projectsmile",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: TLE Department Head Admin (admin@projectsmile) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "admin@projectsmile"
+    },
+    {
+      "id": "audit-1790515106081-hb4t",
+      "timestamp": "9/27/2026, 9:18:26 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_TEACHER",
+      "details": "Updated profile & credentials for Shirlene M. Tindoc (shirlene.mandapat@depedqc.ph).",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1790515093690-xq73",
+      "timestamp": "9/27/2026, 9:18:13 PM",
+      "adminEmail": "admin@projectsmile",
+      "action": "UPDATE_TEACHER",
+      "details": "Updated profile & credentials for Shirlene Mandapat-Tindoc (shirlene.mandapat001@deped.gov.ph).",
+      "targetUser": "shirlene.mandapat001@deped.gov.ph"
+    },
+    {
+      "id": "audit-1790897031779-nq31",
+      "timestamp": "10/2/2026, 7:23:51 AM",
+      "adminEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_REGISTERED",
+      "details": "Faculty account registered: Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph) - Master Teacher I / TLE Coordinator",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1790897053161-9q4e",
+      "timestamp": "10/2/2026, 7:24:13 AM",
+      "adminEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene M. Mandapat (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
     }
   ],
   "systemSettings": {

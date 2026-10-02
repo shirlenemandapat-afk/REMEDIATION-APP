@@ -1879,6 +1879,17 @@ export const storage = {
     return def;
   },
 
+  isSameTeacherEmail(email1?: string | null, email2?: string | null): boolean {
+    if (!email1 || !email2) return false;
+    const e1 = email1.toLowerCase().trim();
+    const e2 = email2.toLowerCase().trim();
+    if (e1 === e2) return true;
+    const isShirlene1 = e1.includes('shirlene.mandapat') || e1 === 'shirlene.mandapat@depedqc.ph' || e1 === 'shirlene.mandapat001@deped.gov.ph';
+    const isShirlene2 = e2.includes('shirlene.mandapat') || e2 === 'shirlene.mandapat@depedqc.ph' || e2 === 'shirlene.mandapat001@deped.gov.ph';
+    if (isShirlene1 && isShirlene2) return true;
+    return false;
+  },
+
   isAdminEmail(email?: string | null): boolean {
     if (!email) return false;
     const lower = email.toLowerCase().trim();
@@ -1930,10 +1941,10 @@ export const storage = {
       return all;
     }
 
-    // Teacher account sees ONLY the students they enrolled
+    // Teacher account sees ONLY the students they enrolled (with alias support)
     return all.filter((s) => {
       const sTeacher = (s.teacherEmail || '').toLowerCase().trim();
-      return Boolean(sTeacher && sTeacher === activeEmail);
+      return this.isSameTeacherEmail(sTeacher, activeEmail);
     });
   },
 
@@ -2306,13 +2317,20 @@ export const storage = {
 
     const myStudents = this.getStudents(activeEmail);
     const myStudentIdSet = new Set(myStudents.map((s) => String(s.id)));
+    const allStudents = this.getAllStudents();
+    const studentOwnerMap = new Map<string, string>();
+    allStudents.forEach((st) => {
+      const em = (st.teacherEmail || '').toLowerCase().trim();
+      if (em) studentOwnerMap.set(String(st.id), em);
+    });
 
     return all.filter((sess) => {
       const sTeacher = (sess.teacherEmail || '').toLowerCase().trim();
-      if (sTeacher) {
-        return sTeacher === activeEmail;
-      }
-      return myStudentIdSet.has(String(sess.studentId));
+      const stId = String(sess.studentId);
+      const studentOwner = studentOwnerMap.get(stId) || '';
+      if (this.isSameTeacherEmail(sTeacher, activeEmail)) return true;
+      if (this.isSameTeacherEmail(studentOwner, activeEmail)) return true;
+      return myStudentIdSet.has(stId);
     });
   },
 
@@ -2454,6 +2472,17 @@ export const storage = {
         `Teacher ${teacherName} updated session for ${session.studentName} (${session.date}).`,
         session.teacherEmail
       );
+
+      // Instant dedicated sync to server
+      fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session }),
+      }).catch(() => {});
+
+      if (isSupabaseConfigured()) {
+        supabaseService.upsertSession(session, activeEmail).catch(() => {});
+      }
 
       // Automatically update student's status if score changed
       const allStudents = this.getAllStudents();
