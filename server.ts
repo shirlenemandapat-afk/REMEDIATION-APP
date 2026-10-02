@@ -147,21 +147,16 @@ function writeDb(db: AppDbState): void {
   }
 }
 
-// Case-insensitive teacher email matching with DepEd alias and username support
+// Case-insensitive teacher email matching with strict DepEd alias support
 function isSameTeacher(email1?: string | null, email2?: string | null): boolean {
   if (!email1 || !email2) return false;
   const e1 = email1.toLowerCase().trim();
   const e2 = email2.toLowerCase().trim();
   if (e1 === e2) return true;
 
-  // Extract username prefix before '@' (e.g. shirlene.mandapat, shirlene.mandapat001)
-  const u1 = e1.split('@')[0].replace(/[^a-z0-9]/g, '');
-  const u2 = e2.split('@')[0].replace(/[^a-z0-9]/g, '');
-  if (u1 && u2 && (u1 === u2 || u1.includes(u2) || u2.includes(u1))) return true;
-
-  // Specific DepEd domain alias matching (e.g. shirlene.mandapat variants across qc.ph and deped.gov.ph)
-  const isShirlene1 = e1.includes('shirlene') && (e1.includes('mandapat') || e1.includes('tindoc'));
-  const isShirlene2 = e2.includes('shirlene') && (e2.includes('mandapat') || e2.includes('tindoc'));
+  // Specific verified aliases for Shirlene M. Mandapat
+  const isShirlene1 = e1 === 'shirlene.mandapat@depedqc.ph' || e1 === 'shirlene.mandapat001@deped.gov.ph' || e1 === 'shirlene.mandapat@deped.gov.ph';
+  const isShirlene2 = e2 === 'shirlene.mandapat@depedqc.ph' || e2 === 'shirlene.mandapat001@deped.gov.ph' || e2 === 'shirlene.mandapat@deped.gov.ph';
   if (isShirlene1 && isShirlene2) return true;
 
   return false;
@@ -887,8 +882,8 @@ async function startServer() {
         supabaseConfig: db.systemSettings?.supabaseConfig || null,
         students: matchedStudents,
         sessions: matchedSessions,
-        allStudents: db.students || [],
-        allSessions: allResolvedSessions,
+        allStudents: isAdmin ? (db.students || []) : matchedStudents,
+        allSessions: isAdmin ? allResolvedSessions : matchedSessions,
         programs: db.programs || [],
         classes: db.classes || [],
         announcements: db.announcements || [],
@@ -964,8 +959,8 @@ async function startServer() {
         supabaseConfig: db.systemSettings?.supabaseConfig || null,
         students: matchedStudents,
         sessions: matchedSessions,
-        allStudents: db.students || [],
-        allSessions: allResolvedSessions,
+        allStudents: isAdmin ? (db.students || []) : matchedStudents,
+        allSessions: isAdmin ? allResolvedSessions : matchedSessions,
         programs: db.programs || [],
         classes: db.classes || [],
         announcements: db.announcements || [],
@@ -1019,7 +1014,6 @@ async function startServer() {
       const rawEmail = (req.query.email as string || '').trim().toLowerCase();
       const profile = db.accounts[rawEmail] || null;
       const isAdmin =
-        !rawEmail ||
         rawEmail === 'admin@projectsmile' ||
         (profile && profile.role === 'admin');
 
@@ -1054,12 +1048,14 @@ async function startServer() {
         matchedSessions = allResolvedSessions.filter((sess: any) => {
           const sEmail = (sess.teacherEmail || '').toLowerCase().trim();
           const stId = String(sess.studentId || sess.student_id || '');
-          const studentEmail = studentTeacherMap.get(stId) || '';
-          return isSameTeacher(sEmail, rawEmail) || isSameTeacher(studentEmail, rawEmail) || studentIdSet.has(stId);
+          return isSameTeacher(sEmail, rawEmail) || studentIdSet.has(stId);
         });
-      } else {
+      } else if (isAdmin) {
         matchedStudents = db.students || [];
         matchedSessions = allResolvedSessions;
+      } else {
+        matchedStudents = [];
+        matchedSessions = [];
       }
 
       res.json({
@@ -1069,8 +1065,8 @@ async function startServer() {
         profile,
         students: matchedStudents,
         sessions: matchedSessions,
-        allStudents: db.students || [],
-        allSessions: allResolvedSessions,
+        allStudents: isAdmin ? (db.students || []) : matchedStudents,
+        allSessions: isAdmin ? allResolvedSessions : matchedSessions,
         programs: db.programs || [],
         classes: db.classes || [],
         announcements: db.announcements || [],
