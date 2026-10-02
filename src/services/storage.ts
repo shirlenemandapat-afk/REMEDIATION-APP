@@ -186,10 +186,10 @@ export const storage = {
   },
 
   // --- ADMIN FACULTY MANAGEMENT ---
-  adminCreateTeacher(
+  async adminCreateTeacher(
     adminEmail: string,
     teacherData: Partial<TeacherProfile> & { name: string; email: string; password?: string }
-  ): { success: boolean; profile?: TeacherProfile; message: string } {
+  ): Promise<{ success: boolean; profile?: TeacherProfile; message: string }> {
     const norm = teacherData.email.trim().toLowerCase();
     const accounts = this.getRegisteredAccounts();
     if (accounts[norm]) {
@@ -220,6 +220,36 @@ export const storage = {
 
     accounts[norm] = newTeacher;
     this.saveRegisteredAccounts(accounts);
+
+    // Immediately persist to backend server
+    try {
+      await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: norm,
+          password: newTeacher.passwordHash,
+          name: newTeacher.name,
+          title: newTeacher.title,
+          schoolName: newTeacher.schoolName,
+          department: newTeacher.department,
+          role: newTeacher.role,
+          profileData: newTeacher,
+        }),
+      });
+      await fetch('/api/sync/all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accounts }),
+      });
+    } catch (e) {
+      console.warn('Server registration call warning:', e);
+    }
+
+    // Persist to Supabase if configured
+    if (isSupabaseConfigured()) {
+      supabaseService.upsertTeacher(newTeacher).catch(() => {});
+    }
 
     this.addAuditLog(
       adminEmail,
@@ -1852,11 +1882,11 @@ export const storage = {
   isAdminEmail(email?: string | null): boolean {
     if (!email) return false;
     const lower = email.toLowerCase().trim();
-    if (lower === 'admin@projectsmile' || lower === 'shirlene.mandapat@depedqc.ph' || lower.includes('admin')) return true;
+    if (lower === 'admin@projectsmile') return true;
     try {
       const accounts = this.getRegisteredAccounts();
       const acct = accounts[lower];
-      return ['admin', 'coordinator', 'school_head'].includes(acct?.role || '');
+      return acct?.role === 'admin';
     } catch {
       return false;
     }

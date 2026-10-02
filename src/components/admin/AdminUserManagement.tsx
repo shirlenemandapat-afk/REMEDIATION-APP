@@ -99,43 +99,47 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   });
 
   // Handle Add Teacher
-  const handleCreateTeacher = (e: React.FormEvent) => {
+  const handleCreateTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmail || !newName || !newPassword) {
       setAddFeedback({ type: 'error', message: 'Please fill in all required fields.' });
       return;
     }
 
-    const res = storage.adminCreateTeacher(currentAdmin.email, {
-      name: newName.trim(),
-      email: newEmail.trim().toLowerCase(),
-      title: newTitle.trim(),
-      role: newRole,
-      passwordHash: newPassword.trim(),
-      isPasswordSet: true,
-      accountStatus: 'Active',
-      schoolName: 'Ramon Magsaysay (Cubao) High School',
-      division: 'SDO Quezon City • TLE Department',
-      region: 'National Capital Region (NCR)',
-      academicYear: '2025-2026',
-      department: 'Technology and Livelihood Education (TLE)',
-      assignedSubjects: newAssignedSubjects,
-      reportsSubmissionStatus: 'Submitted',
-    });
+    try {
+      const res = await storage.adminCreateTeacher(currentAdmin.email, {
+        name: newName.trim(),
+        email: newEmail.trim().toLowerCase(),
+        title: newTitle.trim(),
+        role: newRole,
+        passwordHash: newPassword.trim(),
+        isPasswordSet: true,
+        accountStatus: 'Active',
+        schoolName: 'Ramon Magsaysay (Cubao) High School',
+        division: 'SDO Quezon City • TLE Department',
+        region: 'National Capital Region (NCR)',
+        academicYear: '2025-2026',
+        department: 'Technology and Livelihood Education (TLE)',
+        assignedSubjects: newAssignedSubjects,
+        reportsSubmissionStatus: 'Submitted',
+      });
 
-    if (res.success) {
-      setAddFeedback({ type: 'success', message: res.message });
-      onRefresh();
-      setTimeout(() => {
-        setIsAddModalOpen(false);
-        setNewName('');
-        setNewEmail('');
-        setNewPassword('deped2025');
-        setNewAssignedSubjects([]);
-        setAddFeedback(null);
-      }, 1200);
-    } else {
-      setAddFeedback({ type: 'error', message: res.message });
+      if (res.success) {
+        setAddFeedback({ type: 'success', message: res.message });
+        await onRefresh();
+        setTimeout(() => {
+          setIsAddModalOpen(false);
+          setNewName('');
+          setNewEmail('');
+          setNewPassword('deped2025');
+          setNewAssignedSubjects([]);
+          setAddFeedback(null);
+        }, 1200);
+      } else {
+        setAddFeedback({ type: 'error', message: res.message });
+      }
+    } catch (err: any) {
+      setAddFeedback({ type: 'error', message: err?.message || 'Error creating teacher account.' });
     }
   };
 

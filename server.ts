@@ -754,7 +754,7 @@ async function startServer() {
   });
 
   // User Login (Strict credential verification)
-  app.post('/api/auth/login', (req, res) => {
+  app.post('/api/auth/login', async (req, res) => {
     try {
       const { email, password } = req.body;
       if (!email || !password) {
@@ -765,6 +765,13 @@ async function startServer() {
       const cleanPassword = (password || '').trim();
       const db = readDb();
       let account = db.accounts[cleanEmail];
+
+      if (!account) {
+        const foundKey = Object.keys(db.accounts).find((k) => k.trim().toLowerCase() === cleanEmail);
+        if (foundKey) {
+          account = db.accounts[foundKey];
+        }
+      }
 
       // Fallback seed accounts for initial administrative coordinators
       if (!account) {
@@ -778,10 +785,10 @@ async function startServer() {
       }
 
       // Check if account exists
-      if (!account || !account.isPasswordSet || !account.passwordHash) {
+      if (!account || (!account.isPasswordSet && !account.passwordHash)) {
         return res.status(401).json({
           success: false,
-          message: 'Account not found. Please switch to "Register Account" to create your teacher profile.',
+          message: 'Account not found on this server. Please check the email spelling or register your account.',
         });
       }
 
@@ -799,6 +806,7 @@ async function startServer() {
       // Successful login -> update last login timestamp and ensure Active status
       account.lastLoginAt = new Date().toLocaleString();
       account.accountStatus = 'Active';
+      account.isPasswordSet = true;
       db.accounts[cleanEmail] = account;
 
       // Log teacher login event in audit logs for Admin monitoring
@@ -806,14 +814,14 @@ async function startServer() {
         id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         userEmail: cleanEmail,
         action: 'TEACHER_LOGGED_IN',
-        details: `Faculty login: ${account.name} (${cleanEmail}) accessed Project S.M.I.L.E. Portal.`,
+        details: `Faculty login: ${account.name} (${cleanEmail}) accessed Project S.M.I.L.E. Portal from device.`,
         targetUser: cleanEmail,
         timestamp: new Date().toISOString(),
       });
 
       writeDb(db);
 
-      console.log(`[AUTH] Teacher logged in successfully: ${cleanEmail}`);
+      console.log(`[AUTH] Teacher logged in successfully across device: ${cleanEmail}`);
       res.json({ success: true, profile: account, supabaseConfig: db.systemSettings?.supabaseConfig || null });
     } catch (err: any) {
       console.error('[AUTH ERROR] Login failed:', err);
@@ -891,9 +899,7 @@ async function startServer() {
       const isAdmin =
         !rawEmail ||
         rawEmail === 'admin@projectsmile' ||
-        rawEmail === 'shirlene.mandapat@depedqc.ph' ||
-        (profile && ['admin', 'coordinator', 'school_head'].includes(profile.role)) ||
-        rawEmail.includes('admin');
+        (profile && profile.role === 'admin');
 
       // Build a studentId -> teacherEmail lookup map from db.students for fallback resolution
       const studentTeacherMap = new Map<string, string>();
