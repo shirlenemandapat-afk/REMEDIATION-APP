@@ -753,25 +753,49 @@ async function startServer() {
   app.put('/api/accounts/:email/role', (req, res) => {
     try {
       const db = readDb();
-      const targetEmail = (req.params.email || '').trim().toLowerCase();
-      const { newRole, updatedBy } = req.body;
+      let targetEmail = (req.params.email || '').trim().toLowerCase();
+      const { newRole, updatedBy, account: incomingAccount } = req.body;
 
-      if (!targetEmail || !db.accounts[targetEmail]) {
-        return res.status(404).json({ success: false, message: `Account ${targetEmail} not found.` });
+      if (!targetEmail) {
+        return res.status(400).json({ success: false, message: 'Valid email address is required.' });
       }
 
-      if (targetEmail === 'admin@projectsmile' && newRole !== 'admin') {
-        return res.status(403).json({ success: false, message: 'Primary System Administrator role cannot be altered.' });
+      // Find account case-insensitively
+      let accountKey = Object.keys(db.accounts).find((k) => k.toLowerCase() === targetEmail);
+      if (!accountKey) {
+        // Auto-create teacher entry in server db if it was registered locally or in Supabase
+        const safeName = (incomingAccount?.name || targetEmail.split('@')[0].replace(/[._]/g, ' '))
+          .replace(/\b\w/g, (l: string) => l.toUpperCase());
+        db.accounts[targetEmail] = {
+          email: targetEmail,
+          name: safeName,
+          title: incomingAccount?.title || 'Teacher I',
+          schoolName: incomingAccount?.schoolName || 'Ramon Magsaysay (Cubao) High School',
+          division: incomingAccount?.division || 'SDO Quezon City • TLE Department',
+          region: incomingAccount?.region || 'National Capital Region (NCR)',
+          academicYear: incomingAccount?.academicYear || '2025-2026',
+          department: incomingAccount?.department || 'Technology and Livelihood Education (TLE)',
+          role: 'teacher',
+          roleTitle: 'TEACHER',
+          accountStatus: 'Active',
+          assignedSubjects: incomingAccount?.assignedSubjects || [],
+          registeredAt: new Date().toISOString().slice(0, 10),
+        };
+        accountKey = targetEmail;
+      }
+
+      if (accountKey.toLowerCase() === 'admin@projectsmile' && newRole !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Primary System Administrator role cannot be demoted.' });
       }
 
       const { role, roleTitle } = normalizeUserRole(newRole);
       const isTeachingRole = role === 'teacher';
 
-      db.accounts[targetEmail] = {
-        ...db.accounts[targetEmail],
+      db.accounts[accountKey] = {
+        ...db.accounts[accountKey],
         role,
         roleTitle,
-        assignedSubjects: isTeachingRole ? (db.accounts[targetEmail].assignedSubjects || []) : [],
+        assignedSubjects: isTeachingRole ? (db.accounts[accountKey].assignedSubjects || []) : [],
       };
 
       // Add audit log
@@ -779,8 +803,8 @@ async function startServer() {
         id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         userEmail: updatedBy || 'admin@projectsmile',
         action: 'UPDATE_USER_ROLE',
-        details: `Identified role for ${db.accounts[targetEmail].name} (${targetEmail}) updated to ${roleTitle}.`,
-        targetUser: targetEmail,
+        details: `ROLE for ${db.accounts[accountKey].name} (${accountKey}) updated to ${roleTitle}.`,
+        targetUser: accountKey,
         timestamp: new Date().toISOString(),
       });
       db.auditLogs = (db.auditLogs || []).slice(0, 300);
@@ -791,10 +815,11 @@ async function startServer() {
         success: true,
         role,
         roleTitle,
-        profile: db.accounts[targetEmail],
+        profile: db.accounts[accountKey],
         message: `Account role successfully set to ${roleTitle}.`,
       });
     } catch (err: any) {
+      console.error('[PUT /api/accounts/:email/role ERROR]:', err);
       res.status(500).json({ success: false, message: 'Failed to update account role.' });
     }
   });

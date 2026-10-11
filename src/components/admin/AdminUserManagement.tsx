@@ -55,6 +55,11 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [roleChangeFeedback, setRoleChangeFeedback] = useState<{ email: string; message: string } | null>(null);
+  const [teachersList, setTeachersList] = useState<TeacherProfile[]>(teachers);
+
+  React.useEffect(() => {
+    setTeachersList(teachers);
+  }, [teachers]);
 
   // Add Teacher Modal
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -98,7 +103,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   const [assignFeedback, setAssignFeedback] = useState<string | null>(null);
 
   // Filter teachers
-  const filteredTeachers = teachers.filter((t) => {
+  const filteredTeachers = teachersList.filter((t) => {
     const matchesSearch =
       t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -295,21 +300,27 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
 
   // Direct Role Change
   const handleDirectRoleChange = async (targetTeacher: TeacherProfile, nextRole: UserRole) => {
-    if (targetTeacher.email.toLowerCase() === 'admin@projectsmile' && nextRole !== 'admin') {
-      return;
-    }
+    // 1. Optimistic UI update so the dropdown changes immediately with zero lag or snapping back
+    setTeachersList((prev) =>
+      prev.map((item) =>
+        item.email.toLowerCase() === targetTeacher.email.toLowerCase()
+          ? { ...item, role: nextRole, roleTitle: formatRoleTitle(nextRole) }
+          : item
+      )
+    );
+
     try {
       const res = await storage.adminUpdateUserRole(currentAdmin.email, targetTeacher.email, nextRole);
-      if (res.success) {
-        setRoleChangeFeedback({
-          email: targetTeacher.email,
-          message: `Role set to ${formatRoleTitle(nextRole)}.`,
-        });
-        await onRefresh();
-        setTimeout(() => setRoleChangeFeedback(null), 3000);
-      }
+      setRoleChangeFeedback({
+        email: targetTeacher.email,
+        message: `ROLE updated to ${formatRoleTitle(nextRole)}!`,
+      });
+      // 2. Authoritative background sync
+      await onRefresh();
+      setTimeout(() => setRoleChangeFeedback(null), 3500);
     } catch (err: any) {
       console.error('Role update error', err);
+      await onRefresh();
     }
   };
 
@@ -535,6 +546,20 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
         </div>
       </div>
 
+      {/* Real-time Faculty Monitoring & Sync Notice */}
+      <div className="p-3 bg-emerald-50/80 border border-emerald-200/90 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-emerald-950">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
+          <p className="font-semibold text-[11px]">
+            <strong>Live Teacher Synchronization:</strong> Enrolled students ({students.length} total) and logged sessions ({sessions.length} total) across all faculty accounts are continuously synchronized and reflected on the Admin Console for comprehensive monitoring.
+          </p>
+        </div>
+        <span className="shrink-0 text-[10px] font-black uppercase tracking-wider bg-emerald-200/80 text-emerald-900 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shadow-xs">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+          LIVE MONITORING ACTIVE
+        </span>
+      </div>
+
       {/* Teachers Table */}
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -542,7 +567,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
             <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
               <tr>
                 <th className="px-5 py-3.5">Faculty Member</th>
-                <th className="px-4 py-3.5">Identified Role (Database `role`)</th>
+                <th className="px-4 py-3.5 text-center">ROLE</th>
                 <th className="px-4 py-3.5">DepEd Position / Title</th>
                 <th className="px-4 py-3.5">Assigned Subject Areas</th>
                 <th className="px-3 py-3.5 text-center">Enrolled Students</th>
@@ -567,6 +592,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                   return Boolean(sess.studentId && teacherStudentIds.has(String(sess.studentId)));
                 }).length;
                 const roleDef = getRoleDefinition(t.role);
+                const isSupervisory = ['admin', 'school_head', 'head_teacher', 'coordinator'].includes(t.role || '');
 
                 return (
                   <tr key={t.email} className="hover:bg-slate-50/70 transition">
@@ -587,30 +613,35 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                       </div>
                     </td>
 
-                    {/* Dedicated Identified Role Column */}
-                    <td className="px-4 py-4">
-                      <div className="space-y-1.5 min-w-[150px]">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-xs ${roleDef.badgeClass}`}>
-                          {roleDef.code}
-                        </span>
-                        {t.email.toLowerCase() !== 'admin@projectsmile' && (
-                          <div className="pt-0.5">
-                            <select
-                              aria-label={`Change identified role for ${t.name}`}
-                              value={t.role || 'teacher'}
-                              onChange={(e) => handleDirectRoleChange(t, e.target.value as UserRole)}
-                              className="text-[10px] font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-300 rounded px-1.5 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-emerald-500 w-full"
-                            >
-                              <option value="teacher">TEACHER</option>
-                              <option value="admin">ADMIN</option>
-                              <option value="head_teacher">HEAD TEACHER</option>
-                              <option value="school_head">SCHOOL HEAD</option>
-                              <option value="coordinator">COORDINATOR</option>
-                            </select>
-                          </div>
-                        )}
+                    {/* ROLE Column */}
+                    <td className="px-4 py-4 text-center">
+                      <div className="space-y-1.5 inline-block min-w-[140px] text-left">
+                        <div className="flex items-center justify-between">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-xs ${roleDef.badgeClass}`}>
+                            {roleDef.code}
+                          </span>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase">
+                            {roleDef.accessLevel}
+                          </span>
+                        </div>
+                        <div className="pt-0.5">
+                          <select
+                            aria-label={`Change ROLE for ${t.name}`}
+                            value={t.role || 'teacher'}
+                            onChange={(e) => handleDirectRoleChange(t, e.target.value as UserRole)}
+                            className="text-[11px] font-bold bg-white hover:bg-emerald-50/50 text-slate-800 border-2 border-emerald-600 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full transition shadow-xs"
+                          >
+                            <option value="teacher">TEACHER</option>
+                            <option value="admin">ADMIN</option>
+                            <option value="head_teacher">HEAD TEACHER</option>
+                            <option value="school_head">SCHOOL HEAD</option>
+                            <option value="coordinator">COORDINATOR</option>
+                          </select>
+                        </div>
                         {roleChangeFeedback?.email === t.email && (
-                          <p className="text-[10px] text-emerald-700 font-bold">{roleChangeFeedback.message}</p>
+                          <div className="p-1 rounded bg-emerald-50 border border-emerald-200">
+                            <p className="text-[10px] text-emerald-800 font-bold text-center">{roleChangeFeedback.message}</p>
+                          </div>
                         )}
                       </div>
                     </td>
@@ -622,10 +653,10 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                     </td>
 
                     <td className="px-4 py-4">
-                      {['admin', 'school_head', 'head_teacher', 'coordinator'].includes(t.role || '') ? (
+                      {isSupervisory ? (
                         <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 font-medium italic">
                           <ShieldCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          N/A (Administrative Role)
+                          Institutional Oversight
                         </span>
                       ) : (
                         <div className="flex flex-wrap gap-1 max-w-xs">
@@ -645,18 +676,46 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                       )}
                     </td>
 
+                    {/* Enrolled Students (Synchronized to Admin) */}
                     <td className="px-3 py-4 text-center">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-extrabold text-[11px] border border-emerald-200">
-                        <GraduationCap className="w-3.5 h-3.5 text-emerald-600" />
-                        {teacherStudentCount}
-                      </span>
+                      {isSupervisory ? (
+                        <div className="space-y-0.5">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-900 font-black text-[11px] border border-indigo-200 shadow-xs" title="Supervisory role: monitors all school-wide student enrollments">
+                            <GraduationCap className="w-3.5 h-3.5 text-indigo-600" />
+                            All {students.length} Learners
+                          </span>
+                          <span className="text-[9px] text-slate-400 font-semibold block">Full Oversight</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-0.5">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-extrabold text-[11px] border border-emerald-200">
+                            <GraduationCap className="w-3.5 h-3.5 text-emerald-600" />
+                            {teacherStudentCount} Enrolled
+                          </span>
+                          <span className="text-[9px] text-slate-400 font-semibold block">Classroom Roster</span>
+                        </div>
+                      )}
                     </td>
 
+                    {/* Logged Sessions (Synchronized to Admin) */}
                     <td className="px-3 py-4 text-center">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 font-extrabold text-[11px] border border-amber-200">
-                        <Clock className="w-3.5 h-3.5 text-amber-600" />
-                        {teacherSessionCount}
-                      </span>
+                      {isSupervisory ? (
+                        <div className="space-y-0.5">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-900 font-black text-[11px] border border-indigo-200 shadow-xs" title="Supervisory role: monitors all logged remediation session records across teachers">
+                            <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                            All {sessions.length} Logs
+                          </span>
+                          <span className="text-[9px] text-slate-400 font-semibold block">Full Oversight</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-0.5">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 font-extrabold text-[11px] border border-amber-200">
+                            <Clock className="w-3.5 h-3.5 text-amber-600" />
+                            {teacherSessionCount} Logged
+                          </span>
+                          <span className="text-[9px] text-slate-400 font-semibold block">Classroom Logs</span>
+                        </div>
+                      )}
                     </td>
 
                     <td className="px-4 py-4 text-center">

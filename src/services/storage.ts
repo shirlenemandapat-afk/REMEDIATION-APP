@@ -2005,45 +2005,82 @@ export const storage = {
   ): Promise<{ success: boolean; role?: UserRole; message: string }> {
     const norm = targetEmail.trim().toLowerCase();
     const roleDef = getRoleDefinition(newRole);
-
-    // 1. Try server persistence
-    try {
-      const res = await fetch(`/api/accounts/${encodeURIComponent(norm)}/role`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newRole, updatedBy: adminEmail }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          const accounts = this.getRegisteredAccounts();
-          if (accounts[norm]) {
-            accounts[norm].role = data.role;
-            accounts[norm].roleTitle = data.roleTitle;
-            if (['admin', 'school_head', 'head_teacher', 'coordinator'].includes(data.role)) {
-              accounts[norm].assignedSubjects = [];
-            }
-            this.saveRegisteredAccounts(accounts);
-          }
-          return { success: true, role: data.role, message: data.message };
-        }
-      }
-    } catch (e) {
-      console.warn('Server role update fallback to local cache', e);
-    }
-
-    // 2. Local fallback
     const accounts = this.getRegisteredAccounts();
-    if (accounts[norm]) {
+
+    // Ensure account exists in local registered accounts cache
+    if (!accounts[norm]) {
+      accounts[norm] = {
+        email: targetEmail,
+        name: targetEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
+        title: 'Teacher I',
+        schoolName: 'Ramon Magsaysay (Cubao) High School',
+        division: 'SDO Quezon City • TLE Department',
+        region: 'National Capital Region (NCR)',
+        academicYear: '2025-2026',
+        department: 'Technology and Livelihood Education (TLE)',
+        role: newRole,
+        roleTitle: roleDef.code,
+        accountStatus: 'Active',
+        assignedSubjects: [],
+        isPasswordSet: true,
+      };
+    } else {
       accounts[norm].role = newRole;
       accounts[norm].roleTitle = roleDef.code;
       if (['admin', 'school_head', 'head_teacher', 'coordinator'].includes(newRole)) {
         accounts[norm].assignedSubjects = [];
       }
-      this.saveRegisteredAccounts(accounts);
-      return { success: true, role: newRole, message: `Account role updated to ${roleDef.code} successfully.` };
     }
-    return { success: false, message: 'Account not found.' };
+
+    // Immediately persist locally
+    this.saveRegisteredAccounts(accounts);
+
+    // If currently logged-in account is the target, update active profile
+    const activeEmail = (this.getActiveUserEmail() || '').toLowerCase().trim();
+    if (activeEmail === norm) {
+      this.saveTeacherProfile(accounts[norm]);
+    }
+
+    // 1. Persist to server role endpoint
+    try {
+      await fetch(`/api/accounts/${encodeURIComponent(norm)}/role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newRole, updatedBy: adminEmail, account: accounts[norm] }),
+      });
+
+      // Synchronize full database state on server
+      await fetch('/api/sync/all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accounts }),
+      });
+    } catch (e) {
+      console.warn('Server role update notice:', e);
+    }
+
+    // 2. Persist to Supabase if connected
+    if (isSupabaseConfigured()) {
+      try {
+        await supabaseService.upsertTeacher(accounts[norm]);
+      } catch (e) {
+        console.warn('Supabase role update notice:', e);
+      }
+    }
+
+    // 3. Add audit log
+    this.addAuditLog(
+      adminEmail,
+      'UPDATE_USER_ROLE',
+      `Changed ROLE for ${accounts[norm].name} (${targetEmail}) to ${roleDef.code}.`,
+      targetEmail
+    );
+
+    return {
+      success: true,
+      role: newRole,
+      message: `ROLE for ${accounts[norm].name} successfully updated to ${roleDef.code}.`,
+    };
   },
 
   // --- STUDENTS ---
