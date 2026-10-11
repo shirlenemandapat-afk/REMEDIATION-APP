@@ -21,6 +21,7 @@ import {
   clearSupabaseConfig,
   supabaseService,
   SUPABASE_SQL_SCHEMA,
+  SUPABASE_ROLE_COLUMN_MIGRATION_SQL,
   isSupabaseConfigured,
 } from '../services/supabase';
 import { TeacherProfile, Student, SessionRecord } from '../types';
@@ -49,6 +50,7 @@ export const SupabaseDatabaseModal: React.FC<SupabaseDatabaseModalProps> = ({
   const [syncing, setSyncing] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [copiedSchema, setCopiedSchema] = useState(false);
+  const [copiedRoleSql, setCopiedRoleSql] = useState(false);
   const [activeTab, setActiveTab] = useState<'connect' | 'sql' | 'sync'>('connect');
 
   useEffect(() => {
@@ -369,28 +371,76 @@ export const SupabaseDatabaseModal: React.FC<SupabaseDatabaseModalProps> = ({
 
           {/* TAB 2: SQL SCHEMA */}
           {activeTab === 'sql' && (
-            <div className="space-y-4">
-              <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-2xl text-amber-950 space-y-1">
-                <div className="font-bold flex items-center gap-1.5">
-                  <Layers className="w-4 h-4 text-amber-700" />
-                  <span>One-Click SQL Setup for Supabase</span>
+            <div className="space-y-5">
+              {/* FAQ: Do I need SQL for the database? */}
+              <div className="p-4 bg-blue-50/80 border border-blue-200 rounded-2xl text-blue-950 space-y-2">
+                <div className="font-extrabold text-xs flex items-center gap-2 text-blue-900">
+                  <ShieldCheck className="w-4 h-4 text-blue-700" />
+                  <span>Do I need to run this SQL for the database?</span>
                 </div>
-                <p className="text-[11px] text-amber-900 leading-relaxed">
-                  Copy the SQL query below, navigate to your <strong>Supabase Dashboard &rarr; SQL Editor &rarr; New Query</strong>, paste and click <strong>Run</strong>. This will create the required tables (<code className="font-mono bg-amber-100 px-1 rounded">students</code>, <code className="font-mono bg-amber-100 px-1 rounded">session_records</code>, <code className="font-mono bg-amber-100 px-1 rounded">teacher_profiles</code>) and policies.
-                </p>
+                <div className="text-[11px] text-blue-900/90 leading-relaxed space-y-1">
+                  <p>
+                    <strong>• Built-in System Database (No SQL needed):</strong> If you are using Project S.M.I.L.E. normally, all accounts, teacher profiles, student logs, and identified roles (<code>TEACHER</code>, <code>ADMIN</code>, <code>HEAD TEACHER</code>, <code>SCHOOL HEAD</code>, <code>COORDINATOR</code>) are saved and synced <strong>automatically</strong> with zero database setup.
+                  </p>
+                  <p>
+                    <strong>• External Supabase Cloud (SQL required once):</strong> You only need to run this SQL if you choose to connect an external Supabase PostgreSQL cloud database.
+                  </p>
+                </div>
               </div>
 
-              <div className="relative">
-                <pre className="p-4 bg-slate-900 text-slate-100 rounded-2xl text-[11px] font-mono overflow-x-auto max-h-72 border border-slate-800 leading-relaxed select-all">
-                  {SUPABASE_SQL_SCHEMA}
+              {/* Specific Solution for: "In teacher's profile there is no column for role" */}
+              <div className="p-4 bg-amber-50/90 border border-amber-300 rounded-2xl text-amber-950 space-y-2.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="font-black text-xs text-amber-900 flex items-center gap-1.5">
+                      <Zap className="w-4 h-4 text-amber-600" />
+                      <span>Missing `role` column in existing `teacher_profiles`?</span>
+                    </div>
+                    <p className="text-[11px] text-amber-800 leading-relaxed">
+                      If you created your Supabase <code className="bg-amber-100 font-mono px-1 py-0.5 rounded text-amber-900">teacher_profiles</code> table earlier, PostgreSQL does not automatically add new columns. Run this 1-second SQL statement in Supabase to add the <code className="bg-amber-100 font-mono px-1 py-0.5 rounded text-amber-900">role</code> and <code className="bg-amber-100 font-mono px-1 py-0.5 rounded text-amber-900">role_title</code> columns without losing any data!
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(SUPABASE_ROLE_COLUMN_MIGRATION_SQL);
+                      setCopiedRoleSql(true);
+                      setTimeout(() => setCopiedRoleSql(false), 2500);
+                    }}
+                    className="shrink-0 px-3 py-1.5 bg-amber-700 hover:bg-amber-800 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                  >
+                    {copiedRoleSql ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedRoleSql ? 'Copied Quick Fix!' : 'Copy Role Column Fix'}
+                  </button>
+                </div>
+
+                <pre className="p-3 bg-amber-950/90 text-amber-100 rounded-xl text-[10px] font-mono overflow-x-auto border border-amber-900 select-all">
+                  {`ALTER TABLE teacher_profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'teacher';
+ALTER TABLE teacher_profiles ADD COLUMN IF NOT EXISTS role_title TEXT DEFAULT 'TEACHER';`}
                 </pre>
-                <button
-                  onClick={handleCopySchema}
-                  className="absolute top-3 right-3 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer"
-                >
-                  {copiedSchema ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copiedSchema ? 'Copied!' : 'Copy SQL Schema'}
-                </button>
+              </div>
+
+              {/* Complete Database Schema */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="font-bold flex items-center gap-1.5 text-slate-800">
+                    <Layers className="w-4 h-4 text-emerald-700" />
+                    <span>Complete Supabase SQL Schema (All 3 Tables & Policies)</span>
+                  </div>
+                  <button
+                    onClick={handleCopySchema}
+                    className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer"
+                  >
+                    {copiedSchema ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedSchema ? 'Copied Entire Schema!' : 'Copy Full Schema'}
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <pre className="p-4 bg-slate-900 text-slate-100 rounded-2xl text-[11px] font-mono overflow-x-auto max-h-72 border border-slate-800 leading-relaxed select-all">
+                    {SUPABASE_SQL_SCHEMA}
+                  </pre>
+                </div>
               </div>
             </div>
           )}

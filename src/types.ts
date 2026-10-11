@@ -267,7 +267,137 @@ export interface SessionRecord {
   teacherEmail?: string; // Teacher account email who conducted/logged this session
 }
 
-export type UserRole = 'admin' | 'school_head' | 'coordinator' | 'teacher';
+export type UserRole = 'teacher' | 'admin' | 'head_teacher' | 'school_head' | 'coordinator';
+
+export interface RoleDefinition {
+  id: UserRole;
+  code: string; // e.g. 'TEACHER' | 'ADMIN' | 'HEAD TEACHER' | 'SCHOOL HEAD' | 'COORDINATOR'
+  name: string;
+  label: string;
+  category: string;
+  description: string;
+  badgeClass: string;
+  badgeColor: string;
+  pillColor: string;
+  accessLevel: 'classroom' | 'department' | 'executive' | 'system';
+  permissions: string[];
+}
+
+export const SYSTEM_ROLES: RoleDefinition[] = [
+  {
+    id: 'teacher',
+    code: 'TEACHER',
+    name: 'Classroom / Subject Teacher',
+    label: 'Teacher',
+    category: 'Classroom Instruction',
+    description: 'Logs daily student anecdotal remediation records, intervention activities, and assessment MOVs for assigned classes.',
+    badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    badgeColor: 'emerald',
+    pillColor: 'bg-emerald-500',
+    accessLevel: 'classroom',
+    permissions: [
+      'Enroll and monitor assigned learners',
+      'Log daily anecdotal remediation sessions',
+      'Upload assessment tools and photo MOVs',
+      'Generate DepEd Parent Communication Letters',
+      'Generate Individual Anecdotal Reports',
+      'Export student mastery logs',
+    ],
+  },
+  {
+    id: 'admin',
+    code: 'ADMIN',
+    name: 'System & ICT Administrator',
+    label: 'Administrator',
+    category: 'System Management',
+    description: 'Full administrative privileges over accounts, database backups, audit logs, system configurations, and faculty roles.',
+    badgeClass: 'bg-purple-100 text-purple-900 border-purple-300',
+    badgeColor: 'purple',
+    pillColor: 'bg-purple-600',
+    accessLevel: 'system',
+    permissions: [
+      'Full administrative access to all data',
+      'Manage faculty accounts & assign roles',
+      'System settings & academic calendar setup',
+      'Database backup, restore & cloud sync',
+      'View administrative audit logs',
+      'Manage school-wide programs & schedules',
+    ],
+  },
+  {
+    id: 'head_teacher',
+    code: 'HEAD TEACHER',
+    name: 'Head Teacher / Department Head',
+    label: 'Head Teacher',
+    category: 'Instructional Supervision',
+    description: 'Department-level instructional leader supervising teacher remediation submissions, reviewing logs, and generating departmental narrative reports.',
+    badgeClass: 'bg-indigo-100 text-indigo-900 border-indigo-300',
+    badgeColor: 'indigo',
+    pillColor: 'bg-indigo-600',
+    accessLevel: 'department',
+    permissions: [
+      'Supervise department teachers & submissions',
+      'School-wide and department student monitoring',
+      'Review teacher session records & MOVs',
+      'Generate Department Narrative Reports',
+      'Review Class Progress Analytics',
+      'Signatory for remedial accomplishment reports',
+    ],
+  },
+  {
+    id: 'school_head',
+    code: 'SCHOOL HEAD',
+    name: 'School Head / Principal',
+    label: 'School Head / Principal',
+    category: 'Executive Leadership',
+    description: 'Executive school administrator with school-wide institutional oversight, compliance tracking, and overall remediation evaluation.',
+    badgeClass: 'bg-blue-100 text-blue-900 border-blue-300',
+    badgeColor: 'blue',
+    pillColor: 'bg-blue-600',
+    accessLevel: 'executive',
+    permissions: [
+      'Executive institutional oversight',
+      'School-wide remediation completion monitoring',
+      'DepEd SDO compliance & audit review',
+      'Access all teacher reports and analytics',
+      'Review school-wide diagnostic outcomes',
+      'Final signatory for institutional reports',
+    ],
+  },
+  {
+    id: 'coordinator',
+    code: 'COORDINATOR',
+    name: 'Remediation Coordinator / Master Teacher',
+    label: 'Coordinator / Master Teacher',
+    category: 'Curriculum & Program Coordination',
+    description: 'Curriculum & intervention coordinator designing programs, class schedules, aligning learning areas, and mentoring faculty.',
+    badgeClass: 'bg-amber-100 text-amber-900 border-amber-300',
+    badgeColor: 'amber',
+    pillColor: 'bg-amber-600',
+    accessLevel: 'department',
+    permissions: [
+      'Design & manage remediation programs',
+      'Configure remediation classes & schedules',
+      'Assign teachers to subject areas & programs',
+      'Monitor cross-subject student interventions',
+      'Review learning area diagnostic rubrics',
+      'Coordinate department intervention schedules',
+    ],
+  },
+];
+
+export function getRoleDefinition(role?: string | null): RoleDefinition {
+  const norm = (role || 'teacher').toLowerCase().trim();
+  if (norm === 'admin') return SYSTEM_ROLES[1];
+  if (norm === 'head_teacher' || norm === 'head-teacher' || norm === 'headteacher' || norm.includes('head teacher')) return SYSTEM_ROLES[2];
+  if (norm === 'school_head' || norm === 'school-head' || norm === 'principal' || norm.includes('school head')) return SYSTEM_ROLES[3];
+  if (norm === 'coordinator' || norm === 'master_teacher' || norm === 'master-teacher' || norm.includes('coordinator')) return SYSTEM_ROLES[4];
+  return SYSTEM_ROLES[0]; // teacher
+}
+
+export function formatRoleTitle(role?: string | null): string {
+  return getRoleDefinition(role).code;
+}
 
 export const LEARNING_AREAS = [
   'ICT - Computer Programming',
@@ -355,6 +485,8 @@ export interface TeacherProfile {
   passwordHash?: string;
   isPasswordSet: boolean;
   role?: UserRole;
+  roleTitle?: string; // Standardized display code: 'TEACHER' | 'ADMIN' | 'HEAD TEACHER' | 'SCHOOL HEAD' | 'COORDINATOR'
+  permissions?: string[];
   accountStatus?: 'Active' | 'Inactive';
   name: string;
   title: string; // e.g., "Teacher III" / "Master Teacher I"

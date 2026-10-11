@@ -161,6 +161,8 @@ CREATE TABLE IF NOT EXISTS teacher_profiles (
   head_teacher_position TEXT DEFAULT 'Head Teacher III / TLE Department',
   principal_name TEXT DEFAULT 'Dr. Maria Luisa T. Ramos',
   principal_position TEXT DEFAULT 'Secondary School Principal IV',
+  role TEXT DEFAULT 'teacher',
+  role_title TEXT DEFAULT 'TEACHER',
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -233,6 +235,9 @@ ALTER TABLE session_records ADD COLUMN IF NOT EXISTS assessment_tool JSONB;
 ALTER TABLE session_records ADD COLUMN IF NOT EXISTS raw_score NUMERIC DEFAULT 0;
 ALTER TABLE session_records ADD COLUMN IF NOT EXISTS total_items NUMERIC DEFAULT 20;
 
+ALTER TABLE teacher_profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'teacher';
+ALTER TABLE teacher_profiles ADD COLUMN IF NOT EXISTS role_title TEXT DEFAULT 'TEACHER';
+
 -- Enable Row Level Security (RLS)
 ALTER TABLE teacher_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE students ENABLE ROW LEVEL SECURITY;
@@ -249,10 +254,25 @@ DROP POLICY IF EXISTS "Allow public read-write for session_records" ON session_r
 CREATE POLICY "Allow public read-write for session_records" ON session_records FOR ALL USING (true) WITH CHECK (true);
 `;
 
+// Dedicated Quick-Migration for users whose teacher_profiles table was created without the role column
+export const SUPABASE_ROLE_COLUMN_MIGRATION_SQL = `-- ========================================================
+-- QUICK FIX: ADD MISSING ROLE COLUMN TO teacher_profiles
+-- ========================================================
+-- Run this in Supabase Dashboard -> SQL Editor -> New Query -> Run
+ALTER TABLE teacher_profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'teacher';
+ALTER TABLE teacher_profiles ADD COLUMN IF NOT EXISTS role_title TEXT DEFAULT 'TEACHER';
+
+-- Automatically set the initial roles for system accounts
+UPDATE teacher_profiles SET role = 'admin', role_title = 'ADMIN' WHERE email ILIKE '%admin%';
+UPDATE teacher_profiles SET role = 'head_teacher', role_title = 'HEAD TEACHER' WHERE email ILIKE '%corazon%' OR title ILIKE '%head teacher%';
+UPDATE teacher_profiles SET role = 'school_head', role_title = 'SCHOOL HEAD' WHERE email ILIKE '%ramos%' OR title ILIKE '%principal%';
+UPDATE teacher_profiles SET role = 'coordinator', role_title = 'COORDINATOR' WHERE email ILIKE '%mandapat%' OR title ILIKE '%coordinator%';
+`;
+
 // Supabase API Operations with Cloud & Offline-First local fallback
 export const supabaseService = {
   // Test connection across all required tables
-  async testConnection(url: string, anonKey: string): Promise<{ success: boolean; message: string }> {
+  async testConnection(url: string, anonKey: string): Promise<{ success: boolean; message: string; missingRoleColumn?: boolean }> {
     try {
       const client = createClient(url, anonKey);
       
@@ -272,6 +292,13 @@ export const supabaseService = {
           };
         }
         return { success: false, message: `Database error on teacher_profiles: ${tErr.message}` };
+      }
+
+      // Check if role column exists in teacher_profiles
+      let missingRoleColumn = false;
+      const { error: rErr } = await client.from('teacher_profiles').select('role').limit(1);
+      if (rErr && rErr.message && (rErr.message.includes('column "role"') || rErr.message.includes('does not exist'))) {
+        missingRoleColumn = true;
       }
 
       // Test students table
@@ -298,7 +325,15 @@ export const supabaseService = {
         return { success: false, message: `Database error on session_records table: ${sessErr.message}` };
       }
 
-      return { success: true, message: 'Connected successfully to your Supabase database! All 3 tables (teacher_profiles, students, session_records) are active and ready.' };
+      if (missingRoleColumn) {
+        return {
+          success: true,
+          missingRoleColumn: true,
+          message: 'Connected to Supabase! Note: Your "teacher_profiles" table is missing the "role" column. Copy and run the Quick Migration SQL from Step 2 in your Supabase SQL Editor to enable role sync.',
+        };
+      }
+
+      return { success: true, message: 'Connected successfully to your Supabase database! All 3 tables (teacher_profiles, students, session_records) and role columns are active and ready.' };
     } catch (e: any) {
       return { success: false, message: e.message || 'Connection test failed. Please check your URL and Anon Key.' };
     }
@@ -357,6 +392,8 @@ export const supabaseService = {
           headTeacherPosition: t.head_teacher_position,
           principalName: t.principal_name,
           principalPosition: t.principal_position,
+          role: t.role || (t.email?.toLowerCase().includes('admin') ? 'admin' : 'teacher'),
+          roleTitle: t.role_title || (t.role ? t.role.toUpperCase() : 'TEACHER'),
           isPasswordSet: true,
         };
       }
@@ -484,26 +521,37 @@ export const supabaseService = {
     try {
       // 1. Sync Teacher Profile
       if (teacher && teacher.email) {
-        const { error: tErr } = await client.from('teacher_profiles').upsert(
-          {
-            email: teacher.email,
-            name: teacher.name,
-            title: teacher.title,
-            school_name: teacher.schoolName,
-            division: teacher.division,
-            region: teacher.region,
-            academic_year: teacher.academicYear,
-            department: teacher.department,
-            master_teacher_name: teacher.masterTeacherName,
-            master_teacher_position: teacher.masterTeacherPosition,
-            head_teacher_name: teacher.headTeacherName,
-            head_teacher_position: teacher.headTeacherPosition,
-            principal_name: teacher.principalName,
-            principal_position: teacher.principalPosition,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'email' }
-        );
+        const teacherPayload: Record<string, any> = {
+          email: teacher.email,
+          name: teacher.name,
+          title: teacher.title,
+          role: teacher.role || 'teacher',
+          role_title: (teacher.roleTitle || teacher.role || 'TEACHER').toUpperCase(),
+          school_name: teacher.schoolName,
+          division: teacher.division,
+          region: teacher.region,
+          academic_year: teacher.academicYear,
+          department: teacher.department,
+          master_teacher_name: teacher.masterTeacherName,
+          master_teacher_position: teacher.masterTeacherPosition,
+          head_teacher_name: teacher.headTeacherName,
+          head_teacher_position: teacher.headTeacherPosition,
+          principal_name: teacher.principalName,
+          principal_position: teacher.principalPosition,
+          updated_at: new Date().toISOString(),
+        };
+
+        let { error: tErr } = await client.from('teacher_profiles').upsert(teacherPayload, { onConflict: 'email' });
+
+        // If table exists but lacks 'role' or 'role_title' columns, gracefully retry without them
+        if (tErr && tErr.message && (tErr.message.includes('column "role"') || tErr.message.includes('column "role_title"'))) {
+          console.warn('Supabase teacher_profiles is missing role column. Retrying without role. Please run Step 2 migration SQL.');
+          delete teacherPayload.role;
+          delete teacherPayload.role_title;
+          const retry = await client.from('teacher_profiles').upsert(teacherPayload, { onConflict: 'email' });
+          tErr = retry.error;
+        }
+
         if (tErr) {
           console.warn('Supabase teacher sync notice:', tErr.message || tErr);
           return { success: false, error: `Teacher profile upload failed: ${tErr.message}` };
@@ -536,26 +584,33 @@ export const supabaseService = {
     const client = getSupabaseClient();
     if (!client || !teacher.email) return;
     try {
-      const { error } = await client.from('teacher_profiles').upsert(
-        {
-          email: teacher.email,
-          name: teacher.name,
-          title: teacher.title,
-          school_name: teacher.schoolName,
-          division: teacher.division,
-          region: teacher.region,
-          academic_year: teacher.academicYear,
-          department: teacher.department,
-          master_teacher_name: teacher.masterTeacherName,
-          master_teacher_position: teacher.masterTeacherPosition,
-          head_teacher_name: teacher.headTeacherName,
-          head_teacher_position: teacher.headTeacherPosition,
-          principal_name: teacher.principalName,
-          principal_position: teacher.principalPosition,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'email' }
-      );
+      const teacherPayload: Record<string, any> = {
+        email: teacher.email,
+        name: teacher.name,
+        title: teacher.title,
+        role: teacher.role || 'teacher',
+        role_title: (teacher.roleTitle || teacher.role || 'TEACHER').toUpperCase(),
+        school_name: teacher.schoolName,
+        division: teacher.division,
+        region: teacher.region,
+        academic_year: teacher.academicYear,
+        department: teacher.department,
+        master_teacher_name: teacher.masterTeacherName,
+        master_teacher_position: teacher.masterTeacherPosition,
+        head_teacher_name: teacher.headTeacherName,
+        head_teacher_position: teacher.headTeacherPosition,
+        principal_name: teacher.principalName,
+        principal_position: teacher.principalPosition,
+        updated_at: new Date().toISOString(),
+      };
+
+      let { error } = await client.from('teacher_profiles').upsert(teacherPayload, { onConflict: 'email' });
+      if (error && error.message && (error.message.includes('column "role"') || error.message.includes('column "role_title"'))) {
+        delete teacherPayload.role;
+        delete teacherPayload.role_title;
+        const retry = await client.from('teacher_profiles').upsert(teacherPayload, { onConflict: 'email' });
+        error = retry.error;
+      }
       if (error) console.warn('Supabase upsertTeacher notice:', error.message || error);
     } catch (e: any) {
       console.warn('Supabase upsertTeacher skipped:', e?.message || e);
@@ -814,6 +869,7 @@ export const supabaseService = {
         principalName: t.principal_name,
         principalPosition: t.principal_position,
         role: t.role || (t.email?.toLowerCase().includes('admin') ? 'admin' : 'teacher'),
+        roleTitle: t.role_title || (t.role ? t.role.toUpperCase() : 'TEACHER'),
         accountStatus: t.account_status || 'Active',
         assignedSubjects: t.assigned_subjects || ['ICT - Computer Programming'],
         isPasswordSet: true,

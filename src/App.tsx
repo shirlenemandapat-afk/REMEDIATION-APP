@@ -203,10 +203,10 @@ export default function App() {
     };
   }, [isLoggedIn, teacher?.email]);
 
-  // Guard against non-admin accounts accessing admin-portal
+  // Guard against unauthorized accounts accessing admin-portal
   useEffect(() => {
-    const isAdmin = teacher.role === 'admin' || teacher.email === 'admin@projectsmile';
-    if (!isAdmin && activeTab === 'admin-portal') {
+    const isPrivileged = storage.isAdministrativeOrSupervisoryRole(teacher?.email);
+    if (!isPrivileged && activeTab === 'admin-portal') {
       setActiveTab('students');
     }
   }, [teacher?.role, teacher?.email, activeTab]);
@@ -215,9 +215,9 @@ export default function App() {
     const currentTeacher = storage.getTeacherProfile();
     setTeacher(currentTeacher);
     const activeEmail = (currentTeacher?.email || storage.getActiveUserEmail() || '').toLowerCase().trim();
-    const isAdmin = currentTeacher.role === 'admin' || currentTeacher.email === 'admin@projectsmile';
-    setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(activeEmail));
-    setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(activeEmail));
+    const isPrivileged = storage.isAdministrativeOrSupervisoryRole(activeEmail);
+    setStudents(isPrivileged ? storage.getAllStudents() : storage.getStudents(activeEmail));
+    setSessions(isPrivileged ? storage.getAllSessions() : storage.getSessions(activeEmail));
   };
 
   const handleLoginSuccess = async (profile: TeacherProfile) => {
@@ -228,16 +228,16 @@ export default function App() {
     setTeacher(profile);
     setIsLoggedIn(true);
 
-    const isAdmin = profile.role === 'admin' || cleanEmail === 'admin@projectsmile';
-    if (isAdmin) {
+    const isPrivileged = storage.isAdministrativeOrSupervisoryRole(cleanEmail);
+    if (isPrivileged && (profile.role === 'admin' || profile.role === 'school_head' || profile.role === 'head_teacher')) {
       setActiveTab('admin-portal');
     } else {
       setActiveTab('students');
     }
 
     // Immediately load currently cached students and sessions
-    setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(cleanEmail));
-    setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(cleanEmail));
+    setStudents(isPrivileged ? storage.getAllStudents() : storage.getStudents(cleanEmail));
+    setSessions(isPrivileged ? storage.getAllSessions() : storage.getSessions(cleanEmail));
 
     // Immediately trigger authoritative cross-device sync from server database & Supabase
     setIsSyncing(true);
@@ -246,14 +246,14 @@ export default function App() {
       if (syncResult && syncResult.profile) {
         setTeacher(syncResult.profile);
       }
-      const myStudents = isAdmin ? storage.getAllStudents() : storage.getStudents(cleanEmail);
-      const mySessions = isAdmin ? storage.getAllSessions() : storage.getSessions(cleanEmail);
+      const myStudents = isPrivileged ? storage.getAllStudents() : storage.getStudents(cleanEmail);
+      const mySessions = isPrivileged ? storage.getAllSessions() : storage.getSessions(cleanEmail);
       setStudents(myStudents);
       setSessions(mySessions);
       setLastSyncTime(new Date());
     } catch (e) {
-      const myStudents = isAdmin ? storage.getAllStudents() : storage.getStudents(cleanEmail);
-      const mySessions = isAdmin ? storage.getAllSessions() : storage.getSessions(cleanEmail);
+      const myStudents = isPrivileged ? storage.getAllStudents() : storage.getStudents(cleanEmail);
+      const mySessions = isPrivileged ? storage.getAllSessions() : storage.getSessions(cleanEmail);
       setStudents(myStudents);
       setSessions(mySessions);
     } finally {
@@ -643,11 +643,26 @@ export default function App() {
                 </span>
               )}
             </button>
+
+            {['head_teacher', 'school_head', 'coordinator'].includes(teacher.role || '') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('admin-portal')}
+                className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'admin-portal'
+                    ? 'bg-purple-900 text-yellow-300 shadow-md border border-purple-800'
+                    : 'text-purple-900 bg-purple-50/80 hover:bg-purple-100'
+                }`}
+              >
+                <Sparkles className="w-4 h-4 text-purple-600" />
+                {teacher.role === 'school_head' ? 'EXECUTIVE OVERSIGHT' : teacher.role === 'head_teacher' ? 'SUPERVISORY CONSOLE' : 'COORDINATOR CONSOLE'}
+              </button>
+            )}
           </div>
         )}
 
         {/* Tab Content Views */}
-        {activeTab === 'admin-portal' && (teacher.role === 'admin' || teacher.email === 'admin@projectsmile') && (
+        {activeTab === 'admin-portal' && (teacher.role === 'admin' || teacher.role === 'head_teacher' || teacher.role === 'school_head' || teacher.role === 'coordinator' || teacher.email === 'admin@projectsmile') && (
           <AdminDashboard
             currentAdmin={teacher}
             students={students}

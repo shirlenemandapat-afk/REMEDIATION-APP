@@ -1,5 +1,14 @@
 import React, { useState } from 'react';
-import { TeacherProfile, UserRole, RemediationProgram, Student, SessionRecord } from '../../types';
+import {
+  TeacherProfile,
+  UserRole,
+  RemediationProgram,
+  Student,
+  SessionRecord,
+  SYSTEM_ROLES,
+  getRoleDefinition,
+  formatRoleTitle,
+} from '../../types';
 import { storage } from '../../services/storage';
 import { TeacherPositionSelect } from '../BookingSchedulePicker';
 import {
@@ -21,6 +30,8 @@ import {
   Plus,
   GraduationCap,
   Clock,
+  Briefcase,
+  Award,
 } from 'lucide-react';
 
 interface AdminUserManagementProps {
@@ -43,6 +54,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [roleChangeFeedback, setRoleChangeFeedback] = useState<{ email: string; message: string } | null>(null);
 
   // Add Teacher Modal
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -281,9 +293,29 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
     }
   };
 
+  // Direct Role Change
+  const handleDirectRoleChange = async (targetTeacher: TeacherProfile, nextRole: UserRole) => {
+    if (targetTeacher.email.toLowerCase() === 'admin@projectsmile' && nextRole !== 'admin') {
+      return;
+    }
+    try {
+      const res = await storage.adminUpdateUserRole(currentAdmin.email, targetTeacher.email, nextRole);
+      if (res.success) {
+        setRoleChangeFeedback({
+          email: targetTeacher.email,
+          message: `Role set to ${formatRoleTitle(nextRole)}.`,
+        });
+        await onRefresh();
+        setTimeout(() => setRoleChangeFeedback(null), 3000);
+      }
+    } catch (err: any) {
+      console.error('Role update error', err);
+    }
+  };
+
   // Open Assign Subjects Modal
   const openAssignSubjects = (t: TeacherProfile) => {
-    if (['admin', 'school_head', 'coordinator'].includes(t.role || '')) {
+    if (['admin', 'school_head', 'head_teacher', 'coordinator'].includes(t.role || '')) {
       return;
     }
     setAssignSubjectsTeacher(t);
@@ -401,8 +433,64 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
           className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-sm cursor-pointer active:scale-95 shrink-0"
         >
           <UserPlus className="w-4 h-4 text-yellow-300" />
-          ADD NEW TEACHER
+          ADD NEW ACCOUNT
         </button>
+      </div>
+
+      {/* Identified Database Roles Overview Cards */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
+          <div>
+            <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-700" />
+              Identified Roles in Database ({teachers.length} Accounts Registered)
+            </h3>
+            <p className="text-[11px] text-slate-500">
+              Each faculty account in the database is categorized into one of five official DepEd system roles. Click a card to filter accounts.
+            </p>
+          </div>
+          {roleFilter !== 'all' && (
+            <button
+              type="button"
+              onClick={() => setRoleFilter('all')}
+              className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 cursor-pointer underline flex items-center gap-1 self-start sm:self-auto"
+            >
+              Show All Roles
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+          {SYSTEM_ROLES.map((r) => {
+            const count = teachers.filter((t) => (t.role || 'teacher') === r.id).length;
+            const isSelected = roleFilter === r.id;
+            return (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => setRoleFilter(roleFilter === r.id ? 'all' : r.id)}
+                className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                  isSelected
+                    ? 'ring-2 ring-emerald-600 bg-emerald-50/70 border-emerald-300 shadow-xs'
+                    : 'bg-slate-50/80 hover:bg-slate-100/90 border-slate-200'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1 w-full">
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${r.badgeClass}`}>
+                    {r.code}
+                  </span>
+                  <span className="text-xs font-black text-slate-800 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                    {count}
+                  </span>
+                </div>
+                <div className="mt-2.5">
+                  <p className="text-xs font-bold text-slate-900 leading-tight">{r.label}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5 capitalize">{r.accessLevel} Level</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Filters & Search */}
@@ -428,10 +516,11 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
             className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             <option value="all">All Roles</option>
-            <option value="admin">Administrator</option>
-            <option value="school_head">School Head</option>
-            <option value="coordinator">Remediation Coordinator</option>
-            <option value="teacher">Teacher</option>
+            <option value="teacher">TEACHER (Classroom)</option>
+            <option value="admin">ADMIN (System Admin)</option>
+            <option value="head_teacher">HEAD TEACHER (Dept Head)</option>
+            <option value="school_head">SCHOOL HEAD (Principal)</option>
+            <option value="coordinator">COORDINATOR (Master Teacher)</option>
           </select>
 
           <select
@@ -453,7 +542,8 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
             <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
               <tr>
                 <th className="px-5 py-3.5">Faculty Member</th>
-                <th className="px-4 py-3.5">Role & Designation</th>
+                <th className="px-4 py-3.5">Identified Role (Database `role`)</th>
+                <th className="px-4 py-3.5">DepEd Position / Title</th>
                 <th className="px-4 py-3.5">Assigned Subject Areas</th>
                 <th className="px-3 py-3.5 text-center">Enrolled Students</th>
                 <th className="px-3 py-3.5 text-center">Logged Sessions</th>
@@ -476,23 +566,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                   if (sessEmail && sessEmail === tEmailNorm) return true;
                   return Boolean(sess.studentId && teacherStudentIds.has(String(sess.studentId)));
                 }).length;
-                const roleBadge =
-                  t.role === 'admin'
-                    ? 'bg-purple-100 text-purple-900 border-purple-200'
-                    : t.role === 'school_head'
-                    ? 'bg-indigo-100 text-indigo-900 border-indigo-200'
-                    : t.role === 'coordinator'
-                    ? 'bg-amber-100 text-amber-900 border-amber-200'
-                    : 'bg-emerald-100 text-emerald-900 border-emerald-200';
-
-                const roleLabel =
-                  t.role === 'admin'
-                    ? 'Administrator'
-                    : t.role === 'school_head'
-                    ? 'School Head'
-                    : t.role === 'coordinator'
-                    ? 'Remediation Coordinator'
-                    : 'Teacher';
+                const roleDef = getRoleDefinition(t.role);
 
                 return (
                   <tr key={t.email} className="hover:bg-slate-50/70 transition">
@@ -513,15 +587,42 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                       </div>
                     </td>
 
+                    {/* Dedicated Identified Role Column */}
                     <td className="px-4 py-4">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${roleBadge}`}>
-                        {roleLabel}
-                      </span>
-                      <p className="text-[11px] text-slate-500 mt-1">{t.title}</p>
+                      <div className="space-y-1.5 min-w-[150px]">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-xs ${roleDef.badgeClass}`}>
+                          {roleDef.code}
+                        </span>
+                        {t.email.toLowerCase() !== 'admin@projectsmile' && (
+                          <div className="pt-0.5">
+                            <select
+                              aria-label={`Change identified role for ${t.name}`}
+                              value={t.role || 'teacher'}
+                              onChange={(e) => handleDirectRoleChange(t, e.target.value as UserRole)}
+                              className="text-[10px] font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-300 rounded px-1.5 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-emerald-500 w-full"
+                            >
+                              <option value="teacher">TEACHER</option>
+                              <option value="admin">ADMIN</option>
+                              <option value="head_teacher">HEAD TEACHER</option>
+                              <option value="school_head">SCHOOL HEAD</option>
+                              <option value="coordinator">COORDINATOR</option>
+                            </select>
+                          </div>
+                        )}
+                        {roleChangeFeedback?.email === t.email && (
+                          <p className="text-[10px] text-emerald-700 font-bold">{roleChangeFeedback.message}</p>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Dedicated DepEd Position / Title Column */}
+                    <td className="px-4 py-4">
+                      <p className="text-xs font-semibold text-slate-700">{t.title || 'Teacher I'}</p>
+                      <p className="text-[10px] text-slate-400 capitalize">{roleDef.accessLevel} Scope</p>
                     </td>
 
                     <td className="px-4 py-4">
-                      {['admin', 'school_head', 'coordinator'].includes(t.role || '') ? (
+                      {['admin', 'school_head', 'head_teacher', 'coordinator'].includes(t.role || '') ? (
                         <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 font-medium italic">
                           <ShieldCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           N/A (Administrative Role)
@@ -572,7 +673,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
 
                     <td className="px-5 py-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        {!['admin', 'school_head', 'coordinator'].includes(t.role || '') && (
+                        {!['admin', 'school_head', 'head_teacher', 'coordinator'].includes(t.role || '') && (
                           <button
                             type="button"
                             onClick={() => openAssignSubjects(t)}
@@ -654,44 +755,54 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
           <ShieldCheck className="w-4 h-4 text-emerald-700" />
           DepEd Role Matrix & Access Permissions
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
           <div className="p-3.5 rounded-xl bg-purple-50/70 border border-purple-200 text-xs space-y-1">
             <div className="flex items-center justify-between font-black text-purple-950">
-              <span>Admin</span>
+              <span>ADMIN</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-200 text-purple-900">FULL ACCESS</span>
             </div>
             <p className="text-[11px] text-purple-800">
-              Manage system settings, faculty accounts, programs, schedules, audit trail, and full backup/restore.
+              Manage system settings, faculty accounts, roles, schedules, audit trail, and database backup/restore.
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200 text-xs space-y-1">
+            <div className="flex items-center justify-between font-black text-blue-950">
+              <span>SCHOOL HEAD</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-200 text-blue-900">EXECUTIVE OVERSIGHT</span>
+            </div>
+            <p className="text-[11px] text-blue-800">
+              Institutional executive oversight, program evaluation, Department Head narrative reviews, and DepEd compliance.
             </p>
           </div>
 
           <div className="p-3.5 rounded-xl bg-indigo-50/70 border border-indigo-200 text-xs space-y-1">
             <div className="flex items-center justify-between font-black text-indigo-950">
-              <span>School Head</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-200 text-indigo-900">REPORTS & ANALYTICS</span>
+              <span>HEAD TEACHER</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-200 text-indigo-900">INSTRUCTIONAL LEAD</span>
             </div>
             <p className="text-[11px] text-indigo-800">
-              Institutional executive oversight, program evaluation, Department Head narrative reviews, and DepEd compliance.
+              Supervise department teachers, review remediation logs, evaluate session MOVs, and generate narrative reports.
             </p>
           </div>
 
           <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 text-xs space-y-1">
             <div className="flex items-center justify-between font-black text-amber-950">
-              <span>Remediation Coordinator</span>
+              <span>COORDINATOR</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-200 text-amber-900">PROGRAMS & FACULTY</span>
             </div>
             <p className="text-[11px] text-amber-800">
-              Curriculum setup, teacher assignments, diagnostic rubric libraries, and weekly remediation alignment.
+              Curriculum setup, learning area assignments, diagnostic rubric libraries, and weekly remediation alignment.
             </p>
           </div>
 
           <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 text-xs space-y-1">
             <div className="flex items-center justify-between font-black text-emerald-950">
-              <span>Teacher</span>
+              <span>TEACHER</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-200 text-emerald-900">STUDENTS & SESSIONS</span>
             </div>
             <p className="text-[11px] text-emerald-800">
-              Enroll students, conduct daily anecdotal remediation logs, upload assessment MOVs, and generate class progress charts.
+              Enroll students, conduct daily anecdotal remediation logs, upload assessment MOVs, and track progress charts.
             </p>
           </div>
         </div>
@@ -704,7 +815,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                 <UserPlus className="w-5 h-5 text-emerald-700" />
-                Register New Teacher Account
+                Register New Faculty Account
               </h3>
               <button
                 type="button"
@@ -763,16 +874,17 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">System Role</label>
+                  <label className="block font-bold text-slate-700 mb-1">Identified System Role *</label>
                   <select
                     value={newRole}
                     onChange={(e) => setNewRole(e.target.value as UserRole)}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   >
-                    <option value="teacher">Teacher</option>
-                    <option value="coordinator">Remediation Coordinator</option>
-                    <option value="school_head">School Head</option>
-                    <option value="admin">Administrator</option>
+                    <option value="teacher">TEACHER (Classroom & Subject Teacher)</option>
+                    <option value="admin">ADMIN (System & ICT Administrator)</option>
+                    <option value="head_teacher">HEAD TEACHER (Department Head)</option>
+                    <option value="school_head">SCHOOL HEAD (Principal / Executive)</option>
+                    <option value="coordinator">COORDINATOR (Remediation Coordinator)</option>
                   </select>
                 </div>
               </div>
@@ -919,16 +1031,17 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">System Role</label>
+                  <label className="block font-bold text-slate-700 mb-1">Identified System Role *</label>
                   <select
                     value={editRole}
                     onChange={(e) => setEditRole(e.target.value as UserRole)}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   >
-                    <option value="teacher">Teacher</option>
-                    <option value="coordinator">Remediation Coordinator</option>
-                    <option value="school_head">School Head</option>
-                    <option value="admin">Administrator</option>
+                    <option value="teacher">TEACHER (Classroom & Subject Teacher)</option>
+                    <option value="admin">ADMIN (System & ICT Administrator)</option>
+                    <option value="head_teacher">HEAD TEACHER (Department Head)</option>
+                    <option value="school_head">SCHOOL HEAD (Principal / Executive)</option>
+                    <option value="coordinator">COORDINATOR (Remediation Coordinator)</option>
                   </select>
                 </div>
               </div>

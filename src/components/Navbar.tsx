@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TeacherProfile } from '../types';
+import { TeacherProfile, UserRole, formatRoleTitle, getRoleDefinition } from '../types';
 import { storage } from '../services/storage';
 import { isSupabaseConfigured } from '../services/supabase';
 import { SchoolLogo } from './SchoolLogo';
@@ -12,6 +12,7 @@ import {
   X,
   Check,
   Shield,
+  ShieldCheck,
   Building2,
   Award,
   FileSignature,
@@ -54,6 +55,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   // Teacher info
   const [editName, setEditName] = useState(teacher.name);
   const [editTitle, setEditTitle] = useState(teacher.title);
+  const [editRole, setEditRole] = useState<UserRole>(teacher.role || 'teacher');
   const [editDepartment, setEditDepartment] = useState(teacher.department || 'Technology and Livelihood Education (TLE)');
   const [editSchool, setEditSchool] = useState(teacher.schoolName || 'Ramon Magsaysay (Cubao) High School');
   const [editDivision, setEditDivision] = useState(teacher.division || 'SDO Quezon City • TLE Department');
@@ -86,6 +88,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const syncStateFromTeacher = () => {
     setEditName(teacher.name);
     setEditTitle(teacher.title);
+    setEditRole(teacher.role || 'teacher');
     setEditDepartment(teacher.department || 'Technology and Livelihood Education (TLE)');
     setEditSchool(teacher.schoolName || 'Ramon Magsaysay (Cubao) High School');
     setEditDivision(teacher.division || 'SDO Quezon City • TLE Department');
@@ -126,10 +129,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
+    const effectiveRole = editRole || teacher.role || 'teacher';
     const updated: TeacherProfile = {
       ...teacher,
       name: editName.trim() || teacher.name,
       title: editTitle.trim() || teacher.title,
+      role: effectiveRole,
+      roleTitle: formatRoleTitle(effectiveRole),
       department: editDepartment.trim() || 'Technology and Livelihood Education (TLE)',
       schoolName: editSchool.trim() || 'Ramon Magsaysay (Cubao) High School',
       division: editDivision.trim() || 'SDO Quezon City • TLE Department',
@@ -237,11 +243,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="text-left hidden lg:block max-w-[140px] truncate">
                 <div className="flex items-center gap-1">
                   <p className="font-bold text-xs truncate leading-tight">{teacher.name}</p>
-                  {(teacher.role === 'admin' || teacher.email === 'admin@projectsmile') && (
-                    <span className="px-1.5 py-0.2 bg-amber-400 text-purple-950 text-[9px] font-black rounded uppercase">
-                      ADMIN
-                    </span>
-                  )}
+                  <span className={`px-1.5 py-0.2 text-[9px] font-black rounded uppercase ${
+                    teacher.role === 'admin'
+                      ? 'bg-amber-400 text-purple-950'
+                      : teacher.role === 'head_teacher'
+                      ? 'bg-indigo-300 text-indigo-950'
+                      : teacher.role === 'school_head'
+                      ? 'bg-blue-300 text-blue-950'
+                      : teacher.role === 'coordinator'
+                      ? 'bg-amber-300 text-amber-950'
+                      : 'bg-emerald-300 text-emerald-950'
+                  }`}>
+                    {formatRoleTitle(teacher.role)}
+                  </span>
                 </div>
                 <p className="text-[10px] text-amber-200 truncate leading-tight">{teacher.title}</p>
               </div>
@@ -515,12 +529,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <div>
                         <div className="flex items-center gap-1.5">
                           <p className="text-xs font-bold text-slate-800">{teacher.name}</p>
-                          <span className={`px-1.5 py-0.2 text-[9px] font-black rounded uppercase ${
-                            teacher.role === 'admin' || teacher.email === 'admin@projectsmile'
-                              ? 'bg-purple-100 text-purple-800 border border-purple-300'
-                              : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                          }`}>
-                            {teacher.role === 'admin' ? 'ADMIN' : 'TEACHER / COORDINATOR'}
+                          <span className={`px-2 py-0.5 text-[9px] font-black rounded uppercase border ${getRoleDefinition(teacher.role).badgeClass}`}>
+                            {getRoleDefinition(teacher.role).code}
                           </span>
                         </div>
                         <p className="text-[11px] text-slate-500 font-mono">{teacher.email}</p>
@@ -580,6 +590,57 @@ export const Navbar: React.FC<NavbarProps> = ({
                       value={editTitle}
                       onChange={(val) => setEditTitle(val)}
                     />
+                  </div>
+
+                  {/* Official Account Role Identified in Database */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                        <label className="text-xs font-extrabold text-slate-800">
+                          Identified Account Role in Database (<code className="font-mono text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">role</code> column)
+                        </label>
+                      </div>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-xs ${getRoleDefinition(editRole).badgeClass}`}>
+                        {getRoleDefinition(editRole).code}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="px-3 py-2 bg-white border border-slate-200 rounded-xl flex items-center justify-between shadow-xs">
+                        <span className="text-xs font-bold text-slate-700">
+                          {getRoleDefinition(editRole).label}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider bg-slate-100 px-1.5 py-0.5 rounded">
+                          {getRoleDefinition(editRole).accessLevel} Access
+                        </span>
+                      </div>
+                      <select
+                        aria-label="System Role in Database"
+                        value={editRole}
+                        onChange={(e) => setEditRole(e.target.value as UserRole)}
+                        disabled={teacher.email.toLowerCase() === 'admin@projectsmile'}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-600 disabled:bg-slate-100 disabled:text-slate-400 cursor-pointer shadow-xs"
+                      >
+                        <option value="teacher">TEACHER (Classroom & Subject)</option>
+                        <option value="admin">ADMIN (System & ICT Administrator)</option>
+                        <option value="head_teacher">HEAD TEACHER (Department Head)</option>
+                        <option value="school_head">SCHOOL HEAD (Principal / School Head)</option>
+                        <option value="coordinator">COORDINATOR (Remediation Coordinator)</option>
+                      </select>
+                    </div>
+
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      {getRoleDefinition(editRole).description}
+                    </p>
+
+                    <div className="pt-1 flex flex-wrap gap-1">
+                      {getRoleDefinition(editRole).permissions.map((perm) => (
+                        <span key={perm} className="text-[9px] font-mono px-2 py-0.5 bg-slate-200/80 text-slate-700 rounded-md">
+                          ✓ {perm.replace(/_/g, ' ')}
+                        </span>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="pt-2 border-t border-slate-200">

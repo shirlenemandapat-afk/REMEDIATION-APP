@@ -9,6 +9,10 @@ import {
   SystemAnnouncement,
   SystemSettings,
   UserRole,
+  RoleDefinition,
+  SYSTEM_ROLES,
+  getRoleDefinition,
+  formatRoleTitle,
 } from '../types';
 import {
   INITIAL_TEACHER,
@@ -68,10 +72,10 @@ export const storage = {
       accounts[adminNorm].assignedSubjects = [];
     }
 
-    // Enforce: Admin, School Head, and Remediation Coordinator must NOT have assigned subject areas
+    // Enforce: Admin, School Head, Head Teacher, and Remediation Coordinator must NOT have assigned subject areas
     Object.keys(accounts).forEach((key) => {
       const acc = accounts[key];
-      if (acc && ['admin', 'school_head', 'coordinator'].includes(acc.role || '')) {
+      if (acc && ['admin', 'school_head', 'head_teacher', 'coordinator'].includes(acc.role || '')) {
         acc.assignedSubjects = [];
       }
     });
@@ -197,7 +201,8 @@ export const storage = {
     }
 
     const effectiveRole = teacherData.role || 'teacher';
-    const isTeachingRole = !['admin', 'school_head', 'coordinator'].includes(effectiveRole);
+    const isTeachingRole = !['admin', 'school_head', 'head_teacher', 'coordinator'].includes(effectiveRole);
+    const roleDef = getRoleDefinition(effectiveRole);
 
     const newTeacher: TeacherProfile = {
       title: 'Teacher I',
@@ -214,6 +219,7 @@ export const storage = {
       isPasswordSet: true,
       accountStatus: teacherData.accountStatus || 'Active',
       role: effectiveRole,
+      roleTitle: roleDef.code,
       reportsSubmissionStatus: teacherData.reportsSubmissionStatus || 'Submitted',
       registeredAt: teacherData.registeredAt || new Date().toISOString().split('T')[0],
     };
@@ -1564,6 +1570,7 @@ export const storage = {
           title: additionalDetails?.title,
           schoolName: additionalDetails?.schoolName,
           department: additionalDetails?.department,
+          role: additionalDetails?.role,
           profileData: additionalDetails,
         }),
       });
@@ -1944,6 +1951,14 @@ export const storage = {
     return false;
   },
 
+  getSystemRoles(): RoleDefinition[] {
+    return SYSTEM_ROLES;
+  },
+
+  getRoleDefinition(role?: string | null): RoleDefinition {
+    return getRoleDefinition(role);
+  },
+
   isAdminEmail(email?: string | null): boolean {
     if (!email) return false;
     const lower = email.toLowerCase().trim();
@@ -1955,6 +1970,80 @@ export const storage = {
     } catch {
       return false;
     }
+  },
+
+  isHeadTeacherOrSchoolHead(email?: string | null): boolean {
+    if (!email) return false;
+    const lower = email.toLowerCase().trim();
+    try {
+      const accounts = this.getRegisteredAccounts();
+      const acct = accounts[lower];
+      return acct?.role === 'head_teacher' || acct?.role === 'school_head';
+    } catch {
+      return false;
+    }
+  },
+
+  isAdministrativeOrSupervisoryRole(email?: string | null): boolean {
+    if (!email) return false;
+    const lower = email.toLowerCase().trim();
+    if (lower === 'admin@projectsmile') return true;
+    try {
+      const accounts = this.getRegisteredAccounts();
+      const acct = accounts[lower];
+      const role = acct?.role;
+      return role === 'admin' || role === 'head_teacher' || role === 'school_head' || role === 'coordinator';
+    } catch {
+      return false;
+    }
+  },
+
+  async adminUpdateUserRole(
+    adminEmail: string,
+    targetEmail: string,
+    newRole: UserRole
+  ): Promise<{ success: boolean; role?: UserRole; message: string }> {
+    const norm = targetEmail.trim().toLowerCase();
+    const roleDef = getRoleDefinition(newRole);
+
+    // 1. Try server persistence
+    try {
+      const res = await fetch(`/api/accounts/${encodeURIComponent(norm)}/role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newRole, updatedBy: adminEmail }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          const accounts = this.getRegisteredAccounts();
+          if (accounts[norm]) {
+            accounts[norm].role = data.role;
+            accounts[norm].roleTitle = data.roleTitle;
+            if (['admin', 'school_head', 'head_teacher', 'coordinator'].includes(data.role)) {
+              accounts[norm].assignedSubjects = [];
+            }
+            this.saveRegisteredAccounts(accounts);
+          }
+          return { success: true, role: data.role, message: data.message };
+        }
+      }
+    } catch (e) {
+      console.warn('Server role update fallback to local cache', e);
+    }
+
+    // 2. Local fallback
+    const accounts = this.getRegisteredAccounts();
+    if (accounts[norm]) {
+      accounts[norm].role = newRole;
+      accounts[norm].roleTitle = roleDef.code;
+      if (['admin', 'school_head', 'head_teacher', 'coordinator'].includes(newRole)) {
+        accounts[norm].assignedSubjects = [];
+      }
+      this.saveRegisteredAccounts(accounts);
+      return { success: true, role: newRole, message: `Account role updated to ${roleDef.code} successfully.` };
+    }
+    return { success: false, message: 'Account not found.' };
   },
 
   // --- STUDENTS ---
@@ -1990,8 +2079,8 @@ export const storage = {
       return [];
     }
 
-    // Admin account has global visibility to all students enrolled across all teachers
-    if (this.isAdminEmail(activeEmail)) {
+    // Admin, Head Teacher, School Head, and Coordinator accounts have institutional visibility
+    if (this.isAdministrativeOrSupervisoryRole(activeEmail)) {
       return all;
     }
 
@@ -2364,8 +2453,8 @@ export const storage = {
       return [];
     }
 
-    // Admin account has global visibility to all sessions logged across all teachers
-    if (this.isAdminEmail(activeEmail)) {
+    // Admin, Head Teacher, School Head, and Coordinator accounts have global visibility across all sessions
+    if (this.isAdministrativeOrSupervisoryRole(activeEmail)) {
       return all;
     }
 

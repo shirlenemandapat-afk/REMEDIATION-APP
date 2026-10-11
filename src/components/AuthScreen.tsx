@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { storage } from '../services/storage';
-import { TeacherProfile } from '../types';
+import { TeacherProfile, UserRole, getRoleDefinition } from '../types';
 import { SchoolLogo } from './SchoolLogo';
 import { TeacherPositionSelect } from './BookingSchedulePicker';
 import {
@@ -37,6 +37,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [title, setTitle] = useState<string>('Master Teacher I / TLE Coordinator');
   const [schoolName, setSchoolName] = useState<string>('Ramon Magsaysay (Cubao) High School');
   const [department, setDepartment] = useState<string>('Technology and Livelihood Education (TLE)');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('teacher');
   const [error, setError] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -102,6 +103,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
           title: title.trim() || 'Teacher I / TLE Faculty',
           schoolName: schoolName.trim() || 'Ramon Magsaysay (Cubao) High School',
           department: department.trim() || 'Technology and Livelihood Education (TLE)',
+          role: selectedRole,
         });
 
         if (result.success && result.profile) {
@@ -242,9 +244,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                 <label className="block text-xs font-bold text-slate-700">
                   DepEd Teacher Email <span className="text-red-500">*</span>
                 </label>
-                {isCurrentEmailRegistered && (
-                  <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Account Registered
+                {isCurrentEmailRegistered && registeredAccount && (
+                  <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${getRoleDefinition(registeredAccount.role).badgeClass}`}>
+                    <ShieldCheck className="w-3 h-3" /> {getRoleDefinition(registeredAccount.role).code}
                   </span>
                 )}
               </div>
@@ -327,6 +329,27 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                       />
                     </div>
                   </div>
+                </div>
+
+                {/* Role in Database */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    System Role in Database <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={selectedRole}
+                    onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+                    className="w-full px-3 min-h-[44px] py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white cursor-pointer"
+                  >
+                    <option value="teacher">TEACHER (Classroom & Subject Teacher)</option>
+                    <option value="head_teacher">HEAD TEACHER (Department Head / Supervisor)</option>
+                    <option value="school_head">SCHOOL HEAD (Principal / Executive)</option>
+                    <option value="coordinator">COORDINATOR (Remediation Coordinator)</option>
+                    <option value="admin">ADMIN (System & ICT Administrator)</option>
+                  </select>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    {getRoleDefinition(selectedRole).description}
+                  </p>
                 </div>
               </>
             )}

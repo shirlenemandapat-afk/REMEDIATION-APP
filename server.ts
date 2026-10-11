@@ -8,8 +8,110 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'smile_db.json');
 
+interface AppRoleDefinition {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  accessLevel: 'classroom' | 'department' | 'executive' | 'system';
+  permissions: string[];
+}
+
+const INITIAL_ROLES: AppRoleDefinition[] = [
+  {
+    id: 'teacher',
+    code: 'TEACHER',
+    name: 'Classroom / Subject Teacher',
+    description: 'Logs daily student anecdotal remediation records, intervention activities, and assessment MOVs for assigned classes.',
+    accessLevel: 'classroom',
+    permissions: [
+      'enroll_students',
+      'log_remediation_sessions',
+      'upload_assessment_movs',
+      'view_assigned_students',
+      'generate_parent_letters',
+      'generate_anecdotal_reports',
+    ],
+  },
+  {
+    id: 'admin',
+    code: 'ADMIN',
+    name: 'System & ICT Administrator',
+    description: 'Full administrative privileges over accounts, database backups, audit logs, system configurations, and faculty roles.',
+    accessLevel: 'system',
+    permissions: [
+      'full_system_access',
+      'manage_accounts',
+      'manage_roles',
+      'manage_system_settings',
+      'database_backup_restore',
+      'view_all_reports',
+      'manage_programs',
+    ],
+  },
+  {
+    id: 'head_teacher',
+    code: 'HEAD TEACHER',
+    name: 'Head Teacher / Department Head',
+    description: 'Department-level instructional leader supervising teacher remediation submissions, reviewing logs, and generating departmental narrative reports.',
+    accessLevel: 'department',
+    permissions: [
+      'supervise_department_teachers',
+      'view_all_students_and_logs',
+      'review_teacher_submissions',
+      'generate_narrative_reports',
+      'export_department_analytics',
+      'monitor_class_progress',
+    ],
+  },
+  {
+    id: 'school_head',
+    code: 'SCHOOL HEAD',
+    name: 'School Head / Principal',
+    description: 'Executive school administrator with school-wide institutional oversight, compliance tracking, and overall remediation evaluation.',
+    accessLevel: 'executive',
+    permissions: [
+      'executive_school_oversight',
+      'view_all_school_reports',
+      'view_all_students_and_logs',
+      'review_program_analytics',
+      'deped_compliance_tracking',
+    ],
+  },
+  {
+    id: 'coordinator',
+    code: 'COORDINATOR',
+    name: 'Remediation Coordinator / Master Teacher',
+    description: 'Curriculum & intervention coordinator designing programs, class schedules, aligning learning areas, and mentoring faculty.',
+    accessLevel: 'department',
+    permissions: [
+      'manage_remediation_programs',
+      'manage_class_schedules',
+      'assign_teachers_to_programs',
+      'view_all_students_and_logs',
+      'monitor_learning_areas',
+    ],
+  },
+];
+
+function normalizeUserRole(role?: string): { role: string; roleTitle: string } {
+  const norm = (role || 'teacher').toLowerCase().trim();
+  if (norm === 'admin') return { role: 'admin', roleTitle: 'ADMIN' };
+  if (norm === 'head_teacher' || norm === 'head-teacher' || norm === 'headteacher' || norm.includes('head teacher')) {
+    return { role: 'head_teacher', roleTitle: 'HEAD TEACHER' };
+  }
+  if (norm === 'school_head' || norm === 'school-head' || norm === 'principal' || norm.includes('school head')) {
+    return { role: 'school_head', roleTitle: 'SCHOOL HEAD' };
+  }
+  if (norm === 'coordinator' || norm === 'master_teacher' || norm === 'master-teacher' || norm.includes('coordinator')) {
+    return { role: 'coordinator', roleTitle: 'COORDINATOR' };
+  }
+  return { role: 'teacher', roleTitle: 'TEACHER' };
+}
+
 interface AppDbState {
   accounts: Record<string, any>;
+  roles?: AppRoleDefinition[];
   students: any[];
   sessions: any[];
   programs: any[];
@@ -21,12 +123,14 @@ interface AppDbState {
 
 // Initial fallback state if DB is fresh
 const INITIAL_DEFAULT_DB: AppDbState = {
+  roles: INITIAL_ROLES,
   accounts: {
     'admin@projectsmile': {
       email: 'admin@projectsmile',
       passwordHash: 'admin2025',
       isPasswordSet: true,
       role: 'admin',
+      roleTitle: 'ADMIN',
       accountStatus: 'Active',
       name: 'TLE Department Head Admin',
       title: 'Department Head / System Administrator',
@@ -45,6 +149,7 @@ const INITIAL_DEFAULT_DB: AppDbState = {
       passwordHash: 'teacher123',
       isPasswordSet: true,
       role: 'coordinator',
+      roleTitle: 'COORDINATOR',
       accountStatus: 'Active',
       name: 'Shirlene M. Mandapat',
       title: 'Master Teacher I / TLE Coordinator',
@@ -56,6 +161,44 @@ const INITIAL_DEFAULT_DB: AppDbState = {
       assignedSubjects: ['ICT - Computer Programming', 'ICT - Computer Systems Servicing'],
       reportsSubmissionStatus: 'Submitted',
       registeredAt: '2025-06-15',
+      lastLoginAt: '',
+    },
+    'corazon.santos@depedqc.ph': {
+      email: 'corazon.santos@depedqc.ph',
+      passwordHash: 'head2025',
+      isPasswordSet: true,
+      role: 'head_teacher',
+      roleTitle: 'HEAD TEACHER',
+      accountStatus: 'Active',
+      name: 'Dr. Corazon V. Santos',
+      title: 'Head Teacher III / TLE Department Head',
+      schoolName: 'Ramon Magsaysay (Cubao) High School',
+      division: 'SDO Quezon City • TLE Department',
+      region: 'National Capital Region (NCR)',
+      academicYear: '2025-2026',
+      department: 'Technology and Livelihood Education (TLE)',
+      assignedSubjects: [],
+      reportsSubmissionStatus: 'Submitted',
+      registeredAt: '2025-06-10',
+      lastLoginAt: '',
+    },
+    'marialuisa.ramos@depedqc.ph': {
+      email: 'marialuisa.ramos@depedqc.ph',
+      passwordHash: 'principal2025',
+      isPasswordSet: true,
+      role: 'school_head',
+      roleTitle: 'SCHOOL HEAD',
+      accountStatus: 'Active',
+      name: 'Dr. Maria Luisa T. Ramos',
+      title: 'Secondary School Principal IV',
+      schoolName: 'Ramon Magsaysay (Cubao) High School',
+      division: 'SDO Quezon City • TLE Department',
+      region: 'National Capital Region (NCR)',
+      academicYear: '2025-2026',
+      department: 'Technology and Livelihood Education (TLE)',
+      assignedSubjects: [],
+      reportsSubmissionStatus: 'Submitted',
+      registeredAt: '2025-06-01',
       lastLoginAt: '',
     },
   },
@@ -102,13 +245,31 @@ function readDb(): AppDbState {
         delete accounts[lem];
       });
 
-      // Ensure master admin and coordinator exist
+      // Ensure master admin, coordinator, head teacher, and school head exist
       if (!accounts['admin@projectsmile']) {
         accounts['admin@projectsmile'] = INITIAL_DEFAULT_DB.accounts['admin@projectsmile'];
       }
       if (!accounts['shirlene.mandapat@depedqc.ph']) {
         accounts['shirlene.mandapat@depedqc.ph'] = INITIAL_DEFAULT_DB.accounts['shirlene.mandapat@depedqc.ph'];
       }
+      if (!accounts['corazon.santos@depedqc.ph']) {
+        accounts['corazon.santos@depedqc.ph'] = INITIAL_DEFAULT_DB.accounts['corazon.santos@depedqc.ph'];
+      }
+      if (!accounts['marialuisa.ramos@depedqc.ph']) {
+        accounts['marialuisa.ramos@depedqc.ph'] = INITIAL_DEFAULT_DB.accounts['marialuisa.ramos@depedqc.ph'];
+      }
+
+      // Ensure every account has its role and roleTitle identified
+      for (const [key, acc] of Object.entries(accounts as Record<string, any>)) {
+        const { role, roleTitle } = normalizeUserRole(acc.role);
+        accounts[key] = {
+          ...acc,
+          role,
+          roleTitle,
+        };
+      }
+
+      const roles = Array.isArray(parsed.roles) && parsed.roles.length > 0 ? parsed.roles : INITIAL_ROLES;
 
       const mergedSettings = {
         ...INITIAL_DEFAULT_DB.systemSettings,
@@ -117,6 +278,7 @@ function readDb(): AppDbState {
       };
 
       return {
+        roles,
         accounts,
         students: Array.isArray(parsed.students) ? parsed.students : [],
         sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
@@ -539,6 +701,104 @@ async function startServer() {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
+  // Get all identified roles in the database and member distribution
+  app.get('/api/roles', (_req, res) => {
+    try {
+      const db = readDb();
+      const roles = db.roles || INITIAL_ROLES;
+      const accounts = Object.values(db.accounts || {});
+      const counts: Record<string, number> = {
+        teacher: 0,
+        admin: 0,
+        head_teacher: 0,
+        school_head: 0,
+        coordinator: 0,
+      };
+      const grouped: Record<string, any[]> = {
+        teacher: [],
+        admin: [],
+        head_teacher: [],
+        school_head: [],
+        coordinator: [],
+      };
+
+      accounts.forEach((acc: any) => {
+        const { role, roleTitle } = normalizeUserRole(acc.role);
+        if (counts[role] !== undefined) {
+          counts[role]++;
+          grouped[role].push({
+            email: acc.email,
+            name: acc.name,
+            title: acc.title,
+            role,
+            roleTitle,
+            accountStatus: acc.accountStatus || 'Active',
+          });
+        }
+      });
+
+      res.json({
+        success: true,
+        roles,
+        counts,
+        grouped,
+        totalAccounts: accounts.length,
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, message: 'Failed to fetch roles.' });
+    }
+  });
+
+  // Direct role assignment for an account in the database
+  app.put('/api/accounts/:email/role', (req, res) => {
+    try {
+      const db = readDb();
+      const targetEmail = (req.params.email || '').trim().toLowerCase();
+      const { newRole, updatedBy } = req.body;
+
+      if (!targetEmail || !db.accounts[targetEmail]) {
+        return res.status(404).json({ success: false, message: `Account ${targetEmail} not found.` });
+      }
+
+      if (targetEmail === 'admin@projectsmile' && newRole !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Primary System Administrator role cannot be altered.' });
+      }
+
+      const { role, roleTitle } = normalizeUserRole(newRole);
+      const isTeachingRole = role === 'teacher';
+
+      db.accounts[targetEmail] = {
+        ...db.accounts[targetEmail],
+        role,
+        roleTitle,
+        assignedSubjects: isTeachingRole ? (db.accounts[targetEmail].assignedSubjects || []) : [],
+      };
+
+      // Add audit log
+      db.auditLogs.unshift({
+        id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        userEmail: updatedBy || 'admin@projectsmile',
+        action: 'UPDATE_USER_ROLE',
+        details: `Identified role for ${db.accounts[targetEmail].name} (${targetEmail}) updated to ${roleTitle}.`,
+        targetUser: targetEmail,
+        timestamp: new Date().toISOString(),
+      });
+      db.auditLogs = (db.auditLogs || []).slice(0, 300);
+
+      writeDb(db);
+
+      res.json({
+        success: true,
+        role,
+        roleTitle,
+        profile: db.accounts[targetEmail],
+        message: `Account role successfully set to ${roleTitle}.`,
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, message: 'Failed to update account role.' });
+    }
+  });
+
   // Get all registered accounts (public profile view, excludes raw password)
   app.get('/api/accounts', (_req, res) => {
     try {
@@ -618,13 +878,15 @@ async function startServer() {
 
       const updates = req.body.profile || req.body.updates || req.body;
       const existing = db.accounts[targetEmail];
-      const effectiveRole = updates.role || existing.role || 'teacher';
-      const isTeachingRole = !['admin', 'school_head', 'coordinator'].includes(effectiveRole);
+      const rawRole = updates.role || existing.role || 'teacher';
+      const { role: effectiveRole, roleTitle } = normalizeUserRole(rawRole);
+      const isTeachingRole = effectiveRole === 'teacher';
 
       db.accounts[targetEmail] = {
         ...existing,
         ...updates,
         role: effectiveRole,
+        roleTitle,
         assignedSubjects: isTeachingRole ? (updates.assignedSubjects ?? existing.assignedSubjects ?? []) : [],
         email: existing.email, // preserve canonical email
       };
@@ -710,6 +972,9 @@ async function startServer() {
       const db = readDb();
 
       const existing = db.accounts[cleanEmail];
+      const rawRole = role || (cleanEmail.includes('admin') ? 'admin' : cleanEmail.includes('shirlene') ? 'coordinator' : 'teacher');
+      const { role: effectiveRole, roleTitle } = normalizeUserRole(rawRole);
+
       const newProfile = {
         title: title || 'Teacher I / TLE Faculty',
         schoolName: schoolName || 'Ramon Magsaysay (Cubao) High School',
@@ -720,7 +985,8 @@ async function startServer() {
         assignedSubjects: ['ICT - Computer Programming'],
         reportsSubmissionStatus: 'Submitted',
         accountStatus: 'Active',
-        role: role || (cleanEmail.includes('admin') ? 'admin' : cleanEmail.includes('shirlene') ? 'coordinator' : 'teacher'),
+        role: effectiveRole,
+        roleTitle,
         masterTeacherName: 'Shirlene M. Mandapat',
         masterTeacherPosition: 'Master Teacher I / TLE Subject Coordinator',
         headTeacherName: 'Dr. Corazon V. Santos',

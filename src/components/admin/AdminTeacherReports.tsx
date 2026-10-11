@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TeacherProfile, SessionRecord, Student } from '../../types';
+import { TeacherProfile, SessionRecord, Student, getRoleDefinition } from '../../types';
 import { storage } from '../../services/storage';
 import {
   FileCheck2,
@@ -208,6 +208,7 @@ export const AdminTeacherReports: React.FC<AdminTeacherReportsProps> = ({
             <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
               <tr>
                 <th className="px-5 py-3.5">Teacher Name</th>
+                <th className="px-4 py-3.5">System Role</th>
                 <th className="px-4 py-3.5">Assigned Learning Areas</th>
                 <th className="px-4 py-3.5 text-center">Anecdotal Logs</th>
                 <th className="px-4 py-3.5 text-center">Attached MOVs</th>
@@ -223,12 +224,20 @@ export const AdminTeacherReports: React.FC<AdminTeacherReportsProps> = ({
                     : item.submissionStatus === 'Pending'
                     ? 'bg-amber-100 text-amber-900 border-amber-300'
                     : 'bg-slate-100 text-slate-700 border-slate-300';
+                const roleDef = getRoleDefinition(item.teacher.role);
 
                 return (
                   <tr key={item.teacher.email} className="hover:bg-slate-50/70 transition">
                     <td className="px-5 py-4">
                       <p className="font-extrabold text-slate-900">{item.teacher.name}</p>
                       <p className="text-[11px] text-slate-500 font-mono">{item.teacher.email}</p>
+                    </td>
+
+                    <td className="px-4 py-4">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${roleDef.badgeClass}`}>
+                        {roleDef.code}
+                      </span>
+                      <p className="text-[11px] text-slate-500 mt-0.5">{item.teacher.title}</p>
                     </td>
 
                     <td className="px-4 py-4">

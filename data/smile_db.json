@@ -1,4 +1,80 @@
 {
+  "roles": [
+    {
+      "id": "teacher",
+      "code": "TEACHER",
+      "name": "Classroom / Subject Teacher",
+      "description": "Logs daily student anecdotal remediation records, intervention activities, and assessment MOVs for assigned classes.",
+      "accessLevel": "classroom",
+      "permissions": [
+        "enroll_students",
+        "log_remediation_sessions",
+        "upload_assessment_movs",
+        "view_assigned_students",
+        "generate_parent_letters",
+        "generate_anecdotal_reports"
+      ]
+    },
+    {
+      "id": "admin",
+      "code": "ADMIN",
+      "name": "System & ICT Administrator",
+      "description": "Full administrative privileges over accounts, database backups, audit logs, system configurations, and faculty roles.",
+      "accessLevel": "system",
+      "permissions": [
+        "full_system_access",
+        "manage_accounts",
+        "manage_roles",
+        "manage_system_settings",
+        "database_backup_restore",
+        "view_all_reports",
+        "manage_programs"
+      ]
+    },
+    {
+      "id": "head_teacher",
+      "code": "HEAD TEACHER",
+      "name": "Head Teacher / Department Head",
+      "description": "Department-level instructional leader supervising teacher remediation submissions, reviewing logs, and generating departmental narrative reports.",
+      "accessLevel": "department",
+      "permissions": [
+        "supervise_department_teachers",
+        "view_all_students_and_logs",
+        "review_teacher_submissions",
+        "generate_narrative_reports",
+        "export_department_analytics",
+        "monitor_class_progress"
+      ]
+    },
+    {
+      "id": "school_head",
+      "code": "SCHOOL HEAD",
+      "name": "School Head / Principal",
+      "description": "Executive school administrator with school-wide institutional oversight, compliance tracking, and overall remediation evaluation.",
+      "accessLevel": "executive",
+      "permissions": [
+        "executive_school_oversight",
+        "view_all_school_reports",
+        "view_all_students_and_logs",
+        "review_program_analytics",
+        "deped_compliance_tracking"
+      ]
+    },
+    {
+      "id": "coordinator",
+      "code": "COORDINATOR",
+      "name": "Remediation Coordinator / Master Teacher",
+      "description": "Curriculum & intervention coordinator designing programs, class schedules, aligning learning areas, and mentoring faculty.",
+      "accessLevel": "department",
+      "permissions": [
+        "manage_remediation_programs",
+        "manage_class_schedules",
+        "assign_teachers_to_programs",
+        "view_all_students_and_logs",
+        "monitor_learning_areas"
+      ]
+    }
+  ],
   "accounts": {
     "shirlene.mandapat@depedqc.ph": {
       "title": "Master Teacher I / TLE Coordinator",
@@ -11,6 +87,7 @@
       "reportsSubmissionStatus": "Submitted",
       "accountStatus": "Active",
       "role": "coordinator",
+      "roleTitle": "COORDINATOR",
       "masterTeacherName": "Shirlene M. Tindoc",
       "masterTeacherPosition": "Teaacher II",
       "headTeacherName": "Dr. Corazon V. Santos",
@@ -29,6 +106,7 @@
       "passwordHash": "admin2025",
       "isPasswordSet": true,
       "role": "admin",
+      "roleTitle": "ADMIN",
       "accountStatus": "Active",
       "name": "TLE Department Head Admin",
       "title": "Department Head / System Administrator",
@@ -50,6 +128,50 @@
       "principalPosition": "Secondary School Principal IV",
       "masterTeacherName": "Shirlene M. Mandapat",
       "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator"
+    },
+    "corazon.santos@depedqc.ph": {
+      "email": "corazon.santos@depedqc.ph",
+      "passwordHash": "head2025",
+      "isPasswordSet": true,
+      "role": "head_teacher",
+      "roleTitle": "HEAD TEACHER",
+      "accountStatus": "Active",
+      "name": "Dr. Corazon V. Santos",
+      "title": "Head Teacher III / TLE Department Head",
+      "schoolName": "Ramon Magsaysay (Cubao) High School",
+      "division": "SDO Quezon City • TLE Department",
+      "region": "National Capital Region (NCR)",
+      "academicYear": "2025-2026",
+      "department": "Technology and Livelihood Education (TLE)",
+      "assignedSubjects": [],
+      "reportsSubmissionStatus": "Submitted",
+      "registeredAt": "2025-06-10",
+      "lastLoginAt": "",
+      "headTeacherName": "Dr. Corazon V. Santos",
+      "headTeacherPosition": "Head Teacher III / TLE Department",
+      "principalName": "Dr. Maria Luisa T. Ramos",
+      "principalPosition": "Secondary School Principal IV"
+    },
+    "marialuisa.ramos@depedqc.ph": {
+      "email": "marialuisa.ramos@depedqc.ph",
+      "passwordHash": "principal2025",
+      "isPasswordSet": true,
+      "role": "school_head",
+      "roleTitle": "SCHOOL HEAD",
+      "accountStatus": "Active",
+      "name": "Dr. Maria Luisa T. Ramos",
+      "title": "Secondary School Principal IV",
+      "schoolName": "Ramon Magsaysay (Cubao) High School",
+      "division": "SDO Quezon City • TLE Department",
+      "region": "National Capital Region (NCR)",
+      "academicYear": "2025-2026",
+      "department": "Technology and Livelihood Education (TLE)",
+      "assignedSubjects": [],
+      "reportsSubmissionStatus": "Submitted",
+      "registeredAt": "2025-06-01",
+      "lastLoginAt": "",
+      "principalName": "Dr. Maria Luisa T. Ramos",
+      "principalPosition": "Secondary School Principal IV"
     }
   },
   "students": [
@@ -280,6 +402,14 @@
   "classes": [],
   "announcements": [],
   "auditLogs": [
+    {
+      "id": "audit-1791696559501-x01mo",
+      "userEmail": "admin@projectsmile",
+      "action": "UPDATE_USER_ROLE",
+      "details": "Identified role for Dr. Corazon V. Santos (corazon.santos@depedqc.ph) updated to HEAD TEACHER.",
+      "targetUser": "corazon.santos@depedqc.ph",
+      "timestamp": "2026-10-11T05:29:19.501Z"
+    },
     {
       "id": "audit-1790897053093-ghpyb",
       "userEmail": "shirlene.mandapat@depedqc.ph",
