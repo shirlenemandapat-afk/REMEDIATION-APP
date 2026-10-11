@@ -150,9 +150,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   useEffect(() => {
     handleRefreshAll();
     
-    // Set up real-time auto-polling every 12 seconds
-    const interval = setInterval(handleRefreshAll, 12000);
-    return () => clearInterval(interval);
+    // Set up real-time auto-polling every 8 seconds for responsive teacher activity monitoring
+    const interval = setInterval(handleRefreshAll, 8000);
+
+    // Instant event listeners for immediate synchronization across teacher/admin accounts
+    const handleImmediateSync = () => {
+      setLiveStudents(storage.getAllStudents());
+      setLiveSessions(storage.getAllSessions());
+      handleRefreshAll();
+    };
+
+    window.addEventListener('storage', handleImmediateSync);
+    window.addEventListener('deped-data-synced', handleImmediateSync);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', handleImmediateSync);
+      window.removeEventListener('deped-data-synced', handleImmediateSync);
+    };
   }, []);
 
   const navItems = [

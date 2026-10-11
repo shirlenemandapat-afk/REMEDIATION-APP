@@ -316,9 +316,19 @@ function isSameTeacher(email1?: string | null, email2?: string | null): boolean 
   const e2 = email2.toLowerCase().trim();
   if (e1 === e2) return true;
 
-  // Specific verified aliases for Shirlene M. Mandapat
-  const isShirlene1 = e1 === 'shirlene.mandapat@depedqc.ph' || e1 === 'shirlene.mandapat001@deped.gov.ph' || e1 === 'shirlene.mandapat@deped.gov.ph';
-  const isShirlene2 = e2 === 'shirlene.mandapat@depedqc.ph' || e2 === 'shirlene.mandapat001@deped.gov.ph' || e2 === 'shirlene.mandapat@deped.gov.ph';
+  // Specific verified aliases for Shirlene M. Mandapat (including teachershirlene@gmail.com)
+  const isShirlene1 =
+    e1 === 'shirlene.mandapat@depedqc.ph' ||
+    e1 === 'shirlene.mandapat001@deped.gov.ph' ||
+    e1 === 'shirlene.mandapat@deped.gov.ph' ||
+    e1 === 'teachershirlene@gmail.com' ||
+    e1.includes('shirlene');
+  const isShirlene2 =
+    e2 === 'shirlene.mandapat@depedqc.ph' ||
+    e2 === 'shirlene.mandapat001@deped.gov.ph' ||
+    e2 === 'shirlene.mandapat@deped.gov.ph' ||
+    e2 === 'teachershirlene@gmail.com' ||
+    e2.includes('shirlene');
   if (isShirlene1 && isShirlene2) return true;
 
   return false;
@@ -760,8 +770,16 @@ async function startServer() {
         return res.status(400).json({ success: false, message: 'Valid email address is required.' });
       }
 
-      // Find account case-insensitively
+      // Find account case-insensitively or via alias
       let accountKey = Object.keys(db.accounts).find((k) => k.toLowerCase() === targetEmail);
+      if (!accountKey) {
+        accountKey = Object.keys(db.accounts).find((k) => {
+          const lk = k.toLowerCase();
+          if (targetEmail.includes('shirlene') && lk.includes('shirlene')) return true;
+          return false;
+        });
+      }
+
       if (!accountKey) {
         // Auto-create teacher entry in server db if it was registered locally or in Supabase
         const safeName = (incomingAccount?.name || targetEmail.split('@')[0].replace(/[._]/g, ' '))
@@ -782,10 +800,6 @@ async function startServer() {
           registeredAt: new Date().toISOString().slice(0, 10),
         };
         accountKey = targetEmail;
-      }
-
-      if (accountKey.toLowerCase() === 'admin@projectsmile' && newRole !== 'admin') {
-        return res.status(403).json({ success: false, message: 'Primary System Administrator role cannot be demoted.' });
       }
 
       const { role, roleTitle } = normalizeUserRole(newRole);
@@ -855,31 +869,38 @@ async function startServer() {
       if (targetEmail === 'admin@projectsmile') {
         return res.status(403).json({ success: false, message: 'Cannot delete primary System Administrator account.' });
       }
-      if (!db.accounts[targetEmail]) {
+
+      let accountKey = Object.keys(db.accounts).find((k) => k.toLowerCase() === targetEmail);
+      if (!accountKey) {
+        accountKey = Object.keys(db.accounts).find((k) => isSameTeacher(k, targetEmail));
+      }
+
+      if (!accountKey && !db.accounts[targetEmail]) {
         return res.status(404).json({ success: false, message: `Account ${targetEmail} not found on server.` });
       }
 
-      const teacherName = db.accounts[targetEmail].name || targetEmail;
-      delete db.accounts[targetEmail];
+      const keyToDelete = accountKey || targetEmail;
+      const teacherName = db.accounts[keyToDelete]?.name || keyToDelete;
+      delete db.accounts[keyToDelete];
 
       // Add audit log
       db.auditLogs.unshift({
         id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         userEmail: 'admin@projectsmile',
         action: 'DELETE_TEACHER',
-        details: `Administrator permanently deleted account: ${teacherName} (${targetEmail}).`,
-        targetUser: targetEmail,
+        details: `Administrator permanently deleted account: ${teacherName} (${keyToDelete}).`,
+        targetUser: keyToDelete,
         timestamp: new Date().toISOString(),
       });
       db.auditLogs = (db.auditLogs || []).slice(0, 300);
 
       writeDb(db);
-      console.log(`[DELETE ACCOUNT]: Successfully deleted account ${targetEmail} from server.`);
+      console.log(`[DELETE ACCOUNT]: Successfully deleted account ${keyToDelete} from server.`);
 
       // Also delete from Supabase if connected
       const client = getServerSupabaseClient(db);
       if (client) {
-        Promise.resolve(client.from('teacher_profiles').delete().eq('email', targetEmail)).catch(() => {});
+        Promise.resolve(client.from('teacher_profiles').delete().eq('email', keyToDelete)).catch(() => {});
       }
 
       res.json({ success: true, message: `Account for ${teacherName} was deleted permanently from server.` });
@@ -897,17 +918,37 @@ async function startServer() {
       if (!targetEmail) {
         return res.status(400).json({ success: false, message: 'Email is required.' });
       }
-      if (!db.accounts[targetEmail]) {
-        return res.status(404).json({ success: false, message: `Account ${targetEmail} not found on server.` });
+      let accountKey = Object.keys(db.accounts).find((k) => k.toLowerCase() === targetEmail);
+      if (!accountKey) {
+        accountKey = Object.keys(db.accounts).find((k) => isSameTeacher(k, targetEmail));
+      }
+
+      if (!accountKey) {
+        db.accounts[targetEmail] = {
+          email: targetEmail,
+          name: targetEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+          title: 'Teacher I',
+          schoolName: 'Ramon Magsaysay (Cubao) High School',
+          division: 'SDO Quezon City • TLE Department',
+          region: 'National Capital Region (NCR)',
+          academicYear: '2025-2026',
+          department: 'Technology and Livelihood Education (TLE)',
+          role: 'teacher',
+          roleTitle: 'TEACHER',
+          accountStatus: 'Active',
+          assignedSubjects: [],
+          registeredAt: new Date().toISOString().slice(0, 10),
+        };
+        accountKey = targetEmail;
       }
 
       const updates = req.body.profile || req.body.updates || req.body;
-      const existing = db.accounts[targetEmail];
+      const existing = db.accounts[accountKey];
       const rawRole = updates.role || existing.role || 'teacher';
       const { role: effectiveRole, roleTitle } = normalizeUserRole(rawRole);
       const isTeachingRole = effectiveRole === 'teacher';
 
-      db.accounts[targetEmail] = {
+      db.accounts[accountKey] = {
         ...existing,
         ...updates,
         role: effectiveRole,
@@ -916,24 +957,26 @@ async function startServer() {
         email: existing.email, // preserve canonical email
       };
 
+      const teacherName = db.accounts[accountKey]?.name || accountKey;
+
       // Add audit log
       db.auditLogs.unshift({
         id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         userEmail: 'admin@projectsmile',
         action: 'UPDATE_TEACHER',
-        details: `Administrator updated profile for ${db.accounts[targetEmail].name} (${targetEmail}).`,
-        targetUser: targetEmail,
+        details: `Administrator updated profile for ${teacherName} (${accountKey}).`,
+        targetUser: accountKey,
         timestamp: new Date().toISOString(),
       });
       db.auditLogs = (db.auditLogs || []).slice(0, 300);
 
       writeDb(db);
-      console.log(`[UPDATE ACCOUNT]: Successfully updated account ${targetEmail} on server.`);
+      console.log(`[UPDATE ACCOUNT]: Successfully updated account ${accountKey} on server.`);
 
       res.json({
         success: true,
-        profile: db.accounts[targetEmail],
-        message: `Account for ${db.accounts[targetEmail].name} was updated successfully on server.`,
+        profile: db.accounts[accountKey],
+        message: `Account for ${teacherName} was updated successfully on server.`,
       });
     } catch (err: any) {
       console.error('[PUT /api/accounts/:email ERROR]:', err);
@@ -949,34 +992,43 @@ async function startServer() {
       if (!targetEmail) {
         return res.status(400).json({ success: false, message: 'Email is required.' });
       }
-      if (!db.accounts[targetEmail]) {
+
+      let accountKey = Object.keys(db.accounts).find((k) => k.toLowerCase() === targetEmail);
+      if (!accountKey) {
+        accountKey = Object.keys(db.accounts).find((k) => isSameTeacher(k, targetEmail));
+      }
+
+      if (!accountKey && !db.accounts[targetEmail]) {
         return res.status(404).json({ success: false, message: `Account ${targetEmail} not found on server.` });
       }
-      if (targetEmail === 'admin@projectsmile' && req.body.status === 'Inactive') {
+
+      const keyToUpdate = accountKey || targetEmail;
+      if (keyToUpdate === 'admin@projectsmile' && req.body.status === 'Inactive') {
         return res.status(403).json({ success: false, message: 'Cannot deactivate primary System Administrator account.' });
       }
 
       const status = req.body.status === 'Inactive' ? 'Inactive' : 'Active';
-      db.accounts[targetEmail].accountStatus = status;
+      db.accounts[keyToUpdate].accountStatus = status;
+      const teacherName = db.accounts[keyToUpdate]?.name || keyToUpdate;
 
       // Add audit log
       db.auditLogs.unshift({
         id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         userEmail: 'admin@projectsmile',
         action: 'TOGGLE_STATUS',
-        details: `Administrator set account status for ${db.accounts[targetEmail].name} (${targetEmail}) to ${status}.`,
-        targetUser: targetEmail,
+        details: `Administrator set account status for ${teacherName} (${keyToUpdate}) to ${status}.`,
+        targetUser: keyToUpdate,
         timestamp: new Date().toISOString(),
       });
       db.auditLogs = (db.auditLogs || []).slice(0, 300);
 
       writeDb(db);
-      console.log(`[STATUS ACCOUNT]: Successfully set account ${targetEmail} status to ${status} on server.`);
+      console.log(`[STATUS ACCOUNT]: Successfully set account ${keyToUpdate} status to ${status} on server.`);
 
       res.json({
         success: true,
         status,
-        message: `Account status for ${db.accounts[targetEmail].name} was set to ${status}.`,
+        message: `Account status for ${teacherName} was set to ${status}.`,
       });
     } catch (err: any) {
       console.error('[POST /api/accounts/:email/status ERROR]:', err);
@@ -1762,7 +1814,17 @@ async function startServer() {
         const cleanAccounts: Record<string, any> = {};
         for (const [k, v] of Object.entries(accounts)) {
           if (!legacyMockEmails.includes(k.toLowerCase())) {
-            cleanAccounts[k.toLowerCase()] = v;
+            const lowerK = k.toLowerCase();
+            const existing = db.accounts[lowerK] || {};
+            const rawRole = (v as any)?.role || existing?.role || 'teacher';
+            const { role: effectiveRole, roleTitle } = normalizeUserRole(rawRole);
+            cleanAccounts[lowerK] = {
+              ...existing,
+              ...(v as any),
+              role: effectiveRole,
+              roleTitle,
+              passwordHash: (v as any)?.passwordHash || existing.passwordHash,
+            };
           }
         }
         if (!cleanAccounts['admin@projectsmile'] && db.accounts['admin@projectsmile']) {

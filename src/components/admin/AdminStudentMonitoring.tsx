@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Student, SessionRecord, TeacherProfile, interpretMasteryLevel } from '../../types';
+import { storage } from '../../services/storage';
 import {
   GraduationCap,
   Search,
@@ -60,9 +61,12 @@ export const AdminStudentMonitoring: React.FC<AdminStudentMonitoringProps> = ({
 
     const matchesGrade = gradeFilter === 'all' || s.gradeLevel === gradeFilter;
     const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
+    const sTeacher = (s.teacherEmail || '').toLowerCase().trim();
+    const tFilter = teacherFilter.toLowerCase().trim();
     const matchesTeacher =
       teacherFilter === 'all' ||
-      (s.teacherEmail || '').toLowerCase().trim() === teacherFilter.toLowerCase().trim();
+      sTeacher === tFilter ||
+      storage.isSameTeacherEmail(sTeacher, tFilter);
 
     return matchesSearch && matchesGrade && matchesStatus && matchesTeacher;
   });

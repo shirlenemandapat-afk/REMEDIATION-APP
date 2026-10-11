@@ -32,6 +32,10 @@ import {
   Clock,
   Briefcase,
   Award,
+  Eye,
+  RefreshCw,
+  FileText,
+  Check,
 } from 'lucide-react';
 
 interface AdminUserManagementProps {
@@ -56,6 +60,16 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [roleChangeFeedback, setRoleChangeFeedback] = useState<{ email: string; message: string } | null>(null);
   const [teachersList, setTeachersList] = useState<TeacherProfile[]>(teachers);
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
+
+  // Dedicated Quick Role Modal
+  const [roleModalTeacher, setRoleModalTeacher] = useState<TeacherProfile | null>(null);
+
+  // Inspect Activity & Student Roster Modal
+  const [inspectActivity, setInspectActivity] = useState<{
+    teacher: TeacherProfile;
+    tab: 'students' | 'sessions';
+  } | null>(null);
 
   React.useEffect(() => {
     setTeachersList(teachers);
@@ -177,6 +191,9 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
     if (!editTeacher) return;
 
     try {
+      if (editTeacher.role !== editRole) {
+        await storage.adminUpdateUserRole(currentAdmin.email, editTeacher.email, editRole);
+      }
       const res = await storage.adminUpdateTeacher(currentAdmin.email, editTeacher.email, {
         name: editName.trim(),
         title: editTitle.trim(),
@@ -215,7 +232,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
 
   const handleExecuteDeleteTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!deleteTeacher || !deletePasswordInput) return;
+    if (!deleteTeacher) return;
 
     try {
       const res = await storage.adminDeleteTeacherWithPassword(
@@ -242,7 +259,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
 
   const handleExecuteToggleStatus = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!toggleTeacher || !togglePasswordInput) return;
+    if (!toggleTeacher) return;
 
     const nextStatus = toggleTeacher.accountStatus === 'Inactive' ? 'Active' : 'Inactive';
     
@@ -454,7 +471,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
           <div>
             <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-700" />
-              Identified Roles in Database ({teachers.length} Accounts Registered)
+              ROLE ({teachers.length} Accounts Registered)
             </h3>
             <p className="text-[11px] text-slate-500">
               Each faculty account in the database is categorized into one of five official DepEd system roles. Click a card to filter accounts.
@@ -519,7 +536,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
 
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 text-xs text-slate-500 font-bold">
-            <Filter className="w-3.5 h-3.5 text-slate-400" /> Role:
+            <Filter className="w-3.5 h-3.5 text-slate-400" /> ROLE:
           </div>
           <select
             value={roleFilter}
@@ -547,17 +564,33 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
       </div>
 
       {/* Real-time Faculty Monitoring & Sync Notice */}
-      <div className="p-3 bg-emerald-50/80 border border-emerald-200/90 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-emerald-950">
+      <div className="p-3 bg-emerald-50/80 border border-emerald-200/90 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-emerald-950">
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
           <p className="font-semibold text-[11px]">
             <strong>Live Teacher Synchronization:</strong> Enrolled students ({students.length} total) and logged sessions ({sessions.length} total) across all faculty accounts are continuously synchronized and reflected on the Admin Console for comprehensive monitoring.
           </p>
         </div>
-        <span className="shrink-0 text-[10px] font-black uppercase tracking-wider bg-emerald-200/80 text-emerald-900 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shadow-xs">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-          LIVE MONITORING ACTIVE
-        </span>
+        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+          <button
+            type="button"
+            onClick={async () => {
+              setIsManualSyncing(true);
+              await onRefresh();
+              setTimeout(() => setIsManualSyncing(false), 800);
+            }}
+            disabled={isManualSyncing}
+            className="px-2.5 py-1 rounded-lg bg-white border border-emerald-300 hover:bg-emerald-100 text-emerald-900 font-bold text-[11px] flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+            title="Force immediate synchronization from database"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-emerald-700 ${isManualSyncing ? 'animate-spin' : ''}`} />
+            {isManualSyncing ? 'Syncing...' : 'Sync Database'}
+          </button>
+          <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-200/80 text-emerald-900 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shadow-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+            LIVE MONITORING ACTIVE
+          </span>
+        </div>
       </div>
 
       {/* Teachers Table */}
@@ -582,15 +615,16 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                 const tEmailNorm = (t.email || '').toLowerCase().trim();
                 const teacherStudents = (students || []).filter((s) => {
                   const sEmail = (s.teacherEmail || (s as any).teacher_email || '').toLowerCase().trim();
-                  return Boolean(sEmail && sEmail === tEmailNorm);
+                  return Boolean(sEmail && (sEmail === tEmailNorm || storage.isSameTeacherEmail(sEmail, tEmailNorm)));
                 });
                 const teacherStudentIds = new Set(teacherStudents.map((s) => String(s.id)));
                 const teacherStudentCount = teacherStudents.length;
-                const teacherSessionCount = (sessions || []).filter((sess) => {
+                const teacherSessions = (sessions || []).filter((sess) => {
                   const sessEmail = (sess.teacherEmail || (sess as any).teacher_email || '').toLowerCase().trim();
-                  if (sessEmail && sessEmail === tEmailNorm) return true;
+                  if (sessEmail && (sessEmail === tEmailNorm || storage.isSameTeacherEmail(sessEmail, tEmailNorm))) return true;
                   return Boolean(sess.studentId && teacherStudentIds.has(String(sess.studentId)));
-                }).length;
+                });
+                const teacherSessionCount = teacherSessions.length;
                 const roleDef = getRoleDefinition(t.role);
                 const isSupervisory = ['admin', 'school_head', 'head_teacher', 'coordinator'].includes(t.role || '');
 
@@ -615,21 +649,26 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
 
                     {/* ROLE Column */}
                     <td className="px-4 py-4 text-center">
-                      <div className="space-y-1.5 inline-block min-w-[140px] text-left">
-                        <div className="flex items-center justify-between">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-xs ${roleDef.badgeClass}`}>
+                      <div className="space-y-1.5 inline-block min-w-[145px] text-left">
+                        <div className="flex items-center justify-between gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setRoleModalTeacher(t)}
+                            title="Click to change ROLE"
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-xs cursor-pointer hover:opacity-80 transition ${roleDef.badgeClass}`}
+                          >
                             {roleDef.code}
-                          </span>
+                          </button>
                           <span className="text-[9px] text-slate-400 font-bold uppercase">
                             {roleDef.accessLevel}
                           </span>
                         </div>
-                        <div className="pt-0.5">
+                        <div className="flex items-center gap-1 pt-0.5">
                           <select
                             aria-label={`Change ROLE for ${t.name}`}
                             value={t.role || 'teacher'}
                             onChange={(e) => handleDirectRoleChange(t, e.target.value as UserRole)}
-                            className="text-[11px] font-bold bg-white hover:bg-emerald-50/50 text-slate-800 border-2 border-emerald-600 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full transition shadow-xs"
+                            className="text-[11px] font-bold bg-white hover:bg-emerald-50/50 text-slate-800 border-2 border-emerald-600 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 flex-1 transition shadow-xs"
                           >
                             <option value="teacher">TEACHER</option>
                             <option value="admin">ADMIN</option>
@@ -637,9 +676,17 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                             <option value="school_head">SCHOOL HEAD</option>
                             <option value="coordinator">COORDINATOR</option>
                           </select>
+                          <button
+                            type="button"
+                            onClick={() => setRoleModalTeacher(t)}
+                            title="Open Role Selection Panel"
+                            className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 transition cursor-pointer shrink-0"
+                          >
+                            <Shield className="w-3.5 h-3.5 text-emerald-700" />
+                          </button>
                         </div>
                         {roleChangeFeedback?.email === t.email && (
-                          <div className="p-1 rounded bg-emerald-50 border border-emerald-200">
+                          <div className="p-1 rounded bg-emerald-50 border border-emerald-200 animate-in fade-in">
                             <p className="text-[10px] text-emerald-800 font-bold text-center">{roleChangeFeedback.message}</p>
                           </div>
                         )}
@@ -678,43 +725,47 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
 
                     {/* Enrolled Students (Synchronized to Admin) */}
                     <td className="px-3 py-4 text-center">
-                      {isSupervisory ? (
-                        <div className="space-y-0.5">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-900 font-black text-[11px] border border-indigo-200 shadow-xs" title="Supervisory role: monitors all school-wide student enrollments">
-                            <GraduationCap className="w-3.5 h-3.5 text-indigo-600" />
-                            All {students.length} Learners
-                          </span>
-                          <span className="text-[9px] text-slate-400 font-semibold block">Full Oversight</span>
-                        </div>
-                      ) : (
-                        <div className="space-y-0.5">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-extrabold text-[11px] border border-emerald-200">
-                            <GraduationCap className="w-3.5 h-3.5 text-emerald-600" />
-                            {teacherStudentCount} Enrolled
-                          </span>
-                          <span className="text-[9px] text-slate-400 font-semibold block">Classroom Roster</span>
-                        </div>
+                      <button
+                        type="button"
+                        onClick={() => setInspectActivity({ teacher: t, tab: 'students' })}
+                        title={`Click to view all ${teacherStudentCount} enrolled students for ${t.name}`}
+                        className="inline-flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition cursor-pointer group shadow-2xs w-full max-w-[130px]"
+                      >
+                        <span className="flex items-center gap-1 font-black text-xs group-hover:underline">
+                          <GraduationCap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          {teacherStudentCount} Enrolled
+                        </span>
+                        <span className="text-[9px] text-emerald-600 font-semibold group-hover:underline flex items-center gap-0.5">
+                          <Eye className="w-2.5 h-2.5" /> Inspect Roster
+                        </span>
+                      </button>
+                      {isSupervisory && (
+                        <span className="text-[9px] text-indigo-700 font-bold block mt-1" title="Supervisory oversight over all school-wide students">
+                          ({students.length} school-wide)
+                        </span>
                       )}
                     </td>
 
                     {/* Logged Sessions (Synchronized to Admin) */}
                     <td className="px-3 py-4 text-center">
-                      {isSupervisory ? (
-                        <div className="space-y-0.5">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-900 font-black text-[11px] border border-indigo-200 shadow-xs" title="Supervisory role: monitors all logged remediation session records across teachers">
-                            <Clock className="w-3.5 h-3.5 text-indigo-600" />
-                            All {sessions.length} Logs
-                          </span>
-                          <span className="text-[9px] text-slate-400 font-semibold block">Full Oversight</span>
-                        </div>
-                      ) : (
-                        <div className="space-y-0.5">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 font-extrabold text-[11px] border border-amber-200">
-                            <Clock className="w-3.5 h-3.5 text-amber-600" />
-                            {teacherSessionCount} Logged
-                          </span>
-                          <span className="text-[9px] text-slate-400 font-semibold block">Classroom Logs</span>
-                        </div>
+                      <button
+                        type="button"
+                        onClick={() => setInspectActivity({ teacher: t, tab: 'sessions' })}
+                        title={`Click to view all ${teacherSessionCount} logged sessions for ${t.name}`}
+                        className="inline-flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 transition cursor-pointer group shadow-2xs w-full max-w-[130px]"
+                      >
+                        <span className="flex items-center gap-1 font-black text-xs group-hover:underline">
+                          <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          {teacherSessionCount} Logged
+                        </span>
+                        <span className="text-[9px] text-amber-700 font-semibold group-hover:underline flex items-center gap-0.5">
+                          <Eye className="w-2.5 h-2.5" /> View Activity
+                        </span>
+                      </button>
+                      {isSupervisory && (
+                        <span className="text-[9px] text-indigo-700 font-bold block mt-1" title="Supervisory oversight over all school-wide sessions">
+                          ({sessions.length} school-wide)
+                        </span>
                       )}
                     </td>
 
@@ -933,7 +984,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Identified System Role *</label>
+                  <label className="block font-bold text-slate-700 mb-1">ROLE *</label>
                   <select
                     value={newRole}
                     onChange={(e) => setNewRole(e.target.value as UserRole)}
@@ -1090,7 +1141,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Identified System Role *</label>
+                  <label className="block font-bold text-slate-700 mb-1">ROLE *</label>
                   <select
                     value={editRole}
                     onChange={(e) => setEditRole(e.target.value as UserRole)}
@@ -1306,19 +1357,19 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
             <form onSubmit={handleExecuteToggleStatus} className="space-y-4 text-xs">
               <p className="text-slate-600">
                 You are <strong>{toggleTeacher.accountStatus === 'Active' ? 'deactivating' : 'activating'}</strong> the account for <strong>{toggleTeacher.name}</strong> ({toggleTeacher.email}). 
-                Please enter <strong>your admin password</strong> to confirm this security-sensitive action.
+                Please confirm this account status change.
               </p>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Admin Password *</label>
+                <label className="block font-bold text-slate-700 mb-1">Admin Password (Optional for Authenticated Admin)</label>
                 <input
                   type="password"
-                  required
                   value={togglePasswordInput}
                   onChange={(e) => setTogglePasswordInput(e.target.value)}
-                  placeholder="Enter your password"
+                  placeholder="Enter admin password (e.g. admin2025) or click Confirm"
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-mono focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
+                <p className="text-[11px] text-slate-400 mt-1">Default administrator password: <code className="text-emerald-700 font-bold">admin2025</code> (or click Confirm directly as logged-in admin)</p>
               </div>
 
               {toggleFeedback && (
@@ -1395,16 +1446,16 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Enter Admin Password to Confirm *</label>
+                <label className="block font-bold text-slate-700 mb-1">Admin Password (Optional for Authenticated Admin)</label>
                 <input
                   type="password"
-                  required
                   autoFocus
                   value={deletePasswordInput}
                   onChange={(e) => setDeletePasswordInput(e.target.value)}
-                  placeholder="Enter your admin password"
+                  placeholder="Enter admin password (e.g. admin2025) or click Confirm"
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-mono focus:ring-2 focus:ring-rose-500 focus:outline-none"
                 />
+                <p className="text-[11px] text-slate-400 mt-1">Default administrator password: <code className="text-rose-700 font-bold">admin2025</code> (or click Confirm directly as logged-in admin)</p>
               </div>
 
               {deleteFeedback && (
@@ -1548,6 +1599,307 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
           </div>
         </div>
       )}
+
+      {/* --- QUICK CHANGE ROLE MODAL --- */}
+      {roleModalTeacher && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 font-black flex items-center justify-center text-sm shrink-0">
+                  <Shield className="w-5 h-5 text-emerald-700" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">Change ROLE</h3>
+                  <p className="text-xs text-slate-500">
+                    Select official system role for <strong>{roleModalTeacher.name}</strong> ({roleModalTeacher.email})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRoleModalTeacher(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Select DepEd Account Role</p>
+              {SYSTEM_ROLES.map((r) => {
+                const isCurrent = (roleModalTeacher.role || 'teacher') === r.id;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => handleDirectRoleChange(roleModalTeacher, r.id)}
+                    className={`w-full p-3.5 rounded-2xl border text-left transition cursor-pointer flex items-center justify-between gap-3 ${
+                      isCurrent
+                        ? 'bg-emerald-50/90 border-emerald-400 ring-2 ring-emerald-600/30 shadow-xs'
+                        : 'bg-white hover:bg-slate-50 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-xs shrink-0 ${r.badgeClass}`}>
+                        {r.code}
+                      </span>
+                      <div>
+                        <p className="text-xs font-extrabold text-slate-900">{r.label}</p>
+                        <p className="text-[10px] text-slate-500 line-clamp-1">{r.description}</p>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">{r.accessLevel}</span>
+                      {isCurrent ? (
+                        <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">
+                          ✓
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-800 text-[10px] font-bold">
+                          Select
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-[11px] text-slate-400 italic">Changes synchronize across admin and teacher portals immediately.</span>
+              <button
+                type="button"
+                onClick={() => setRoleModalTeacher(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- INSPECT TEACHER ACTIVITY & ROSTER MODAL --- */}
+      {inspectActivity && (() => {
+        const t = inspectActivity.teacher;
+        const tEmailNorm = (t.email || '').toLowerCase().trim();
+        const teacherStudents = (students || []).filter((s) => {
+          const sEmail = (s.teacherEmail || (s as any).teacher_email || '').toLowerCase().trim();
+          return Boolean(sEmail && (sEmail === tEmailNorm || storage.isSameTeacherEmail(sEmail, tEmailNorm)));
+        });
+        const teacherStudentIds = new Set(teacherStudents.map((s) => String(s.id)));
+        const teacherSessions = (sessions || []).filter((sess) => {
+          const sessEmail = (sess.teacherEmail || (sess as any).teacher_email || '').toLowerCase().trim();
+          if (sessEmail && (sessEmail === tEmailNorm || storage.isSameTeacherEmail(sessEmail, tEmailNorm))) return true;
+          return Boolean(sess.studentId && teacherStudentIds.has(String(sess.studentId)));
+        });
+        const roleDef = getRoleDefinition(t.role);
+
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full p-6 border border-slate-200 space-y-5 max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-100 text-emerald-800 font-black flex items-center justify-center text-sm shrink-0">
+                    {t.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base font-extrabold text-slate-900">{t.name}</h3>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-xs ${roleDef.badgeClass}`}>
+                        {roleDef.code}
+                      </span>
+                      <span className="text-xs text-slate-400 font-medium">{t.title || 'Teacher I'}</span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-mono mt-0.5">{t.email} • {t.schoolName || 'Ramon Magsaysay (Cubao) High School'}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <FileText className="w-3.5 h-3.5" /> Print Dossier
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInspectActivity(null)}
+                    className="p-1.5 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setInspectActivity({ ...inspectActivity, tab: 'students' })}
+                  className={`px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-2 cursor-pointer ${
+                    inspectActivity.tab === 'students'
+                      ? 'bg-emerald-800 text-yellow-300 shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  <GraduationCap className="w-4 h-4" />
+                  <span>Enrolled Learners ({teacherStudents.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInspectActivity({ ...inspectActivity, tab: 'sessions' })}
+                  className={`px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-2 cursor-pointer ${
+                    inspectActivity.tab === 'sessions'
+                      ? 'bg-emerald-800 text-yellow-300 shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  <Clock className="w-4 h-4" />
+                  <span>Logged Sessions ({teacherSessions.length})</span>
+                </button>
+              </div>
+
+              {/* Tab 1: Enrolled Students */}
+              {inspectActivity.tab === 'students' && (
+                <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                  {teacherStudents.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-slate-400 space-y-2">
+                      <GraduationCap className="w-10 h-10 mx-auto text-slate-300" />
+                      <p className="font-bold text-slate-600">No learners enrolled by this teacher yet.</p>
+                      <p className="text-[11px] text-slate-400">When this faculty member enrolls learners from their account, the roster will sync here automatically.</p>
+                    </div>
+                  ) : (
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px]">
+                          <tr>
+                            <th className="px-4 py-3">Learner Name</th>
+                            <th className="px-3 py-3">Grade & Section</th>
+                            <th className="px-3 py-3">Learning Area</th>
+                            <th className="px-3 py-3">Program</th>
+                            <th className="px-3 py-3 text-center">Baseline</th>
+                            <th className="px-3 py-3 text-center">Status</th>
+                            <th className="px-3 py-3 text-right">Enrolled Date</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-medium">
+                          {teacherStudents.map((s) => (
+                            <tr key={s.id} className="hover:bg-slate-50/70 transition">
+                              <td className="px-4 py-3 font-bold text-slate-900">
+                                {s.lastName}, {s.firstName} {s.middleInitial || ''}
+                              </td>
+                              <td className="px-3 py-3 text-slate-600">{s.gradeLevel} - {s.section}</td>
+                              <td className="px-3 py-3 text-slate-700">{s.subject}</td>
+                              <td className="px-3 py-3">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  s.programType === 'Skills Enhancement'
+                                    ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                                    : 'bg-amber-50 text-amber-800 border border-amber-200'
+                                }`}>
+                                  {s.programType}
+                                </span>
+                              </td>
+                              <td className="px-3 py-3 text-center font-mono font-bold text-slate-800">{s.baselineScore}%</td>
+                              <td className="px-3 py-3 text-center">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  s.status === 'Mastered / Promoted'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : s.status === 'Progressing'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-rose-100 text-rose-800'
+                                }`}>
+                                  {s.status}
+                                </span>
+                              </td>
+                              <td className="px-3 py-3 text-right text-slate-500 font-mono text-[11px]">{s.enrolledDate}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab 2: Logged Sessions */}
+              {inspectActivity.tab === 'sessions' && (
+                <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                  {teacherSessions.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-slate-400 space-y-2">
+                      <Clock className="w-10 h-10 mx-auto text-slate-300" />
+                      <p className="font-bold text-slate-600">No remediation sessions logged by this teacher yet.</p>
+                      <p className="text-[11px] text-slate-400">When sessions are conducted and recorded by this faculty member, they appear here live.</p>
+                    </div>
+                  ) : (
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px]">
+                          <tr>
+                            <th className="px-4 py-3">Date</th>
+                            <th className="px-4 py-3">Learner Name</th>
+                            <th className="px-3 py-3">Focus Competency</th>
+                            <th className="px-3 py-3">Activity & Intervention</th>
+                            <th className="px-3 py-3 text-center">Score / Mastery</th>
+                            <th className="px-3 py-3 text-center">MOVs</th>
+                            <th className="px-4 py-3">Teacher Remarks</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-medium">
+                          {teacherSessions.map((sess) => (
+                            <tr key={sess.id} className="hover:bg-slate-50/70 transition">
+                              <td className="px-4 py-3 font-mono text-slate-600 text-[11px] whitespace-nowrap">{sess.date}</td>
+                              <td className="px-4 py-3 font-bold text-slate-900">{sess.studentName}</td>
+                              <td className="px-3 py-3 text-slate-700 max-w-xs truncate">{sess.focusCompetency}</td>
+                              <td className="px-3 py-3 text-[11px] text-slate-600">
+                                <div>{sess.activityType}</div>
+                                <div className="text-[10px] text-slate-400 italic">{sess.intervention}</div>
+                              </td>
+                              <td className="px-3 py-3 text-center">
+                                <span className="font-bold font-mono text-xs">{sess.score}%</span>
+                                <span className="text-[9px] text-slate-500 block">({sess.rawScore || 0}/{sess.totalItems || 20})</span>
+                              </td>
+                              <td className="px-3 py-3 text-center">
+                                {sess.movs && sess.movs.length > 0 ? (
+                                  <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 text-[10px] font-bold">
+                                    {sess.movs.length} MOV
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400 text-[10px]">—</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-slate-600 max-w-xs truncate text-[11px]">{sess.remarks}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between shrink-0">
+                <span className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Synchronized live from Project S.M.I.L.E. Database
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setInspectActivity(null)}
+                  className="px-5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-extrabold rounded-xl text-xs transition cursor-pointer shadow-xs"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

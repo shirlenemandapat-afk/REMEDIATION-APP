@@ -47,8 +47,8 @@ export const AdminTeacherReports: React.FC<AdminTeacherReportsProps> = ({
       const student = students.find((st) => String(st.id) === String(s.studentId));
       const sEmail = (s.teacherEmail || (s as any).teacher_email || '').toLowerCase().trim();
       const stEmail = (student?.teacherEmail || (student as any)?.teacher_email || '').toLowerCase().trim();
-      const isDirectSessionEmailMatch = Boolean(sEmail && sEmail === tEmailNorm);
-      const isStudentEmailMatch = Boolean(stEmail && stEmail === tEmailNorm);
+      const isDirectSessionEmailMatch = Boolean(sEmail && (sEmail === tEmailNorm || storage.isSameTeacherEmail(sEmail, tEmailNorm)));
+      const isStudentEmailMatch = Boolean(stEmail && (stEmail === tEmailNorm || storage.isSameTeacherEmail(stEmail, tEmailNorm)));
 
       return isDirectSessionEmailMatch || isStudentEmailMatch;
     });

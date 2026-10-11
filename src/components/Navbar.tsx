@@ -156,6 +156,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
 
     storage.saveTeacherProfile(updated);
+    if (updated.email) {
+      storage.adminUpdateUserRole(updated.email, updated.email, effectiveRole).catch(() => {});
+    }
     onUpdateTeacher(updated);
     setSaveSuccess('Teacher profile & official signatories updated successfully!');
     setTimeout(() => {
@@ -592,13 +595,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                     />
                   </div>
 
-                  {/* Official Account Role Identified in Database */}
+                  {/* Official Account Role in Database */}
                   <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
                         <ShieldCheck className="w-4 h-4 text-emerald-700" />
                         <label className="text-xs font-extrabold text-slate-800">
-                          Identified Account Role in Database (<code className="font-mono text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">role</code> column)
+                          ROLE
                         </label>
                       </div>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-xs ${getRoleDefinition(editRole).badgeClass}`}>
@@ -616,11 +619,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                         </span>
                       </div>
                       <select
-                        aria-label="System Role in Database"
+                        aria-label="ROLE in Database"
                         value={editRole}
                         onChange={(e) => setEditRole(e.target.value as UserRole)}
-                        disabled={teacher.email.toLowerCase() === 'admin@projectsmile'}
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-600 disabled:bg-slate-100 disabled:text-slate-400 cursor-pointer shadow-xs"
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-600 cursor-pointer shadow-xs"
                       >
                         <option value="teacher">TEACHER (Classroom & Subject)</option>
                         <option value="admin">ADMIN (System & ICT Administrator)</option>
