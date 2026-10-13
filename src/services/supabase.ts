@@ -508,9 +508,14 @@ export const supabaseService = {
       const cleanEmail = (targetUserEmail || '').toLowerCase().trim();
 
       // 1. Fetch Teacher Profile if target email provided
-      let teacherQuery = cleanEmail
-        ? client.from('teacher_profiles').select('*').ilike('email', cleanEmail).maybeSingle()
-        : client.from('teacher_profiles').select('*').limit(1).maybeSingle();
+      let teacherRes = cleanEmail
+        ? await client.from('teacher_profiles').select('*').ilike('email', cleanEmail).maybeSingle()
+        : await client.from('teacher_profiles').select('*').limit(1).maybeSingle();
+
+      if (!teacherRes?.data && cleanEmail && (cleanEmail.includes('shirlene') || cleanEmail.includes('mandapat'))) {
+        const aliasRes = await client.from('teacher_profiles').select('*').ilike('email', '%shirlene%').limit(1).maybeSingle();
+        if (aliasRes?.data) teacherRes = aliasRes;
+      }
 
       // 2. Fetch all students
       const studentsQuery = client.from('students').select('*').order('last_name', { ascending: true });
@@ -518,8 +523,7 @@ export const supabaseService = {
       // 3. Fetch all session_records without teacher_email filter (since column is on students table)
       const sessionsQuery = client.from('session_records').select('*').order('date', { ascending: false });
 
-      const [teacherRes, studentsRes, sessionsRes] = await Promise.all([
-        teacherQuery,
+      const [studentsRes, sessionsRes] = await Promise.all([
         studentsQuery,
         sessionsQuery,
       ]);
@@ -706,8 +710,6 @@ export const supabaseService = {
         head_teacher_position: teacher.headTeacherPosition || 'Head Teacher III / TLE Department',
         principal_name: teacher.principalName || 'Dr. Maria Luisa T. Ramos',
         principal_position: teacher.principalPosition || 'Secondary School Principal IV',
-        account_status: teacher.accountStatus || 'Active',
-        assigned_subjects: teacher.assignedSubjects || [],
         updated_at: new Date().toISOString(),
       };
 
@@ -717,9 +719,8 @@ export const supabaseService = {
 
       let { error } = await client.from('teacher_profiles').upsert(payload, { onConflict: 'email' });
       if (error) {
-        // If password_hash or assigned_subjects not in schema, retry without them
+        // If password_hash not in schema, retry without it
         delete payload.password_hash;
-        delete payload.assigned_subjects;
         const retry = await client.from('teacher_profiles').upsert(payload, { onConflict: 'email' });
         if (retry.error) console.warn('Supabase upsertTeacher notice:', retry.error.message);
       }

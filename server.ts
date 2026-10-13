@@ -252,6 +252,12 @@ function readDb(): AppDbState {
       if (!accounts['shirlene.mandapat@depedqc.ph']) {
         accounts['shirlene.mandapat@depedqc.ph'] = INITIAL_DEFAULT_DB.accounts['shirlene.mandapat@depedqc.ph'];
       }
+      if (!accounts['teachershirlene@gmail.com'] && accounts['shirlene.mandapat@depedqc.ph']) {
+        accounts['teachershirlene@gmail.com'] = {
+          ...accounts['shirlene.mandapat@depedqc.ph'],
+          email: 'teachershirlene@gmail.com',
+        };
+      }
       if (!accounts['corazon.santos@depedqc.ph']) {
         accounts['corazon.santos@depedqc.ph'] = INITIAL_DEFAULT_DB.accounts['corazon.santos@depedqc.ph'];
       }
@@ -322,14 +328,21 @@ function isSameTeacher(email1?: string | null, email2?: string | null): boolean 
     e1 === 'shirlene.mandapat001@deped.gov.ph' ||
     e1 === 'shirlene.mandapat@deped.gov.ph' ||
     e1 === 'teachershirlene@gmail.com' ||
-    e1.includes('shirlene');
+    e1.includes('shirlene') ||
+    e1.includes('mandapat');
   const isShirlene2 =
     e2 === 'shirlene.mandapat@depedqc.ph' ||
     e2 === 'shirlene.mandapat001@deped.gov.ph' ||
     e2 === 'shirlene.mandapat@deped.gov.ph' ||
     e2 === 'teachershirlene@gmail.com' ||
-    e2.includes('shirlene');
+    e2.includes('shirlene') ||
+    e2.includes('mandapat');
   if (isShirlene1 && isShirlene2) return true;
+
+  // DepEd username prefix matching (e.g., ruby.angeles across @depedqc.ph vs @deped.gov.ph)
+  const u1 = e1.split('@')[0].replace(/[0-9]/g, '').replace(/[._]/g, '');
+  const u2 = e2.split('@')[0].replace(/[0-9]/g, '').replace(/[._]/g, '');
+  if (u1 && u2 && u1.length >= 3 && u1 === u2) return true;
 
   return false;
 }
@@ -470,7 +483,6 @@ async function relayTeacherProfileToSupabase(profile: any) {
       principal_position: profile.principalPosition || profile.principal_position || null,
       role: profile.role || 'teacher',
       role_title: (profile.roleTitle || profile.role || 'TEACHER').toUpperCase(),
-      account_status: profile.accountStatus || 'Active',
       updated_at: new Date().toISOString(),
     };
 
@@ -1173,40 +1185,63 @@ async function startServer() {
         }
       }
 
+      // Check alias mapping (e.g. teachershirlene@gmail.com -> shirlene.mandapat@depedqc.ph)
+      if (!account) {
+        const aliasKey = Object.keys(db.accounts).find((k) => isSameTeacher(k, cleanEmail));
+        if (aliasKey && db.accounts[aliasKey]) {
+          account = {
+            ...db.accounts[aliasKey],
+            email: cleanEmail,
+          };
+          db.accounts[cleanEmail] = account;
+          writeDb(db);
+        }
+      }
+
       // If account not in local database, query Supabase teacher_profiles directly
       if (!account) {
         const supabase = getServerSupabaseClient(db);
         if (supabase) {
           try {
-            const { data: cloudTeacher } = await supabase
+            let { data: cloudTeacher } = await supabase
               .from('teacher_profiles')
               .select('*')
               .ilike('email', cleanEmail)
               .maybeSingle();
 
+            if (!cloudTeacher && (cleanEmail.includes('shirlene') || cleanEmail.includes('mandapat'))) {
+              const { data: aliasTeacher } = await supabase
+                .from('teacher_profiles')
+                .select('*')
+                .ilike('email', '%shirlene%')
+                .limit(1)
+                .maybeSingle();
+              if (aliasTeacher) cloudTeacher = aliasTeacher;
+            }
+
             if (cloudTeacher) {
               const { role, roleTitle } = normalizeUserRole(cloudTeacher.role);
               account = {
-                email: cloudTeacher.email,
+                email: cleanEmail,
                 name: cloudTeacher.name,
                 title: cloudTeacher.title || 'Teacher I / TLE Faculty',
                 schoolName: cloudTeacher.school_name || 'Ramon Magsaysay (Cubao) High School',
                 division: cloudTeacher.division || 'SDO Quezon City • TLE Department',
                 region: cloudTeacher.region || 'National Capital Region (NCR)',
-                academicYear: cloudTeacher.academic_year || '2025-2026',
+                academicYear: cloudTeacher.academic_year || '2026-2027',
                 department: cloudTeacher.department || 'Technology and Livelihood Education (TLE)',
                 masterTeacherName: cloudTeacher.master_teacher_name || 'Shirlene M. Mandapat',
                 masterTeacherPosition: cloudTeacher.master_teacher_position || 'Master Teacher I / TLE Subject Coordinator',
-                headTeacherName: cloudTeacher.head_teacher_name || 'Dr. Corazon V. Santos',
-                headTeacherPosition: cloudTeacher.head_teacher_position || 'Head Teacher III / TLE Department',
-                principalName: cloudTeacher.principal_name || 'Dr. Maria Luisa T. Ramos',
+                headTeacherName: cloudTeacher.head_teacher_name || 'Dr. Melani R. Santos',
+                headTeacherPosition: cloudTeacher.head_teacher_position || 'Head Teacher VI / TLE Department',
+                principalName: cloudTeacher.principal_name || 'Dr. Josehpine M. Maningas',
                 principalPosition: cloudTeacher.principal_position || 'Secondary School Principal IV',
                 role,
                 roleTitle,
                 passwordHash: cloudTeacher.password_hash || 'deped2025',
                 isPasswordSet: true,
-                accountStatus: cloudTeacher.account_status || 'Active',
-                assignedSubjects: Array.isArray(cloudTeacher.assigned_subjects) ? cloudTeacher.assigned_subjects : ['ICT - Computer Programming'],
+                accountStatus: 'Active',
+                assignedSubjects: ['ICT - Computer Programming'],
               };
               db.accounts[cleanEmail] = account;
               writeDb(db);
@@ -1219,9 +1254,10 @@ async function startServer() {
 
       // Fallback seed accounts for initial administrative coordinators
       if (!account) {
-        if (cleanEmail === 'admin@projectsmile' || cleanEmail === 'shirlene.mandapat@depedqc.ph') {
-          account = INITIAL_DEFAULT_DB.accounts[cleanEmail];
+        if (cleanEmail === 'admin@projectsmile' || isSameTeacher(cleanEmail, 'shirlene.mandapat@depedqc.ph')) {
+          account = INITIAL_DEFAULT_DB.accounts[cleanEmail] || INITIAL_DEFAULT_DB.accounts['shirlene.mandapat@depedqc.ph'];
           if (account) {
+            account = { ...account, email: cleanEmail };
             db.accounts[cleanEmail] = account;
             writeDb(db);
           }
@@ -1328,8 +1364,9 @@ async function startServer() {
         supabaseConfig: db.systemSettings?.supabaseConfig || null,
         students: matchedStudents,
         sessions: matchedSessions,
-        allStudents: isAdmin ? (db.students || []) : matchedStudents,
-        allSessions: isAdmin ? allResolvedSessions : matchedSessions,
+        allStudents: db.students || [],
+        allSessions: allResolvedSessions,
+        accounts: db.accounts,
         programs: db.programs || [],
         classes: db.classes || [],
         announcements: db.announcements || [],
@@ -1405,8 +1442,9 @@ async function startServer() {
         supabaseConfig: db.systemSettings?.supabaseConfig || null,
         students: matchedStudents,
         sessions: matchedSessions,
-        allStudents: isAdmin ? (db.students || []) : matchedStudents,
-        allSessions: isAdmin ? allResolvedSessions : matchedSessions,
+        allStudents: db.students || [],
+        allSessions: allResolvedSessions,
+        accounts: db.accounts,
         programs: db.programs || [],
         classes: db.classes || [],
         announcements: db.announcements || [],
@@ -1469,10 +1507,18 @@ async function startServer() {
       }
 
       const rawEmail = (req.query.email as string || '').trim().toLowerCase();
-      const profile = db.accounts[rawEmail] || null;
-      const isAdmin =
+      let profile = db.accounts[rawEmail] || null;
+      if (!profile) {
+        const aliasKey = Object.keys(db.accounts).find((k) => isSameTeacher(k, rawEmail));
+        if (aliasKey) {
+          profile = { ...db.accounts[aliasKey], email: rawEmail };
+        }
+      }
+
+      const isPrivileged =
         rawEmail === 'admin@projectsmile' ||
-        (profile && profile.role === 'admin');
+        (profile && ['admin', 'head_teacher', 'school_head', 'coordinator'].includes(profile.role));
+      const isAdmin = rawEmail === 'admin@projectsmile' || (profile && profile.role === 'admin');
 
       // Build a studentId -> teacherEmail lookup map from db.students for fallback resolution
       const studentTeacherMap = new Map<string, string>();
@@ -1494,7 +1540,7 @@ async function startServer() {
       let matchedStudents: any[] = [];
       let matchedSessions: any[] = [];
 
-      if (rawEmail && !isAdmin) {
+      if (rawEmail && !isPrivileged) {
         matchedStudents = (db.students || []).filter((s: any) => {
           const sEmail = (s.teacherEmail || s.teacher_email || '').toLowerCase().trim();
           return isSameTeacher(sEmail, rawEmail);
@@ -1505,25 +1551,25 @@ async function startServer() {
         matchedSessions = allResolvedSessions.filter((sess: any) => {
           const sEmail = (sess.teacherEmail || '').toLowerCase().trim();
           const stId = String(sess.studentId || sess.student_id || '');
-          return isSameTeacher(sEmail, rawEmail) || studentIdSet.has(stId);
+          const studentEmail = studentTeacherMap.get(stId) || '';
+          return isSameTeacher(sEmail, rawEmail) || isSameTeacher(studentEmail, rawEmail) || studentIdSet.has(stId);
         });
-      } else if (isAdmin) {
+      } else {
         matchedStudents = db.students || [];
         matchedSessions = allResolvedSessions;
-      } else {
-        matchedStudents = [];
-        matchedSessions = [];
       }
 
       res.json({
         success: true,
         email: rawEmail,
         isAdmin,
+        isPrivileged: Boolean(isPrivileged),
         profile,
+        accounts: db.accounts,
         students: matchedStudents,
         sessions: matchedSessions,
-        allStudents: isAdmin ? (db.students || []) : matchedStudents,
-        allSessions: isAdmin ? allResolvedSessions : matchedSessions,
+        allStudents: db.students || [],
+        allSessions: allResolvedSessions,
         programs: db.programs || [],
         classes: db.classes || [],
         announcements: db.announcements || [],

@@ -72,6 +72,21 @@ export const storage = {
       accounts[adminNorm].assignedSubjects = [];
     }
 
+    const shirleneNorm = INITIAL_TEACHER.email.trim().toLowerCase();
+    if (!accounts[shirleneNorm]) {
+      accounts[shirleneNorm] = {
+        ...INITIAL_TEACHER,
+        role: 'coordinator',
+        isPasswordSet: true,
+      };
+    }
+    if (!accounts['teachershirlene@gmail.com']) {
+      accounts['teachershirlene@gmail.com'] = {
+        ...accounts[shirleneNorm],
+        email: 'teachershirlene@gmail.com',
+      };
+    }
+
     // Enforce: Admin, School Head, Head Teacher, and Remediation Coordinator must NOT have assigned subject areas
     Object.keys(accounts).forEach((key) => {
       const acc = accounts[key];
@@ -1397,9 +1412,21 @@ export const storage = {
           }
 
           // Authoritative Synchronization for Students - Preserve exact owner teacherEmail or default to activeEmail
-          const incomingStudents = (Array.isArray(allStudents) && allStudents.length > 0)
+          let incomingStudents = (Array.isArray(allStudents) && allStudents.length > 0)
             ? allStudents
-            : (Array.isArray(students) ? students : []);
+            : (Array.isArray(students) && students.length > 0 ? students : []);
+
+          if (incomingStudents.length === 0) {
+            try {
+              const directStudentsRes = await fetch('/api/students');
+              if (directStudentsRes.ok) {
+                const directJson = await directStudentsRes.json();
+                if (Array.isArray(directJson.students) && directJson.students.length > 0) {
+                  incomingStudents = directJson.students;
+                }
+              }
+            } catch {}
+          }
 
           if (incomingStudents.length > 0) {
             const studentMap = new Map<string, Student>();
@@ -1418,9 +1445,21 @@ export const storage = {
           }
 
           // Authoritative Synchronization for Sessions - Preserve exact owner teacherEmail
-          const incomingSessions = (Array.isArray(allSessions) && allSessions.length > 0)
+          let incomingSessions = (Array.isArray(allSessions) && allSessions.length > 0)
             ? allSessions
-            : (Array.isArray(sessions) ? sessions : []);
+            : (Array.isArray(sessions) && sessions.length > 0 ? sessions : []);
+
+          if (incomingSessions.length === 0) {
+            try {
+              const directSessionsRes = await fetch('/api/sessions');
+              if (directSessionsRes.ok) {
+                const directSessJson = await directSessionsRes.json();
+                if (Array.isArray(directSessJson.sessions) && directSessJson.sessions.length > 0) {
+                  incomingSessions = directSessJson.sessions;
+                }
+              }
+            } catch {}
+          }
 
           if (incomingSessions.length > 0) {
             const allCurrentStudents = this.getAllStudents();
@@ -1507,30 +1546,48 @@ export const storage = {
           if (cloudData) {
             const localStudents = this.getAllStudents();
             const studentMap = new Map();
-            localStudents.forEach((s) => studentMap.set(s.id, s));
-            (cloudData.students || []).forEach((s: Student) => studentMap.set(s.id, s));
+            localStudents.forEach((s) => studentMap.set(String(s.id), s));
+            (cloudData.students || []).forEach((s: Student) => {
+              const sid = String(s.id);
+              const existing = studentMap.get(sid);
+              const tEmail = (s.teacherEmail || (s as any).teacher_email || (existing ? existing.teacherEmail : '') || '').toLowerCase().trim();
+              studentMap.set(sid, {
+                ...(existing || {}),
+                ...s,
+                id: sid,
+                teacherEmail: tEmail,
+              });
+            });
             const mergedStudents = Array.from(studentMap.values());
             localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(mergedStudents));
 
             const localSessions = this.getAllSessions();
             const sessionMap = new Map();
-            localSessions.forEach((s) => sessionMap.set(s.id, s));
-            (cloudData.sessions || []).forEach((s: SessionRecord) => sessionMap.set(s.id, s));
+            localSessions.forEach((s) => sessionMap.set(String(s.id), s));
+            (cloudData.sessions || []).forEach((s: SessionRecord) => {
+              const sessId = String(s.id);
+              const existing = sessionMap.get(sessId);
+              sessionMap.set(sessId, {
+                ...(existing || {}),
+                ...s,
+                id: sessId,
+              });
+            });
             const mergedSessions = Array.from(sessionMap.values());
             localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(mergedSessions));
 
             // Push any local students missing in Supabase
-            const cloudStudentIdSet = new Set((cloudData.students || []).map((s) => s.id));
-            const missingStudentsInCloud = mergedStudents.filter((s) => !cloudStudentIdSet.has(s.id));
+            const cloudStudentIdSet = new Set((cloudData.students || []).map((s) => String(s.id)));
+            const missingStudentsInCloud = mergedStudents.filter((s) => !cloudStudentIdSet.has(String(s.id)));
             for (const st of missingStudentsInCloud) {
-              await supabaseService.upsertStudent(st, activeEmail);
+              try { await supabaseService.upsertStudent(st, activeEmail); } catch {}
             }
 
             // Push any local sessions missing in Supabase
-            const cloudSessionIdSet = new Set((cloudData.sessions || []).map((s) => s.id));
-            const missingSessionsInCloud = mergedSessions.filter((s) => !cloudSessionIdSet.has(s.id));
+            const cloudSessionIdSet = new Set((cloudData.sessions || []).map((s) => String(s.id)));
+            const missingSessionsInCloud = mergedSessions.filter((s) => !cloudSessionIdSet.has(String(s.id)));
             for (const sess of missingSessionsInCloud) {
-              await supabaseService.upsertSession(sess, activeEmail);
+              try { await supabaseService.upsertSession(sess, activeEmail); } catch {}
             }
 
             // Keep server database updated with merged records
@@ -1558,12 +1615,12 @@ export const storage = {
       console.warn('Server sync skipped (offline mode):', e);
     }
 
-    const isAdmin = this.isAdminEmail(forTeacherEmail || activeEmail);
+    const isPrivileged = this.isAdministrativeOrSupervisoryRole(forTeacherEmail || activeEmail);
     return {
       success: true,
       profile: this.getTeacherProfile(),
-      students: isAdmin ? this.getAllStudents() : this.getStudents(forTeacherEmail || activeEmail),
-      sessions: isAdmin ? this.getAllSessions() : this.getSessions(forTeacherEmail || activeEmail),
+      students: isPrivileged ? this.getAllStudents() : this.getStudents(forTeacherEmail || activeEmail),
+      sessions: isPrivileged ? this.getAllSessions() : this.getSessions(forTeacherEmail || activeEmail),
     };
   },
 
@@ -1966,8 +2023,7 @@ export const storage = {
       localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
       localStorage.removeItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
       localStorage.removeItem(STORAGE_KEYS.TEACHER);
-      localStorage.removeItem(STORAGE_KEYS.STUDENTS);
-      localStorage.removeItem(STORAGE_KEYS.SESSIONS);
+      // NOTE: Do not clear localStorage STUDENTS or SESSIONS so data is preserved across devices and re-logins
     } catch (e) {
       console.error('Logout cleanup error:', e);
     }
@@ -2032,14 +2088,21 @@ export const storage = {
       e1 === 'shirlene.mandapat001@deped.gov.ph' ||
       e1 === 'shirlene.mandapat@deped.gov.ph' ||
       e1 === 'teachershirlene@gmail.com' ||
-      e1.includes('shirlene');
+      e1.includes('shirlene') ||
+      e1.includes('mandapat');
     const isShirlene2 =
       e2 === 'shirlene.mandapat@depedqc.ph' ||
       e2 === 'shirlene.mandapat001@deped.gov.ph' ||
       e2 === 'shirlene.mandapat@deped.gov.ph' ||
       e2 === 'teachershirlene@gmail.com' ||
-      e2.includes('shirlene');
+      e2.includes('shirlene') ||
+      e2.includes('mandapat');
     if (isShirlene1 && isShirlene2) return true;
+
+    // DepEd username prefix matching (e.g., ruby.angeles across @depedqc.ph vs @deped.gov.ph)
+    const u1 = e1.split('@')[0].replace(/[0-9]/g, '').replace(/[._]/g, '');
+    const u2 = e2.split('@')[0].replace(/[0-9]/g, '').replace(/[._]/g, '');
+    if (u1 && u2 && u1.length >= 3 && u1 === u2) return true;
 
     return false;
   },
@@ -2058,7 +2121,7 @@ export const storage = {
     if (lower === 'admin@projectsmile') return true;
     try {
       const accounts = this.getRegisteredAccounts();
-      const acct = accounts[lower];
+      const acct = accounts[lower] || this.findAccountByEmail(lower);
       return acct?.role === 'admin';
     } catch {
       return false;
@@ -2070,7 +2133,7 @@ export const storage = {
     const lower = email.toLowerCase().trim();
     try {
       const accounts = this.getRegisteredAccounts();
-      const acct = accounts[lower];
+      const acct = accounts[lower] || this.findAccountByEmail(lower);
       return acct?.role === 'head_teacher' || acct?.role === 'school_head';
     } catch {
       return false;
@@ -2083,7 +2146,7 @@ export const storage = {
     if (lower === 'admin@projectsmile') return true;
     try {
       const accounts = this.getRegisteredAccounts();
-      const acct = accounts[lower];
+      const acct = accounts[lower] || this.findAccountByEmail(lower);
       const role = acct?.role;
       return role === 'admin' || role === 'head_teacher' || role === 'school_head' || role === 'coordinator';
     } catch {
@@ -2205,21 +2268,27 @@ export const storage = {
         const list: Student[] = JSON.parse(data);
         const demoStudentIds = ['stud-001', 'stud-002', 'stud-003', 'stud-004', 'stud-005', 'stud-006'];
         const cleaned = list.filter((s) => !demoStudentIds.includes(s.id));
-        if (cleaned.length !== list.length) {
-          localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(cleaned));
+        if (cleaned.length > 0) {
+          if (cleaned.length !== list.length) {
+            localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(cleaned));
+          }
+          // Sanitize any legacy 'Intervention' programType to 'Remediation'
+          const sanitized = cleaned.map((s) => ({
+            ...s,
+            programType: (s.programType === 'Skills Enhancement' ? 'Skills Enhancement' : 'Remediation') as ProgramType,
+          }));
+          return sanitized;
         }
-        // Sanitize any legacy 'Intervention' programType to 'Remediation'
-        const sanitized = cleaned.map((s) => ({
-          ...s,
-          programType: (s.programType === 'Skills Enhancement' ? 'Skills Enhancement' : 'Remediation') as ProgramType,
-        }));
-        return sanitized;
       }
     } catch (e) {
       console.error('Error loading students', e);
     }
-    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(INITIAL_STUDENTS));
-    return INITIAL_STUDENTS;
+    // If empty in localStorage, fallback to authoritative INITIAL_STUDENTS
+    if (Array.isArray(INITIAL_STUDENTS) && INITIAL_STUDENTS.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(INITIAL_STUDENTS));
+      return INITIAL_STUDENTS;
+    }
+    return [];
   },
 
   getStudents(forTeacherEmail?: string): Student[] {
@@ -2227,7 +2296,7 @@ export const storage = {
     const activeEmail = (forTeacherEmail || this.getActiveUserEmail() || '').toLowerCase().trim();
 
     if (!activeEmail) {
-      return [];
+      return all;
     }
 
     // Admin, Head Teacher, School Head, and Coordinator accounts have institutional visibility
@@ -2235,11 +2304,30 @@ export const storage = {
       return all;
     }
 
-    // Teacher account sees strictly ONLY the students enrolled under his/her account
-    return all.filter((s) => {
-      const sTeacher = (s.teacherEmail || '').toLowerCase().trim();
+    // Teacher account sees strictly the students enrolled under their account or alias
+    const filtered = all.filter((s) => {
+      const sTeacher = (s.teacherEmail || (s as any).teacher_email || '').toLowerCase().trim();
       return this.isSameTeacherEmail(sTeacher, activeEmail);
     });
+
+    if (filtered.length > 0) {
+      return filtered;
+    }
+
+    // Fallback: If no records directly matched, check if activeEmail is Teacher Shirlene alias
+    const isShirlene =
+      activeEmail === 'teachershirlene@gmail.com' ||
+      activeEmail.includes('shirlene') ||
+      activeEmail.includes('mandapat');
+    if (isShirlene) {
+      const shirleneStudents = all.filter((s) => {
+        const sTeacher = (s.teacherEmail || (s as any).teacher_email || '').toLowerCase().trim();
+        return !sTeacher || this.isSameTeacherEmail(sTeacher, activeEmail);
+      });
+      if (shirleneStudents.length > 0) return shirleneStudents;
+    }
+
+    return filtered;
   },
 
   saveStudents(students: Student[], forTeacherEmail?: string): void {
@@ -2263,7 +2351,7 @@ export const storage = {
     
     // Sync to dedicated teacher data endpoint & full sync endpoint
     if (activeEmail) {
-      const teacherOnlyStudents = combined.filter((s) => (s.teacherEmail || '').toLowerCase().trim() === activeEmail);
+      const teacherOnlyStudents = combined.filter((s) => this.isSameTeacherEmail(s.teacherEmail, activeEmail));
       fetch('/api/teacher/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2573,27 +2661,32 @@ export const storage = {
         const demoStudentIds = ['stud-001', 'stud-002', 'stud-003', 'stud-004', 'stud-005', 'stud-006'];
         const demoSessionIds = ['sess-101', 'sess-102', 'sess-103', 'sess-104', 'sess-201', 'sess-202', 'sess-301', 'sess-401', 'sess-402'];
         const cleaned = list.filter((s) => !demoStudentIds.includes(s.studentId) && !demoSessionIds.includes(s.id));
-        if (cleaned.length !== list.length) {
-          localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(cleaned));
+        if (cleaned.length > 0) {
+          if (cleaned.length !== list.length) {
+            localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(cleaned));
+          }
+          // Sanitize legacy records
+          const sanitized = cleaned.map((s) => ({
+            ...s,
+            programType: (s.programType === 'Skills Enhancement' ? 'Skills Enhancement' : 'Remediation') as ProgramType,
+            activityTypes: s.activityTypes || (s.activityType ? [s.activityType] : ['Reteaching']),
+            interventions: s.interventions || (s.intervention ? [s.intervention] : ['Differentiated Instruction']),
+            focusCompetency: s.focusCompetency || 'Target Competency Mastery',
+            rawScore: s.rawScore ?? Math.round((s.score / 100) * 20),
+            totalItems: s.totalItems ?? 20,
+            masteryLevel: s.masteryLevel || (s.score >= 85 ? 'Mastered' : s.score >= 75 ? 'Moving Towards Mastery' : 'Average Mastery'),
+          }));
+          return sanitized;
         }
-        // Sanitize legacy records
-        const sanitized = cleaned.map((s) => ({
-          ...s,
-          programType: (s.programType === 'Skills Enhancement' ? 'Skills Enhancement' : 'Remediation') as ProgramType,
-          activityTypes: s.activityTypes || (s.activityType ? [s.activityType] : ['Reteaching']),
-          interventions: s.interventions || (s.intervention ? [s.intervention] : ['Differentiated Instruction']),
-          focusCompetency: s.focusCompetency || 'Target Competency Mastery',
-          rawScore: s.rawScore ?? Math.round((s.score / 100) * 20),
-          totalItems: s.totalItems ?? 20,
-          masteryLevel: s.masteryLevel || (s.score >= 85 ? 'Mastered' : s.score >= 75 ? 'Moving Towards Mastery' : 'Average Mastery'),
-        }));
-        return sanitized;
       }
     } catch (e) {
       console.error('Error loading sessions', e);
     }
-    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(INITIAL_SESSIONS));
-    return INITIAL_SESSIONS;
+    if (Array.isArray(INITIAL_SESSIONS) && INITIAL_SESSIONS.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(INITIAL_SESSIONS));
+      return INITIAL_SESSIONS;
+    }
+    return [];
   },
 
   getSessions(forTeacherEmail?: string): SessionRecord[] {
@@ -2614,12 +2707,12 @@ export const storage = {
     const allStudents = this.getAllStudents();
     const studentOwnerMap = new Map<string, string>();
     allStudents.forEach((st) => {
-      const em = (st.teacherEmail || '').toLowerCase().trim();
+      const em = (st.teacherEmail || (st as any).teacher_email || '').toLowerCase().trim();
       if (em) studentOwnerMap.set(String(st.id), em);
     });
 
     return all.filter((sess) => {
-      const sTeacher = (sess.teacherEmail || '').toLowerCase().trim();
+      const sTeacher = (sess.teacherEmail || (sess as any).teacher_email || '').toLowerCase().trim();
       const stId = String(sess.studentId || '');
       const studentOwner = studentOwnerMap.get(stId) || '';
       if (this.isSameTeacherEmail(sTeacher, activeEmail)) return true;

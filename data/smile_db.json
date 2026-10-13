@@ -76,50 +76,6 @@
     }
   ],
   "accounts": {
-    "corazon.santos@depedqc.ph": {
-      "email": "corazon.santos@depedqc.ph",
-      "passwordHash": "head2025",
-      "isPasswordSet": true,
-      "role": "head_teacher",
-      "roleTitle": "HEAD TEACHER",
-      "accountStatus": "Active",
-      "name": "Dr. Corazon V. Santos",
-      "title": "Head Teacher III / TLE Department Head",
-      "schoolName": "Ramon Magsaysay (Cubao) High School",
-      "division": "SDO Quezon City • TLE Department",
-      "region": "National Capital Region (NCR)",
-      "academicYear": "2025-2026",
-      "department": "Technology and Livelihood Education (TLE)",
-      "assignedSubjects": [],
-      "reportsSubmissionStatus": "Submitted",
-      "registeredAt": "2025-06-10",
-      "lastLoginAt": "",
-      "headTeacherName": "Dr. Corazon V. Santos",
-      "headTeacherPosition": "Head Teacher III / TLE Department",
-      "principalName": "Dr. Maria Luisa T. Ramos",
-      "principalPosition": "Secondary School Principal IV"
-    },
-    "marialuisa.ramos@depedqc.ph": {
-      "email": "marialuisa.ramos@depedqc.ph",
-      "passwordHash": "principal2025",
-      "isPasswordSet": true,
-      "role": "school_head",
-      "roleTitle": "SCHOOL HEAD",
-      "accountStatus": "Active",
-      "name": "Dr. Maria Luisa T. Ramos",
-      "title": "Secondary School Principal IV",
-      "schoolName": "Ramon Magsaysay (Cubao) High School",
-      "division": "SDO Quezon City • TLE Department",
-      "region": "National Capital Region (NCR)",
-      "academicYear": "2025-2026",
-      "department": "Technology and Livelihood Education (TLE)",
-      "assignedSubjects": [],
-      "reportsSubmissionStatus": "Submitted",
-      "registeredAt": "2025-06-01",
-      "lastLoginAt": "",
-      "principalName": "Dr. Maria Luisa T. Ramos",
-      "principalPosition": "Secondary School Principal IV"
-    },
     "shirlene.mandapat@depedqc.ph": {
       "title": "Teacher II",
       "schoolName": "Ramon Magsaysay (Cubao) High School",
@@ -144,7 +100,7 @@
       "isPasswordSet": true,
       "name": "Shirlene Mandapat-Tindoc",
       "registeredAt": "2025-06-15",
-      "lastLoginAt": "10/13/2026, 1:35:39 AM",
+      "lastLoginAt": "10/13/2026, 1:55:05 AM",
       "roleTitle": "TEACHER"
     },
     "admin@projectsmile": {
@@ -174,6 +130,44 @@
       "masterTeacherName": "Shirlene M. Mandapat",
       "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator"
     },
+    "corazon.santos@depedqc.ph": {
+      "email": "corazon.santos@depedqc.ph",
+      "passwordHash": "head2025",
+      "isPasswordSet": true,
+      "role": "head_teacher",
+      "roleTitle": "HEAD TEACHER",
+      "accountStatus": "Active",
+      "name": "Dr. Corazon V. Santos",
+      "title": "Head Teacher III / TLE Department Head",
+      "schoolName": "Ramon Magsaysay (Cubao) High School",
+      "division": "SDO Quezon City • TLE Department",
+      "region": "National Capital Region (NCR)",
+      "academicYear": "2025-2026",
+      "department": "Technology and Livelihood Education (TLE)",
+      "assignedSubjects": [],
+      "reportsSubmissionStatus": "Submitted",
+      "registeredAt": "2025-06-10",
+      "lastLoginAt": ""
+    },
+    "marialuisa.ramos@depedqc.ph": {
+      "email": "marialuisa.ramos@depedqc.ph",
+      "passwordHash": "principal2025",
+      "isPasswordSet": true,
+      "role": "school_head",
+      "roleTitle": "SCHOOL HEAD",
+      "accountStatus": "Active",
+      "name": "Dr. Maria Luisa T. Ramos",
+      "title": "Secondary School Principal IV",
+      "schoolName": "Ramon Magsaysay (Cubao) High School",
+      "division": "SDO Quezon City • TLE Department",
+      "region": "National Capital Region (NCR)",
+      "academicYear": "2025-2026",
+      "department": "Technology and Livelihood Education (TLE)",
+      "assignedSubjects": [],
+      "reportsSubmissionStatus": "Submitted",
+      "registeredAt": "2025-06-01",
+      "lastLoginAt": ""
+    },
     "alain.invierno@depedqc.ph": {
       "email": "alain.invierno@depedqc.ph",
       "name": "Alain D. Invierno",
@@ -183,20 +177,17 @@
       "region": "National Capital Region (NCR)",
       "academicYear": "2026-2027",
       "department": "Technology and Livelihood Education (TLE)",
-      "role": "teacher",
-      "roleTitle": "TEACHER",
-      "passwordHash": "deped2025",
-      "isPasswordSet": true,
-      "accountStatus": "Active",
-      "assignedSubjects": [
-        "ICT - Computer Programming"
-      ],
       "masterTeacherName": "Cerille Joseph  Reyes",
       "masterTeacherPosition": "Master Teacher I",
       "headTeacherName": "Dr. Melani R. Santos",
       "headTeacherPosition": "Head Teacher VI / TLE Department",
       "principalName": "Dr. Josehpine M. Maningas",
-      "principalPosition": "Secondary School Principal IV"
+      "principalPosition": "Secondary School Principal IV",
+      "role": "teacher",
+      "roleTitle": "TEACHER",
+      "passwordHash": "deped2025",
+      "accountStatus": "Active",
+      "isPasswordSet": true
     },
     "ryan.varona001@deped.gov.ph": {
       "email": "ryan.varona001@deped.gov.ph",
@@ -207,20 +198,17 @@
       "region": "National Capital Region (NCR)",
       "academicYear": "2025-2026",
       "department": "Technology and Livelihood Education (TLE)",
-      "role": "teacher",
-      "roleTitle": "TEACHER",
-      "passwordHash": "deped2025",
-      "isPasswordSet": true,
-      "accountStatus": "Active",
-      "assignedSubjects": [
-        "ICT - Computer Programming"
-      ],
       "masterTeacherName": "Shirlene M. Mandapat",
       "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator",
       "headTeacherName": "Dr. Corazon V. Santos",
       "headTeacherPosition": "Head Teacher III / TLE Department",
       "principalName": "Dr. Maria Luisa T. Ramos",
-      "principalPosition": "Secondary School Principal IV"
+      "principalPosition": "Secondary School Principal IV",
+      "role": "teacher",
+      "roleTitle": "TEACHER",
+      "passwordHash": "deped2025",
+      "accountStatus": "Active",
+      "isPasswordSet": true
     },
     "arnold.faustino001@depedqc.ph": {
       "email": "arnold.faustino001@depedqc.ph",
@@ -231,20 +219,17 @@
       "region": "National Capital Region (NCR)",
       "academicYear": "2025-2026",
       "department": "Technology and Livelihood Education (TLE)",
-      "role": "teacher",
-      "roleTitle": "TEACHER",
-      "passwordHash": "deped2025",
-      "isPasswordSet": true,
-      "accountStatus": "Active",
-      "assignedSubjects": [
-        "ICT - Computer Programming"
-      ],
       "masterTeacherName": "Shirlene M. Mandapat",
       "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator",
       "headTeacherName": "Dr. Corazon V. Santos",
       "headTeacherPosition": "Head Teacher III / TLE Department",
       "principalName": "Dr. Maria Luisa T. Ramos",
-      "principalPosition": "Secondary School Principal IV"
+      "principalPosition": "Secondary School Principal IV",
+      "role": "teacher",
+      "roleTitle": "TEACHER",
+      "passwordHash": "deped2025",
+      "accountStatus": "Active",
+      "isPasswordSet": true
     },
     "rosalie.ibay@depedqc.ph": {
       "email": "rosalie.ibay@depedqc.ph",
@@ -255,20 +240,17 @@
       "region": "National Capital Region (NCR)",
       "academicYear": "2025-2026",
       "department": "Technology and Livelihood Education (TLE)",
-      "role": "teacher",
-      "roleTitle": "TEACHER",
-      "passwordHash": "deped2025",
-      "isPasswordSet": true,
-      "accountStatus": "Active",
-      "assignedSubjects": [
-        "ICT - Computer Programming"
-      ],
       "masterTeacherName": "Shirlene M. Mandapat",
       "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator",
       "headTeacherName": "Dr. Corazon V. Santos",
       "headTeacherPosition": "Head Teacher III / TLE Department",
       "principalName": "Dr. Maria Luisa T. Ramos",
-      "principalPosition": "Secondary School Principal IV"
+      "principalPosition": "Secondary School Principal IV",
+      "role": "teacher",
+      "roleTitle": "TEACHER",
+      "passwordHash": "deped2025",
+      "accountStatus": "Active",
+      "isPasswordSet": true
     },
     "brenda.bancolita@depedqc.ph": {
       "email": "brenda.bancolita@depedqc.ph",
@@ -279,20 +261,17 @@
       "region": "National Capital Region (NCR)",
       "academicYear": "2025-2026",
       "department": "Technology and Livelihood Education (TLE)",
-      "role": "teacher",
-      "roleTitle": "TEACHER",
-      "passwordHash": "deped2025",
-      "isPasswordSet": true,
-      "accountStatus": "Active",
-      "assignedSubjects": [
-        "ICT - Computer Programming"
-      ],
       "masterTeacherName": "Cerille Joseph M. Reyes",
       "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator",
       "headTeacherName": "Dr. Melani R. Santos",
       "headTeacherPosition": "Head Teacher VI / TLE Department",
       "principalName": "Josehpine M. Maniñgas, PhD",
-      "principalPosition": "Secondary School Principal IV"
+      "principalPosition": "Secondary School Principal IV",
+      "role": "teacher",
+      "roleTitle": "TEACHER",
+      "passwordHash": "deped2025",
+      "accountStatus": "Active",
+      "isPasswordSet": true
     },
     "melani.santos@deped.gov.ph": {
       "email": "melani.santos@deped.gov.ph",
@@ -303,18 +282,15 @@
       "region": "National Capital Region (NCR)",
       "academicYear": "2025-2026",
       "department": "Technology and Livelihood Education (TLE)",
-      "role": "head_teacher",
-      "roleTitle": "HEAD TEACHER",
-      "passwordHash": "head2025",
-      "isPasswordSet": true,
-      "accountStatus": "Active",
-      "assignedSubjects": [
-        "ICT - Computer Programming"
-      ],
       "headTeacherName": "Dr. Corazon V. Santos",
       "headTeacherPosition": "Head Teacher III / TLE Department Head",
       "principalName": "Dr. Maria Luisa T. Ramos",
-      "principalPosition": "Secondary School Principal IV"
+      "principalPosition": "Secondary School Principal IV",
+      "role": "head_teacher",
+      "roleTitle": "HEAD TEACHER",
+      "passwordHash": "head2025",
+      "accountStatus": "Active",
+      "isPasswordSet": true
     },
     "ace.reyes@depedqc.ph": {
       "email": "ace.reyes@depedqc.ph",
@@ -325,20 +301,17 @@
       "region": "National Capital Region (NCR)",
       "academicYear": "2025-2026",
       "department": "Technology and Livelihood Education (TLE)",
-      "role": "teacher",
-      "roleTitle": "TEACHER",
-      "passwordHash": "deped2025",
-      "isPasswordSet": true,
-      "accountStatus": "Active",
-      "assignedSubjects": [
-        "ICT - Computer Programming"
-      ],
       "masterTeacherName": "Shirlene M. Mandapat",
       "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator",
       "headTeacherName": "Dr. Corazon V. Santos",
       "headTeacherPosition": "Head Teacher III / TLE Department",
       "principalName": "Dr. Maria Luisa T. Ramos",
-      "principalPosition": "Secondary School Principal IV"
+      "principalPosition": "Secondary School Principal IV",
+      "role": "teacher",
+      "roleTitle": "TEACHER",
+      "passwordHash": "deped2025",
+      "accountStatus": "Active",
+      "isPasswordSet": true
     },
     "maricel.coniconde@deped.gov.ph": {
       "email": "maricel.coniconde@deped.gov.ph",
@@ -349,21 +322,17 @@
       "region": "National Capital Region (NCR)",
       "academicYear": "2025-2026",
       "department": "Technology and Livelihood Education (TLE)",
-      "role": "teacher",
-      "roleTitle": "TEACHER",
-      "passwordHash": "deped2025",
-      "isPasswordSet": true,
-      "accountStatus": "Active",
-      "assignedSubjects": [
-        "ICT - Computer Programming"
-      ],
       "masterTeacherName": "Shirlene M. Mandapat",
       "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator",
       "headTeacherName": "Dr. Corazon V. Santos",
       "headTeacherPosition": "Head Teacher III / TLE Department",
       "principalName": "Dr. Maria Luisa T. Ramos",
       "principalPosition": "Secondary School Principal IV",
-      "lastLoginAt": "10/13/2026, 1:35:52 AM"
+      "role": "teacher",
+      "roleTitle": "TEACHER",
+      "passwordHash": "deped2025",
+      "accountStatus": "Active",
+      "isPasswordSet": true
     },
     "evangeline.jones001@depedqc.ph": {
       "email": "evangeline.jones001@depedqc.ph",
@@ -374,20 +343,17 @@
       "region": "National Capital Region (NCR)",
       "academicYear": "2025-2026",
       "department": "Technology and Livelihood Education (TLE)",
-      "role": "teacher",
-      "roleTitle": "TEACHER",
-      "passwordHash": "deped2025",
-      "isPasswordSet": true,
-      "accountStatus": "Active",
-      "assignedSubjects": [
-        "ICT - Computer Programming"
-      ],
       "masterTeacherName": "Shirlene M. Mandapat",
       "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator",
       "headTeacherName": "Dr. Corazon V. Santos",
       "headTeacherPosition": "Head Teacher III / TLE Department",
       "principalName": "Dr. Maria Luisa T. Ramos",
-      "principalPosition": "Secondary School Principal IV"
+      "principalPosition": "Secondary School Principal IV",
+      "role": "teacher",
+      "roleTitle": "TEACHER",
+      "passwordHash": "deped2025",
+      "accountStatus": "Active",
+      "isPasswordSet": true
     },
     "jeymar.bacaron@depedqc.ph": {
       "email": "jeymar.bacaron@depedqc.ph",
@@ -398,20 +364,17 @@
       "region": "National Capital Region (NCR)",
       "academicYear": "2025-2026",
       "department": "Technology and Livelihood Education (TLE)",
-      "role": "teacher",
-      "roleTitle": "TEACHER",
-      "passwordHash": "deped2025",
-      "isPasswordSet": true,
-      "accountStatus": "Active",
-      "assignedSubjects": [
-        "ICT - Computer Programming"
-      ],
       "masterTeacherName": "DR. MARICEL A. CONICONDE",
       "masterTeacherPosition": "Master Teacher I / TLE",
       "headTeacherName": "MELANI R.SANTOS, PhD",
       "headTeacherPosition": "Head Teacher VI / TLE Department",
       "principalName": "JOSEHPINE M. MANINGAS",
-      "principalPosition": "Secondary School Principal IV"
+      "principalPosition": "Secondary School Principal IV",
+      "role": "teacher",
+      "roleTitle": "TEACHER",
+      "passwordHash": "deped2025",
+      "accountStatus": "Active",
+      "isPasswordSet": true
     },
     "leonilo.abalos@depedqc.ph": {
       "email": "leonilo.abalos@depedqc.ph",
@@ -422,20 +385,17 @@
       "region": "National Capital Region (NCR)",
       "academicYear": "2025-2026",
       "department": "Technology and Livelihood Education (TLE)",
-      "role": "teacher",
-      "roleTitle": "TEACHER",
-      "passwordHash": "deped2025",
-      "isPasswordSet": true,
-      "accountStatus": "Active",
-      "assignedSubjects": [
-        "ICT - Computer Programming"
-      ],
       "masterTeacherName": "Shirlene M. Mandapat",
       "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator",
       "headTeacherName": "Dr. Corazon V. Santos",
       "headTeacherPosition": "Head Teacher III / TLE Department",
       "principalName": "Dr. Maria Luisa T. Ramos",
-      "principalPosition": "Secondary School Principal IV"
+      "principalPosition": "Secondary School Principal IV",
+      "role": "teacher",
+      "roleTitle": "TEACHER",
+      "passwordHash": "deped2025",
+      "accountStatus": "Active",
+      "isPasswordSet": true
     },
     "shirlene.mandapat001@deped.gov.ph": {
       "email": "shirlene.mandapat001@deped.gov.ph",
@@ -446,20 +406,17 @@
       "region": "National Capital Region (NCR)",
       "academicYear": "2025-2026",
       "department": "Technology and Livelihood Education (TLE)",
-      "role": "teacher",
-      "roleTitle": "TEACHER",
-      "passwordHash": "teacher123",
-      "isPasswordSet": true,
-      "accountStatus": "Active",
-      "assignedSubjects": [
-        "ICT - Computer Programming"
-      ],
       "masterTeacherName": "Shirlene M. Mandapat",
       "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator",
       "headTeacherName": "Dr. Corazon V. Santos",
       "headTeacherPosition": "Head Teacher III / TLE Department",
       "principalName": "Dr. Maria Luisa T. Ramos",
-      "principalPosition": "Secondary School Principal IV"
+      "principalPosition": "Secondary School Principal IV",
+      "role": "teacher",
+      "roleTitle": "TEACHER",
+      "passwordHash": "teacher123",
+      "accountStatus": "Active",
+      "isPasswordSet": true
     },
     "alda.ogalino@depedqc.ph": {
       "email": "alda.ogalino@depedqc.ph",
@@ -470,20 +427,17 @@
       "region": "National Capital Region (NCR)",
       "academicYear": "2025-2026",
       "department": "Technology and Livelihood Education (TLE)",
-      "role": "teacher",
-      "roleTitle": "TEACHER",
-      "passwordHash": "deped2025",
-      "isPasswordSet": true,
-      "accountStatus": "Active",
-      "assignedSubjects": [
-        "ICT - Computer Programming"
-      ],
       "masterTeacherName": "Shirlene M. Mandapat",
       "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator",
       "headTeacherName": "DR. MELANI R. SANTOS",
       "headTeacherPosition": "Head Teacher VI / TLE Department",
       "principalName": "DR. JOSEHPINE M. MANINGAS",
-      "principalPosition": "Principal IV"
+      "principalPosition": "Principal IV",
+      "role": "teacher",
+      "roleTitle": "TEACHER",
+      "passwordHash": "deped2025",
+      "accountStatus": "Active",
+      "isPasswordSet": true
     },
     "ruby.angeles@depedqc.ph": {
       "email": "ruby.angeles@depedqc.ph",
@@ -494,20 +448,17 @@
       "region": "National Capital Region (NCR)",
       "academicYear": "2025-2026",
       "department": "Technology and Livelihood Education (TLE)",
-      "role": "teacher",
-      "roleTitle": "TEACHER",
-      "passwordHash": "deped2025",
-      "isPasswordSet": true,
-      "accountStatus": "Active",
-      "assignedSubjects": [
-        "ICT - Computer Programming"
-      ],
       "masterTeacherName": "CERILLE JOSEPH M. REYES",
       "masterTeacherPosition": "Master Teacher I, TLE Department",
       "headTeacherName": "MELANI R. SANTOS, PhD",
       "headTeacherPosition": "Head Teacher VI, TLE Department",
       "principalName": "JOSEHPINE M. MANINGAS, PhD",
-      "principalPosition": "Principal IV, RMCHS"
+      "principalPosition": "Principal IV, RMCHS",
+      "role": "teacher",
+      "roleTitle": "TEACHER",
+      "passwordHash": "deped2025",
+      "accountStatus": "Active",
+      "isPasswordSet": true
     },
     "adonis.rumbaoa001@deped.gov.ph": {
       "email": "adonis.rumbaoa001@deped.gov.ph",
@@ -518,20 +469,17 @@
       "region": "National Capital Region (NCR)",
       "academicYear": "2025-2026",
       "department": "Technology and Livelihood Education (TLE)",
-      "role": "teacher",
-      "roleTitle": "TEACHER",
-      "passwordHash": "deped2025",
-      "isPasswordSet": true,
-      "accountStatus": "Active",
-      "assignedSubjects": [
-        "ICT - Computer Programming"
-      ],
       "masterTeacherName": "Shirlene M. Mandapat",
       "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator",
       "headTeacherName": "Dr. Corazon V. Santos",
       "headTeacherPosition": "Head Teacher III / TLE Department",
       "principalName": "Dr. Maria Luisa T. Ramos",
-      "principalPosition": "Secondary School Principal IV"
+      "principalPosition": "Secondary School Principal IV",
+      "role": "teacher",
+      "roleTitle": "TEACHER",
+      "passwordHash": "deped2025",
+      "accountStatus": "Active",
+      "isPasswordSet": true
     },
     "shirlene.mandapat@deped.gov.ph": {
       "email": "shirlene.mandapat@deped.gov.ph",
@@ -542,20 +490,44 @@
       "region": "National Capital Region (NCR)",
       "academicYear": "2025-2026",
       "department": "Technology and Livelihood Education (TLE)",
-      "role": "teacher",
-      "roleTitle": "TEACHER",
-      "passwordHash": "teacher123",
-      "isPasswordSet": true,
-      "accountStatus": "Active",
-      "assignedSubjects": [
-        "ICT - Computer Programming"
-      ],
       "masterTeacherName": "Shirlene M. Mandapat",
       "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator",
       "headTeacherName": "Dr. Corazon V. Santos",
       "headTeacherPosition": "Head Teacher III / TLE Department",
       "principalName": "Dr. Maria Luisa T. Ramos",
-      "principalPosition": "Secondary School Principal IV"
+      "principalPosition": "Secondary School Principal IV",
+      "role": "teacher",
+      "roleTitle": "TEACHER",
+      "passwordHash": "teacher123",
+      "accountStatus": "Active",
+      "isPasswordSet": true
+    },
+    "teachershirlene@gmail.com": {
+      "title": "Teacher II",
+      "schoolName": "Ramon Magsaysay (Cubao) High School",
+      "division": "SDO Quezon City",
+      "region": "National Capital Region (NCR)",
+      "academicYear": "2026-2027",
+      "department": "Technology and Livelihood Education (TLE)",
+      "assignedSubjects": [
+        "ICT - Computer Programming"
+      ],
+      "reportsSubmissionStatus": "Submitted",
+      "accountStatus": "Active",
+      "role": "teacher",
+      "masterTeacherName": "Shirlene Mandapat-Tindoc",
+      "masterTeacherPosition": "Master Teacher I",
+      "headTeacherName": "MELANI R. SANTOS, PhD",
+      "headTeacherPosition": "Head Teacher VI / TLE Department",
+      "principalName": "JOSEHPINE M. MANINGAS,PhD",
+      "principalPosition": "Principal IV",
+      "email": "teachershirlene@gmail.com",
+      "passwordHash": "teacher123",
+      "isPasswordSet": true,
+      "name": "Shirlene Mandapat-Tindoc",
+      "registeredAt": "2025-06-15",
+      "lastLoginAt": "10/13/2026, 2:20:00 AM",
+      "roleTitle": "TEACHER"
     }
   },
   "students": [
@@ -617,15 +589,15 @@
     {
       "id": "stud-1787810542332",
       "lastName": "ESPEJON",
-      "firstName": "DANA",
+      "firstName": "DANA C",
       "middleInitial": "C",
       "gradeLevel": "Grade 9",
       "section": "FELIPE",
       "subject": "ICT-COMPUTER SYSTEMS SERVICING",
       "programType": "Remediation",
-      "baselineScore": 70,
+      "baselineScore": 0,
       "focusTopic": "",
-      "enrolledDate": "2026-08-27",
+      "enrolledDate": "2026-09-26",
       "status": "Progressing",
       "parentName": "ROBELYN C. ESPEJON",
       "parentContact": "09543920186",
@@ -642,9 +614,9 @@
       "section": "A.V. Hernandez",
       "subject": "TLE-7",
       "programType": "Remediation",
-      "baselineScore": 62,
+      "baselineScore": 0,
       "focusTopic": "",
-      "enrolledDate": "2026-09-24",
+      "enrolledDate": "2026-09-22",
       "status": "Progressing",
       "parentName": "Mrs. Dellosa",
       "scheduleDetails": "Sep. 22 to Sep. 28, 2026, 02:10 PM – 03:30 PM (Science / Skills Laboratory)",
@@ -681,7 +653,7 @@
       "programType": "Skills Enhancement",
       "baselineScore": 0,
       "focusTopic": "",
-      "enrolledDate": "2026-09-23",
+      "enrolledDate": "2026-09-28",
       "status": "Progressing",
       "parentName": "MERCY TABORASA",
       "parentContact": "09072322836",
@@ -700,7 +672,7 @@
       "programType": "Remediation",
       "baselineScore": 0,
       "focusTopic": "",
-      "enrolledDate": "2026-08-27",
+      "enrolledDate": "2026-09-02",
       "status": "Progressing",
       "parentName": "RUBELIZA MANZANO",
       "parentContact": "09125487923",
@@ -730,16 +702,16 @@
     {
       "id": "stud-1790059435568",
       "lastName": "FRAGO",
-      "firstName": "EURI ANDREI",
+      "firstName": "EURI ANDREI C",
       "middleInitial": "C",
       "gradeLevel": "Grade 9",
       "section": "RIZAL",
       "subject": "ICT-CSS",
       "programType": "Skills Enhancement",
-      "baselineScore": 60,
+      "baselineScore": 0,
       "focusTopic": "",
-      "enrolledDate": "2026-09-22",
-      "status": "Mastered / Promoted",
+      "enrolledDate": "2026-09-23",
+      "status": "Progressing",
       "parentName": "KENNETH VELASQUEZ",
       "parentContact": "09359334398",
       "scheduleDetails": "Sep. 22 to Sep. 25, 2026, 02:00 PM – 03:00 PM (Computer Laboratory)",
@@ -832,7 +804,7 @@
       "programType": "Remediation",
       "baselineScore": 0,
       "focusTopic": "",
-      "enrolledDate": "2026-09-05",
+      "enrolledDate": "2026-09-03",
       "status": "Progressing",
       "parentName": "JOAN PALERO",
       "parentContact": "09300449131",
@@ -1961,6 +1933,22 @@
   "classes": [],
   "announcements": [],
   "auditLogs": [
+    {
+      "id": "audit-1791858000657-w0gcs",
+      "userEmail": "teachershirlene@gmail.com",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene Mandapat-Tindoc (teachershirlene@gmail.com) accessed Project S.M.I.L.E. Portal from device.",
+      "targetUser": "teachershirlene@gmail.com",
+      "timestamp": "2026-10-13T02:20:00.657Z"
+    },
+    {
+      "id": "audit-1791856505770-5vi8k",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene Mandapat-Tindoc (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal from device.",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-10-13T01:55:05.770Z"
+    },
     {
       "id": "audit-1791855352292-1t45a",
       "userEmail": "maricel.coniconde@deped.gov.ph",
@@ -3241,6 +3229,14 @@
       "adminEmail": "admin@projectsmile",
       "action": "UPDATE_TEACHER",
       "details": "Updated profile & credentials for Shirlene Mandapat-Tindoc (shirlene.mandapat@depedqc.ph).",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1791856560124-0chk",
+      "timestamp": "10/13/2026, 9:56:00 AM",
+      "adminEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene Mandapat-Tindoc (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
       "targetUser": "shirlene.mandapat@depedqc.ph"
     }
   ],

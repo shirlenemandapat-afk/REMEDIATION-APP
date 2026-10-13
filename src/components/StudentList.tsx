@@ -18,6 +18,7 @@ import {
   Layers,
   Pencil,
   ShieldCheck,
+  RefreshCw,
 } from 'lucide-react';
 
 interface StudentListProps {
@@ -37,6 +38,8 @@ interface StudentListProps {
   onOpenParentLetter?: (student: Student) => void;
   onOpenAnecdotalReport?: (student: Student) => void;
   onOpenArchiveTab?: () => void;
+  onManualSync?: () => void;
+  isSyncing?: boolean;
 }
 
 export const StudentList: React.FC<StudentListProps> = ({
@@ -56,6 +59,8 @@ export const StudentList: React.FC<StudentListProps> = ({
   onOpenParentLetter,
   onOpenAnecdotalReport,
   onOpenArchiveTab,
+  onManualSync,
+  isSyncing,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProgramTab, setSelectedProgramTab] = useState<string>('ALL');
@@ -375,6 +380,16 @@ export const StudentList: React.FC<StudentListProps> = ({
             );
           })}
         </div>
+      ) : isSyncing && students.length === 0 ? (
+        <div className="p-10 text-center bg-white rounded-2xl border border-emerald-100 text-slate-500 space-y-3">
+          <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mx-auto" />
+          <p className="text-sm font-bold text-emerald-900">
+            Synchronizing student records from database...
+          </p>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            Retrieving enrolled learners and remediation history from Project S.M.I.L.E. cloud.
+          </p>
+        </div>
       ) : (
         <div className="p-8 text-center bg-white rounded-2xl border border-emerald-100 text-slate-500 space-y-2">
           <User className="w-8 h-8 text-emerald-300 mx-auto" />
@@ -388,7 +403,18 @@ export const StudentList: React.FC<StudentListProps> = ({
               ? 'Each teacher manages their own enrolled learners. Click below to enroll students directly under your account.'
               : 'Adjust search keyword, section, or program filter to view enrolled learners.'}
           </p>
-          <div className="flex items-center justify-center gap-3 pt-2">
+          <div className="flex items-center justify-center gap-3 pt-2 flex-wrap">
+            {onManualSync && (
+              <button
+                type="button"
+                onClick={onManualSync}
+                disabled={isSyncing}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                {isSyncing ? 'Retrieving Records...' : 'Retrieve / Sync Student Records'}
+              </button>
+            )}
             <button
               type="button"
               onClick={onOpenEnrollModal}
