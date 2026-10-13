@@ -158,7 +158,7 @@ export default function App() {
     }
   }, []);
 
-  // Multi-Device Auto-Sync: Listen for tab focus/visibility and background poll every 20 seconds
+  // Multi-Device Auto-Sync: Realtime subscription, window focus/visibility listeners, and background poll
   useEffect(() => {
     if (!isLoggedIn) return;
 
@@ -180,6 +180,12 @@ export default function App() {
       }
     };
 
+    // 1. Supabase Realtime Channel: Listen to live changes on students, sessions, and teacher profiles
+    const unsubscribeRealtime = supabaseService.subscribeToRealtime((payload) => {
+      console.log('[Supabase Realtime Event Triggered]:', payload.table, payload.eventType);
+      pullUpdates();
+    });
+
     const handleFocus = () => {
       pullUpdates();
     };
@@ -190,15 +196,22 @@ export default function App() {
       }
     };
 
+    const handleCustomEvent = () => {
+      pullUpdates();
+    };
+
     window.addEventListener('focus', handleFocus);
     window.addEventListener('pageshow', handleFocus);
     document.addEventListener('visibilitychange', handleVisibility);
-    const intervalId = setInterval(pullUpdates, 10000);
+    window.addEventListener('deped-data-synced', handleCustomEvent);
+    const intervalId = setInterval(pullUpdates, 12000);
 
     return () => {
+      unsubscribeRealtime();
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('pageshow', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('deped-data-synced', handleCustomEvent);
       clearInterval(intervalId);
     };
   }, [isLoggedIn, teacher?.email]);

@@ -142,7 +142,7 @@ export const storage = {
           serverList.forEach((t) => {
             if (t && t.email && !legacyMockEmails.includes(t.email.trim().toLowerCase())) {
               const norm = t.email.trim().toLowerCase();
-              const existing = accounts[norm] || Object.values(accounts).find((a) => this.isSameTeacherEmail(a.email, norm));
+              const existing = accounts[norm] || (Object.values(accounts) as TeacherProfile[]).find((a) => this.isSameTeacherEmail(a.email, norm));
               const effectiveRole = (t.role || existing?.role || 'teacher') as UserRole;
               const roleDef = getRoleDefinition(effectiveRole);
               freshAccounts[norm] = {
@@ -322,7 +322,7 @@ export const storage = {
     const cleanPass = (adminPassword || '').trim();
     const normAdmin = (adminEmail || '').trim().toLowerCase();
     const adminAccounts = this.getRegisteredAccounts();
-    const admin = adminAccounts[normAdmin] || Object.values(adminAccounts).find((a) => a.role === 'admin');
+    const admin = adminAccounts[normAdmin] || (Object.values(adminAccounts) as TeacherProfile[]).find((a) => a.role === 'admin');
 
     const isMatch = Boolean(
       !cleanPass || // Allowed direct confirmation for authenticated admin
@@ -565,7 +565,7 @@ export const storage = {
     const cleanPass = (adminPassword || '').trim();
     const normAdmin = (adminEmail || '').trim().toLowerCase();
     const adminAccounts = this.getRegisteredAccounts();
-    const admin = adminAccounts[normAdmin] || Object.values(adminAccounts).find((a) => a.role === 'admin');
+    const admin = adminAccounts[normAdmin] || (Object.values(adminAccounts) as TeacherProfile[]).find((a) => a.role === 'admin');
 
     const isMatch = Boolean(
       !cleanPass || // Allowed direct confirmation for authenticated admin

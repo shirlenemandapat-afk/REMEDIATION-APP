@@ -202,7 +202,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Section Selector & Profile Controls */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
             {/* Filter by Grade & Section */}
             <div className="hidden md:flex items-center gap-2 bg-emerald-900/80 px-3 py-1.5 rounded-xl border border-emerald-700/80 shadow-xs">
               <label htmlFor="navbar-section-select" className="text-xs text-amber-200 font-semibold whitespace-nowrap">
@@ -225,6 +225,33 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ))}
               </select>
             </div>
+
+            {/* Supabase Live Cloud Status & Manual Sync Button */}
+            {onManualSync && (
+              <button
+                type="button"
+                onClick={onManualSync}
+                disabled={isSyncing}
+                title="Synchronize records across devices with Supabase"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-900/90 hover:bg-emerald-800 text-emerald-200 hover:text-yellow-300 border border-emerald-700/80 transition shadow-xs cursor-pointer text-xs font-bold"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-amber-400 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">{isSyncing ? 'Syncing...' : 'Sync Cloud'}</span>
+              </button>
+            )}
+
+            {/* Supabase Database Hub Button */}
+            {onOpenSupabaseModal && (
+              <button
+                type="button"
+                onClick={onOpenSupabaseModal}
+                title="Supabase Centralized Database Settings"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-900/90 hover:bg-emerald-800 text-emerald-200 hover:text-yellow-300 border border-emerald-700/80 transition shadow-xs cursor-pointer text-xs font-bold"
+              >
+                <Database className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden md:inline">Database Hub</span>
+              </button>
+            )}
 
             {/* Teacher / Admin Profile & Signatories Button */}
             <button
