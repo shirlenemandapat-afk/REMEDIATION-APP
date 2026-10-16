@@ -515,11 +515,6 @@ export default function App() {
         {/* Department Welcome & Action Banner with RMCHS Green & Gold Theme (For Classroom Teacher views) */}
         {teacher.role !== 'admin' && teacher.email !== 'admin@projectsmile' && (
           <div className="relative overflow-hidden bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-950 rounded-2xl p-6 text-white shadow-xl border border-emerald-800/80">
-            {/* Subtle background glow & watermark seal */}
-            <div className="absolute right-0 top-0 bottom-0 opacity-10 pointer-events-none translate-x-12 -translate-y-4 overflow-hidden flex items-center">
-              <SchoolLogo size="xl" showShadow={false} />
-            </div>
-
             <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
               <div className="space-y-2 max-w-2xl">
                 {/* Project S.M.I.L.E. Institutional Tag with acronym meaning placed directly under */}
@@ -539,28 +534,28 @@ export default function App() {
                   </span>
                 </h1>
 
-                <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
-                  Project S.M.I.L.E. provides daily anecdotal logs, quarterly remediation tracking, and learning enhancement monitoring across all learning areas, grade levels, and academic subjects.
-                </p>
+                  <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
+                    Project S.M.I.L.E. provides daily anecdotal logs, quarterly remediation tracking, and learning enhancement monitoring across all learning areas, grade levels, and academic subjects.
+                  </p>
 
-                {/* Quick status pill counters */}
-                <div className="pt-2 flex items-center gap-2.5 flex-wrap text-xs font-semibold">
-                  <span className="px-2.5 py-1 rounded-lg bg-emerald-900/90 border border-emerald-700/80 text-emerald-200">
-                    Active Roster: <strong className="text-white ml-1">{activeStudents.length}</strong>
-                  </span>
-                  {archivedStudents.length > 0 && (
-                    <span className="px-2.5 py-1 rounded-lg bg-amber-900/80 border border-amber-500/80 text-amber-200">
-                      Archived: <strong className="text-amber-300 ml-1">{archivedStudents.length}</strong>
+                  {/* Quick status pill counters */}
+                  <div className="pt-2 flex items-center gap-2.5 flex-wrap text-xs font-semibold">
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-900/90 border border-emerald-700/80 text-emerald-200">
+                      Active Roster: <strong className="text-white ml-1">{activeStudents.length}</strong>
                     </span>
-                  )}
-                  <span className="px-2.5 py-1 rounded-lg bg-amber-950/80 border border-amber-600/60 text-amber-200">
-                    Needs Remediation: <strong className="text-amber-300 ml-1">{totalNeedsHelp}</strong>
-                  </span>
-                  <span className="px-2.5 py-1 rounded-lg bg-green-950/80 border border-green-600/60 text-green-200">
-                    Mastered / Promoted: <strong className="text-green-300 ml-1">{totalMastered}</strong>
-                  </span>
+                    {archivedStudents.length > 0 && (
+                      <span className="px-2.5 py-1 rounded-lg bg-amber-900/80 border border-amber-500/80 text-amber-200">
+                        Archived: <strong className="text-amber-300 ml-1">{archivedStudents.length}</strong>
+                      </span>
+                    )}
+                    <span className="px-2.5 py-1 rounded-lg bg-amber-950/80 border border-amber-600/60 text-amber-200">
+                      Needs Remediation: <strong className="text-amber-300 ml-1">{totalNeedsHelp}</strong>
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-green-950/80 border border-green-600/60 text-green-200">
+                      Mastered / Promoted: <strong className="text-green-300 ml-1">{totalMastered}</strong>
+                    </span>
+                  </div>
                 </div>
-              </div>
 
               {/* Quick Actions */}
               <div className="flex items-center gap-2.5 flex-wrap shrink-0">

@@ -55,32 +55,7 @@ interface DocumentationPhoto {
   category: 'REMEDIAL_SESSION' | 'PTC_CONFERENCE' | 'LAS_ACTIVITY' | 'LAB_WORK';
 }
 
-const DEFAULT_SAMPLE_PHOTOS: DocumentationPhoto[] = [
-  {
-    id: 'photo-1',
-    url: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=600&q=80',
-    caption: 'Learners actively participating in Reteaching Sessions and Simplified Modules review',
-    category: 'REMEDIAL_SESSION',
-  },
-  {
-    id: 'photo-2',
-    url: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
-    caption: 'Students performing independent practice with Learning Activity Sheets (LAS)',
-    category: 'LAS_ACTIVITY',
-  },
-  {
-    id: 'photo-3',
-    url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=600&q=80',
-    caption: 'Hands-on laboratory remediation and guided competency reinforcement',
-    category: 'LAB_WORK',
-  },
-  {
-    id: 'photo-4',
-    url: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=600&q=80',
-    caption: 'Photo taken during the Parent-Teacher Conference held on September 6, 2025',
-    category: 'PTC_CONFERENCE',
-  },
-];
+const DEFAULT_SAMPLE_PHOTOS: DocumentationPhoto[] = [];
 
 export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> = ({
   teacher,
@@ -91,8 +66,8 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
   const [activeTab, setActiveTab] = useState<DocumentViewTab>('NARRATIVE_REPORT');
   const [selectedSection, setSelectedSection] = useState<string>('ALL');
   
-  // Program Type Switch: Remediation vs Skills Enhancement
-  const [programType, setProgramType] = useState<'Remediation' | 'Skills Enhancement'>('Remediation');
+  // Program Type Switch: Remediation vs Skills Enhancement vs Combined
+  const [programType, setProgramType] = useState<'Remediation' | 'Skills Enhancement' | 'Combined'>('Remediation');
   
   const [schoolYear, setSchoolYear] = useState<string>(teacher.academicYear || '2025 – 2026');
   const [quarterPeriod, setQuarterPeriod] = useState<string>('First Quarter');
@@ -113,8 +88,9 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
   const [reportDates, setReportDates] = useState<string>('September 2 to September 3, 2025');
   const [reportVenue, setReportVenue] = useState<string>('ICT Room (RM 9)');
 
-  // Photo Documentation State
-  const [docPhotos, setDocPhotos] = useState<DocumentationPhoto[]>(DEFAULT_SAMPLE_PHOTOS);
+  // Photo Documentation State (No prefilled photos)
+  const [docPhotos, setDocPhotos] = useState<DocumentationPhoto[]>([]);
+  const [ptcPhotoUrl, setPtcPhotoUrl] = useState<string | null>(null);
   const [ptcDate, setPtcDate] = useState<string>('September 6, 2025');
 
   // Selected Student for Individual Certificate
@@ -149,7 +125,8 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
       selectedSection === 'ALL' ||
       s.section === selectedSection ||
       `${s.gradeLevel} - ${s.section}` === selectedSection;
-    const matchProg = s.programType === programType;
+    const matchProg =
+      programType === 'Combined' || s.programType === programType;
     return matchSec && matchProg;
   });
 
@@ -250,9 +227,13 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
       ? Math.round(studentMasteryStats.reduce((acc, item) => acc + item.latest, 0) / studentMasteryStats.length)
       : 0;
 
-  const passedStudentsCount = studentMasteryStats.filter((item) =>
-    programType === 'Remediation' ? item.recomputedGrade >= 75 : item.avgMastery >= 85
-  ).length;
+  const passedStudentsCount = studentMasteryStats.filter((item) => {
+    if (programType === 'Remediation') return item.recomputedGrade >= 75;
+    if (programType === 'Skills Enhancement') return item.avgMastery >= 85;
+    return item.student.programType === 'Skills Enhancement'
+      ? item.avgMastery >= 85
+      : item.recomputedGrade >= 75;
+  }).length;
 
   const passRatePercent =
     totalStudents > 0 ? Math.round((passedStudentsCount / totalStudents) * 100) : 100;
@@ -330,6 +311,45 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
 
   const handleRemovePhoto = (id: string) => {
     setDocPhotos((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const handlePtcPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showFeedback('Please select a valid image file (JPG, PNG).', 'error');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      setPtcPhotoUrl(dataUrl);
+      showFeedback('PTC Conference photo uploaded successfully!', 'success');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Photo Caption Editing State
+  const [editingPhotoId, setEditingPhotoId] = useState<string | null>(null);
+  const [editingCaptionText, setEditingCaptionText] = useState<string>('');
+  const [isEditingPtcCaption, setIsEditingPtcCaption] = useState<boolean>(false);
+  const [customPtcCaption, setCustomPtcCaption] = useState<string>('');
+
+  const handleStartEditCaption = (photo: DocumentationPhoto) => {
+    setEditingPhotoId(photo.id);
+    setEditingCaptionText(photo.caption);
+  };
+
+  const handleSaveCaption = (id: string) => {
+    if (!editingCaptionText.trim()) {
+      showFeedback('Caption cannot be empty.', 'error');
+      return;
+    }
+    setDocPhotos((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, caption: editingCaptionText.trim() } : p))
+    );
+    setEditingPhotoId(null);
+    showFeedback('Photo caption updated successfully!', 'success');
   };
 
   return (
@@ -412,108 +432,113 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
           </div>
         </div>
 
-        {/* 1. SEPARATE PROGRAM SELECTOR (Remediation vs Skills Enhancement) */}
-        <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-amber-50 p-3 rounded-xl border border-emerald-200/90 flex flex-wrap items-center justify-between gap-3">
+        {/* 1. SEPARATE PROGRAM SELECTOR (Dropdown selection with Combined option) */}
+        <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-amber-50 p-3 sm:p-4 rounded-xl border border-emerald-200/90 flex flex-wrap items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-2">
             <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-amber-600" />
               Select Program Mode:
             </span>
+            <span className="text-[11px] text-slate-500 hidden md:inline">
+              Choose an individual track or generate a consolidated report for both programs
+            </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setProgramType('Remediation')}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer shadow-xs ${
-                programType === 'Remediation'
-                  ? 'bg-amber-600 text-white border-2 border-amber-700 ring-2 ring-amber-300'
-                  : 'bg-white text-slate-700 border border-slate-300 hover:bg-amber-50'
-              }`}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <select
+              id="narrative-program-mode-select"
+              value={programType}
+              onChange={(e) => setProgramType(e.target.value as 'Remediation' | 'Skills Enhancement' | 'Combined')}
+              className="w-full sm:w-[380px] bg-white border-2 border-emerald-700/80 hover:border-emerald-800 text-xs sm:text-sm font-extrabold text-slate-900 rounded-xl px-3.5 py-2.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer transition"
             >
-              <ShieldCheck className="w-4 h-4 text-amber-200" />
-              <span>Remediation Program (Least Mastered Skills)</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setProgramType('Skills Enhancement')}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer shadow-xs ${
-                programType === 'Skills Enhancement'
-                  ? 'bg-blue-700 text-white border-2 border-blue-800 ring-2 ring-blue-300'
-                  : 'bg-white text-slate-700 border border-slate-300 hover:bg-blue-50'
-              }`}
-            >
-              <TrendingUp className="w-4 h-4 text-blue-200" />
-              <span>Skills Enhancement Program (Advanced Competencies)</span>
-            </button>
+              <option value="Remediation">
+                Remediation Program (Least Mastered Skills)
+              </option>
+              <option value="Skills Enhancement">
+                Skills Enhancement Program (Advanced Competencies)
+              </option>
+              <option value="Combined">
+                Combined Report (Remediation & Skills Enhancement)
+              </option>
+            </select>
           </div>
         </div>
 
-        {/* 2. DOCUMENT MODE TABS */}
-        <div className="bg-slate-100/80 p-1.5 rounded-xl border border-slate-200 flex flex-wrap items-center gap-1.5">
+        {/* 2. DOCUMENT MODE TABS - Organized Grid Layout */}
+        <div
+          className={`grid gap-2 p-2 bg-slate-100/90 rounded-2xl border border-slate-200 shadow-xs ${
+            programType === 'Skills Enhancement'
+              ? 'grid-cols-1 sm:grid-cols-3'
+              : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
+          }`}
+        >
           <button
+            type="button"
             onClick={() => setActiveTab('NARRATIVE_REPORT')}
-            className={`px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer ${
+            className={`min-h-[48px] px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 text-center cursor-pointer shadow-xs ${
               activeTab === 'NARRATIVE_REPORT'
-                ? 'bg-emerald-800 text-yellow-300 shadow-xs border border-emerald-900'
-                : 'bg-white text-slate-700 hover:bg-slate-200'
+                ? 'bg-emerald-800 text-yellow-300 border-2 border-emerald-900 shadow-sm'
+                : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 hover:text-slate-900'
             }`}
           >
-            <FileText className="w-4 h-4 text-amber-400" />
-            <span>Narrative Report (Official Prose Format)</span>
+            <FileText className={`w-4 h-4 shrink-0 ${activeTab === 'NARRATIVE_REPORT' ? 'text-yellow-300' : 'text-emerald-700'}`} />
+            <span className="truncate">Narrative Report (Prose)</span>
           </button>
 
-          {programType === 'Remediation' && (
+          {(programType === 'Remediation' || programType === 'Combined') && (
             <button
+              type="button"
               onClick={() => setActiveTab('CERTIFICATE_RECOMPUTED')}
-              className={`px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer ${
+              className={`min-h-[48px] px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 text-center cursor-pointer shadow-xs ${
                 activeTab === 'CERTIFICATE_RECOMPUTED'
-                  ? 'bg-emerald-800 text-yellow-300 shadow-xs border border-emerald-900'
-                  : 'bg-white text-slate-700 hover:bg-slate-200'
+                  ? 'bg-emerald-800 text-yellow-300 border-2 border-emerald-900 shadow-sm'
+                  : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 hover:text-slate-900'
               }`}
             >
-              <Award className="w-4 h-4 text-amber-400" />
-              <span>Certificate of Recomputed Grade (Consolidated)</span>
+              <Award className={`w-4 h-4 shrink-0 ${activeTab === 'CERTIFICATE_RECOMPUTED' ? 'text-yellow-300' : 'text-amber-600'}`} />
+              <span className="truncate">Consolidated Certificate</span>
             </button>
           )}
 
-          {programType === 'Remediation' && (
+          {(programType === 'Remediation' || programType === 'Combined') && (
             <button
+              type="button"
               onClick={() => setActiveTab('CERTIFICATE_INDIVIDUAL')}
-              className={`px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer ${
+              className={`min-h-[48px] px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 text-center cursor-pointer shadow-xs ${
                 activeTab === 'CERTIFICATE_INDIVIDUAL'
-                  ? 'bg-emerald-800 text-yellow-300 shadow-xs border border-emerald-900'
-                  : 'bg-white text-slate-700 hover:bg-slate-200'
+                  ? 'bg-emerald-800 text-yellow-300 border-2 border-emerald-900 shadow-sm'
+                  : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 hover:text-slate-900'
               }`}
             >
-              <UserCheck className="w-4 h-4 text-amber-400" />
-              <span>Individual Student Certificate</span>
+              <UserCheck className={`w-4 h-4 shrink-0 ${activeTab === 'CERTIFICATE_INDIVIDUAL' ? 'text-yellow-300' : 'text-blue-600'}`} />
+              <span className="truncate">Individual Certificate</span>
             </button>
           )}
 
           <button
+            type="button"
             onClick={() => setActiveTab('PHOTO_DOCUMENTATION')}
-            className={`px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer ${
+            className={`min-h-[48px] px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 text-center cursor-pointer shadow-xs ${
               activeTab === 'PHOTO_DOCUMENTATION'
-                ? 'bg-emerald-800 text-yellow-300 shadow-xs border border-emerald-900'
-                : 'bg-white text-slate-700 hover:bg-slate-200'
+                ? 'bg-emerald-800 text-yellow-300 border-2 border-emerald-900 shadow-sm'
+                : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 hover:text-slate-900'
             }`}
           >
-            <ImageIcon className="w-4 h-4 text-amber-400" />
-            <span>Photo / Documentation Annex (with PTC)</span>
+            <ImageIcon className={`w-4 h-4 shrink-0 ${activeTab === 'PHOTO_DOCUMENTATION' ? 'text-yellow-300' : 'text-purple-600'}`} />
+            <span className="truncate">Photo Documentation & PTC</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab('ACCOMPLISHMENT_TABLE')}
-            className={`px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer ml-auto ${
+            className={`min-h-[48px] px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 text-center cursor-pointer shadow-xs ${
               activeTab === 'ACCOMPLISHMENT_TABLE'
-                ? 'bg-emerald-800 text-yellow-300 shadow-xs border border-emerald-900'
-                : 'bg-white text-slate-600 hover:bg-slate-200 text-[11px]'
+                ? 'bg-emerald-800 text-yellow-300 border-2 border-emerald-900 shadow-sm'
+                : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 hover:text-slate-900'
             }`}
           >
-            <Layers className="w-3.5 h-3.5 text-slate-500" />
-            <span>Accomplishment Matrix (Table Format)</span>
+            <Layers className={`w-4 h-4 shrink-0 ${activeTab === 'ACCOMPLISHMENT_TABLE' ? 'text-yellow-300' : 'text-slate-600'}`} />
+            <span className="truncate">Accomplishment Matrix</span>
           </button>
         </div>
 
@@ -526,7 +551,9 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
               onChange={(e) => setSelectedSection(e.target.value)}
               className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800"
             >
-              <option value="ALL">All Sections ({totalStudents} {programType.toLowerCase()} students)</option>
+              <option value="ALL">
+                All Sections ({totalStudents} {programType === 'Combined' ? 'total' : programType.toLowerCase()} students)
+              </option>
               {sectionsList.map((sec) => (
                 <option key={sec} value={sec}>
                   {sec}
@@ -601,7 +628,9 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
           {/* Title and Metadata */}
           <div className="text-center my-6 space-y-1.5">
             <h1 className="text-base sm:text-lg font-black uppercase tracking-wider text-slate-950 font-serif">
-              NARRATIVE REPORT ON {programType.toUpperCase()} PROGRAM
+              {programType === 'Combined'
+                ? 'CONSOLIDATED NARRATIVE REPORT ON TLE REMEDIATION & SKILLS ENHANCEMENT PROGRAMS'
+                : `NARRATIVE REPORT ON ${programType.toUpperCase()} PROGRAM`}
             </h1>
             <p className="text-xs font-bold text-slate-800 italic">
               Technology and Livelihood Education (TLE) – Grade 10 ICT
@@ -619,9 +648,13 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
                 I. Executive Summary & Program Overview
               </h2>
               <p>
-                In compliance with the Department of Education’s commitment to inclusive, mastery-oriented education under the MATATAG Curriculum, Ramon Magsaysay (Cubao) High School conducted a targeted{' '}
+                In compliance with the Department of Education’s commitment to inclusive, mastery-oriented education under the MATATAG Curriculum, Ramon Magsaysay (Cubao) High School conducted{' '}
                 <span className="font-semibold">
-                  {programType === 'Remediation' ? 'TLE Remediation Program' : 'TLE Skills Enhancement & Enrichment Program'}
+                  {programType === 'Combined'
+                    ? 'the TLE Remediation and Skills Enhancement Programs'
+                    : programType === 'Remediation'
+                    ? 'a targeted TLE Remediation Program'
+                    : 'a targeted TLE Skills Enhancement & Enrichment Program'}
                 </span>{' '}
                 for Grade 10 Information and Communications Technology (ICT) learners during the {quarterPeriod} of School Year {schoolYear}. The program was formally held from{' '}
                 <span className="font-semibold">{reportDates}</span> at the{' '}
@@ -629,7 +662,9 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
                 <span className="font-semibold">{teacherName}</span> ({teacherPosition}).
               </p>
               <p>
-                The primary purpose of this educational initiative was to {programType === 'Remediation'
+                The primary purpose of this educational initiative was to {programType === 'Combined'
+                  ? 'provide a comprehensive dual-track intervention—reinforcing least mastered competencies for students requiring remediation to achieve a passing 75% standard, while challenging advanced learners through technical enrichment.'
+                  : programType === 'Remediation'
                   ? 'address critical learning gaps and reinforce least mastered competencies among identified at-risk learners whose quarterly performance fell below the standard 75% passing threshold.'
                   : 'deepen practical competencies, provide advanced enrichment opportunities, and elevate academic proficiency among promising ICT learners.'}{' '}
                 A total of <span className="font-semibold">{totalStudents} target learners</span>{' '}
@@ -667,7 +702,9 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
                 )}
               </ul>
               <p>
-                {programType === 'Remediation'
+                {programType === 'Combined'
+                  ? 'Through structured diagnostic assessments and enriched laboratory modules, the dual-track program targeted both foundational remediation and advanced performance: guiding remedial learners toward at least 75% passing proficiency while advancing enhancement learners toward technical mastery exceeding 85%.'
+                  : programType === 'Remediation'
                   ? 'By providing targeted diagnostic intervention, the program aimed to elevate each student’s average mastery level to at least 75%, allowing them to attain a passing mark and maintain solid foundations for succeeding quarters.'
                   : 'The program aimed to challenge learners with advanced technical case studies, independent lab simulations, and high-level problem-solving tasks.'}
               </p>
@@ -750,7 +787,7 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
                 </p>
               </div>
 
-              {programType === 'Remediation' && (
+              {(programType === 'Remediation' || programType === 'Combined') && (
                 <p>
                   In accordance with DepEd guidelines on grade recomputation for remedial classes, learners who achieved passing mastery had their quarterly failing marks (70–74) officially upgraded to a recomputed final grade of <span className="font-semibold">75</span>, as documented in the attached Certificate of Recomputed Grade.
                 </p>
@@ -763,7 +800,11 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
                 VI. Key Insights & Actionable Recommendations
               </h2>
               <p>
-                The successful completion of the {programType} program highlighted the efficacy of differentiated instruction and structured self-paced materials. To sustain learner progress in subsequent quarters, the following recommendations are submitted:
+                The successful completion of the{' '}
+                {programType === 'Combined'
+                  ? 'Remediation and Skills Enhancement'
+                  : programType}{' '}
+                program highlighted the efficacy of differentiated instruction and structured self-paced materials. To sustain learner progress in subsequent quarters, the following recommendations are submitted:
               </p>
               <ol className="list-decimal pl-6 space-y-1 text-slate-800">
                 <li>
@@ -1131,54 +1172,206 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
                 PHOTO/ DOCUMENTATION
               </h1>
               <p className="text-xs font-bold text-slate-700 italic">
-                {programType} Program – Grade 10 ICT
+                {programType === 'Combined'
+                  ? 'Consolidated Remediation & Skills Enhancement Programs'
+                  : `${programType} Program`} – Grade 10 ICT
               </p>
             </div>
 
-            {/* Photo Collage Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-6">
-              {docPhotos.map((photo) => (
-                <div
-                  key={photo.id}
-                  className="relative group border border-slate-300 p-2 bg-slate-50/70 rounded-lg space-y-2 flex flex-col justify-between"
-                >
-                  <div className="w-full h-44 sm:h-52 overflow-hidden rounded bg-slate-200 border border-slate-200">
-                    <img
-                      src={photo.url}
-                      alt={photo.caption}
-                      className="w-full h-full object-cover"
-                      crossOrigin="anonymous"
-                    />
-                  </div>
-
-                  <p className="text-[11px] font-serif text-slate-800 text-center font-medium leading-relaxed px-1">
-                    {photo.caption}
-                  </p>
-
-                  <button
-                    onClick={() => handleRemovePhoto(photo.id)}
-                    className="absolute top-3 right-3 p-1 bg-white/90 hover:bg-red-50 text-red-600 rounded-md shadow-xs opacity-0 group-hover:opacity-100 transition print:hidden cursor-pointer"
-                    title="Remove Photo"
+            {/* Photo Collage Grid (Dynamic - Only User/Session Uploaded Photos) */}
+            {docPhotos.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-6">
+                {docPhotos.map((photo) => (
+                  <div
+                    key={photo.id}
+                    className="relative group border border-slate-300 p-2.5 bg-slate-50/70 rounded-xl space-y-2 flex flex-col justify-between transition hover:border-emerald-600/60 shadow-xs"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                    <div className="w-full h-44 sm:h-52 overflow-hidden rounded-lg bg-slate-200 border border-slate-200 relative">
+                      <img
+                        src={photo.url}
+                        alt={photo.caption}
+                        className="w-full h-full object-cover"
+                        crossOrigin="anonymous"
+                      />
+
+                      {/* Top action buttons (Edit caption and Remove photo) */}
+                      <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition print:hidden">
+                        <button
+                          type="button"
+                          onClick={() => handleStartEditCaption(photo)}
+                          className="p-1.5 bg-white/95 hover:bg-emerald-50 text-emerald-800 rounded-md shadow-xs transition cursor-pointer border border-slate-200/80"
+                          title="Edit caption"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePhoto(photo.id)}
+                          className="p-1.5 bg-white/95 hover:bg-red-50 text-red-600 rounded-md shadow-xs transition cursor-pointer border border-slate-200/80"
+                          title="Remove photo"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Caption & Inline Edit Mode */}
+                    {editingPhotoId === photo.id ? (
+                      <div className="space-y-1.5 pt-1 print:hidden">
+                        <textarea
+                          value={editingCaptionText}
+                          onChange={(e) => setEditingCaptionText(e.target.value)}
+                          placeholder="Enter description/caption..."
+                          className="w-full p-2 text-xs font-serif border-2 border-emerald-600 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-700 leading-relaxed"
+                          rows={2}
+                          autoFocus
+                        />
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setEditingPhotoId(null)}
+                            className="px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:text-slate-800 bg-slate-200/80 rounded-md cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveCaption(photo.id)}
+                            className="px-3 py-1 text-[11px] font-bold text-white bg-emerald-700 hover:bg-emerald-600 rounded-md flex items-center gap-1 cursor-pointer shadow-xs"
+                          >
+                            <Check className="w-3 h-3" /> Save
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start justify-center gap-1.5 px-1 py-0.5">
+                        <p className="text-[11px] font-serif text-slate-800 text-center font-medium leading-relaxed flex-1">
+                          {photo.caption}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => handleStartEditCaption(photo)}
+                          className="p-1 text-slate-400 hover:text-emerald-700 hover:bg-slate-200/60 rounded transition print:hidden cursor-pointer shrink-0"
+                          title="Edit caption"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="my-8 p-8 border-2 border-dashed border-slate-300 rounded-2xl text-center space-y-3 bg-slate-50/60 print:hidden">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto">
+                  <ImageIcon className="w-6 h-6" />
                 </div>
-              ))}
-            </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-800 font-sans">No Documentation Photos Added Yet</p>
+                  <p className="text-xs text-slate-500 font-sans mt-0.5 max-w-md mx-auto">
+                    Upload session photos, student activity sheets, or laboratory work using the button below. Photos attached during session logs will also automatically appear here.
+                  </p>
+                </div>
+                <label className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition cursor-pointer shadow-xs">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Upload Documentation Photo</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            )}
 
             {/* Parent-Teacher Conference (PTC) Specific Documentation Card */}
             <div className="mt-8 pt-6 border-t-2 border-dashed border-slate-300 text-center space-y-3">
-              <div className="max-w-md mx-auto p-2 bg-slate-50/80 border border-slate-300 rounded-lg">
-                <img
-                  src="https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=800&q=80"
-                  alt="Parent-Teacher Conference"
-                  className="w-full h-56 object-cover rounded border border-slate-200"
-                  crossOrigin="anonymous"
-                />
-              </div>
-              <p className="text-xs font-serif font-bold text-slate-900 leading-relaxed max-w-lg mx-auto">
-                Photo taken during the Parent-Teacher Conference held on {ptcDate}
-              </p>
+              {ptcPhotoUrl ? (
+                <div className="max-w-md mx-auto p-2 bg-slate-50/80 border border-slate-300 rounded-lg relative group">
+                  <img
+                    src={ptcPhotoUrl}
+                    alt="Parent-Teacher Conference"
+                    className="w-full h-56 object-cover rounded border border-slate-200"
+                    crossOrigin="anonymous"
+                  />
+                  <div className="absolute top-4 right-4 flex items-center gap-1.5 print:hidden">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!customPtcCaption) setCustomPtcCaption(`Photo taken during the Parent-Teacher Conference held on ${ptcDate}`);
+                        setIsEditingPtcCaption(!isEditingPtcCaption);
+                      }}
+                      className="p-1.5 bg-white/95 hover:bg-emerald-50 text-emerald-800 rounded-md shadow-xs transition cursor-pointer border border-slate-200/80"
+                      title="Edit PTC caption"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPtcPhotoUrl(null)}
+                      className="p-1.5 bg-white/95 hover:bg-red-50 text-red-600 rounded-md shadow-xs transition cursor-pointer border border-slate-200/80"
+                      title="Remove PTC Photo"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="max-w-md mx-auto p-6 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50/60 print:hidden text-center space-y-2">
+                  <label className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition cursor-pointer shadow-xs">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload PTC Conference Photo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePtcPhotoUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  <p className="text-[11px] text-slate-500 font-sans">
+                    Optional: Upload photo documentation from your Parent-Teacher Conference held on {ptcDate}.
+                  </p>
+                </div>
+              )}
+
+              {isEditingPtcCaption ? (
+                <div className="max-w-md mx-auto space-y-1.5 print:hidden">
+                  <input
+                    type="text"
+                    value={customPtcCaption || `Photo taken during the Parent-Teacher Conference held on ${ptcDate}`}
+                    onChange={(e) => setCustomPtcCaption(e.target.value)}
+                    className="w-full p-2 text-xs font-serif border-2 border-emerald-600 rounded-lg text-center bg-white text-slate-900"
+                    autoFocus
+                  />
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingPtcCaption(false)}
+                      className="px-3 py-1 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-600 rounded-md cursor-pointer"
+                    >
+                      Save Caption
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-1.5 max-w-lg mx-auto">
+                  <p className="text-xs font-serif font-bold text-slate-900 leading-relaxed">
+                    {customPtcCaption || `Photo taken during the Parent-Teacher Conference held on ${ptcDate}`}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!customPtcCaption) setCustomPtcCaption(`Photo taken during the Parent-Teacher Conference held on ${ptcDate}`);
+                      setIsEditingPtcCaption(true);
+                    }}
+                    className="p-1 text-slate-400 hover:text-emerald-700 hover:bg-slate-200/60 rounded transition print:hidden cursor-pointer shrink-0"
+                    title="Edit PTC caption"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
 
             <DepEdDocFooter />
@@ -1227,6 +1420,8 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
                   <td className="p-3 font-serif font-semibold text-slate-900">
                     {programType === 'Skills Enhancement'
                       ? 'Skills Enhancement Program'
+                      : programType === 'Combined'
+                      ? 'Consolidated Remediation & Skills Enhancement Programs'
                       : 'Remediation Program'}
                   </td>
                 </tr>

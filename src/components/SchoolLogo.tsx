@@ -7,13 +7,15 @@ interface SchoolLogoProps {
   className?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   showShadow?: boolean;
+  spin?: boolean | 'slow' | 'normal' | 'fast';
 }
 
 export const SchoolLogo: React.FC<SchoolLogoProps> = ({
   className = '',
   size = 'md',
   showShadow = true,
-}) => {
+  spin = false,
+}: SchoolLogoProps) => {
   const [currentSrcIndex, setCurrentSrcIndex] = useState(0);
 
   // Official Ramon Magsaysay (Cubao) High School Seal (Wikipedia File:Ramon Magsaysay (Cubao) High School.svg)
@@ -39,6 +41,15 @@ export const SchoolLogo: React.FC<SchoolLogoProps> = ({
 
   const dim = sizeMap[size] || sizeMap.md;
 
+  const spinClass =
+    spin === 'fast'
+      ? 'animate-spin-continuous-fast'
+      : spin === 'slow'
+      ? 'animate-spin-continuous-slow'
+      : spin === 'normal' || spin === true
+      ? 'animate-spin-continuous'
+      : '';
+
   const handleError = () => {
     if (currentSrcIndex < fallbackList.length - 1) {
       setCurrentSrcIndex((prev) => prev + 1);
@@ -57,14 +68,14 @@ export const SchoolLogo: React.FC<SchoolLogoProps> = ({
       <img
         src={fallbackList[currentSrcIndex]}
         alt="Ramon Magsaysay (Cubao) High School Official Seal"
-        className="w-full h-full object-contain aspect-square select-none block"
+        className={`w-full h-full object-contain aspect-square select-none block ${spinClass}`}
         loading="eager"
         decoding="async"
         referrerPolicy="no-referrer"
         onError={handleError}
       />
       {isAllFailed && (
-        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-800 to-emerald-950 border-2 border-amber-400 flex flex-col items-center justify-center text-center p-1 text-white shadow-inner pointer-events-none">
+        <div className={`absolute inset-0 rounded-full bg-gradient-to-br from-emerald-800 to-emerald-950 border-2 border-amber-400 flex flex-col items-center justify-center text-center p-1 text-white shadow-inner pointer-events-none ${spinClass}`}>
           <span className="text-[9px] font-black text-amber-300 tracking-tighter uppercase leading-none">
             RMCHS
           </span>
