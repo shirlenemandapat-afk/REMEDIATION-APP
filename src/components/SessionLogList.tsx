@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SessionRecord, Student, interpretMasteryLevel } from '../types';
-import { Calendar, Search, Filter, Plus, FileText, Trash2, BookOpen, Paperclip, ChevronRight, RefreshCw, Cloud, Laptop, Pencil } from 'lucide-react';
+import { Calendar, Search, Filter, Plus, FileText, Trash2, BookOpen, Paperclip, ChevronRight, Cloud, Laptop, Pencil } from 'lucide-react';
 
 interface SessionLogListProps {
   sessions: SessionRecord[];
@@ -270,16 +270,6 @@ export const SessionLogList: React.FC<SessionLogListProps> = ({
             </p>
           </div>
           <div className="flex items-center justify-center gap-3 pt-2">
-            {onManualSync && (
-              <button
-                onClick={onManualSync}
-                disabled={isSyncing}
-                className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-emerald-300 shadow-xs cursor-pointer"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>{isSyncing ? 'Syncing...' : 'Sync Cloud Logs'}</span>
-              </button>
-            )}
             <button
               onClick={() => onOpenAddSession()}
               className="px-4 py-2 bg-emerald-800 hover:bg-emerald-700 text-yellow-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-emerald-900 shadow-xs cursor-pointer"

@@ -210,7 +210,7 @@ export default function App() {
     window.addEventListener('pageshow', handleFocus);
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('deped-data-synced', handleCustomEvent);
-    const intervalId = setInterval(pullUpdates, 12000);
+    const intervalId = setInterval(pullUpdates, 7000);
 
     return () => {
       unsubscribeRealtime();
@@ -713,8 +713,6 @@ export default function App() {
             onOpenParentLetter={(stud) => setParentLetterStudent(stud)}
             onOpenAnecdotalReport={(stud) => setAnecdotalReportStudent(stud)}
             onOpenArchiveTab={() => setActiveTab('archive')}
-            onManualSync={handleManualSync}
-            isSyncing={isSyncing}
           />
         )}
 

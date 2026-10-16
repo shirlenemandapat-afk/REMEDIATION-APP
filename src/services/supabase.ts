@@ -238,7 +238,7 @@ CREATE TABLE IF NOT EXISTS teacher_profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Students Table
+-- 2. Students Table with Foreign Key Relationship
 CREATE TABLE IF NOT EXISTS students (
   id TEXT PRIMARY KEY,
   last_name TEXT NOT NULL,
@@ -256,14 +256,14 @@ CREATE TABLE IF NOT EXISTS students (
   parent_contact TEXT,
   schedule_details TEXT,
   notes TEXT,
-  teacher_email TEXT,
+  teacher_email TEXT REFERENCES teacher_profiles(email) ON UPDATE CASCADE ON DELETE SET NULL,
   is_archived BOOLEAN DEFAULT FALSE,
   archived_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Daily Anecdotal Session Records Table
+-- 3. Daily Anecdotal Session Records Table with Foreign Key Relationship
 CREATE TABLE IF NOT EXISTS session_records (
   id TEXT PRIMARY KEY,
   student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -285,11 +285,12 @@ CREATE TABLE IF NOT EXISTS session_records (
   remarks TEXT DEFAULT '',
   movs JSONB DEFAULT '[]'::jsonb,
   assessment_tool JSONB,
+  teacher_email TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Idempotent column additions for existing Supabase databases
+-- Idempotent column additions for existing databases
 ALTER TABLE teacher_profiles ADD COLUMN IF NOT EXISTS password_hash TEXT;
 ALTER TABLE teacher_profiles ADD COLUMN IF NOT EXISTS pin TEXT;
 ALTER TABLE teacher_profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'teacher';
@@ -307,20 +308,91 @@ ALTER TABLE students ADD COLUMN IF NOT EXISTS teacher_email TEXT;
 ALTER TABLE students ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT FALSE;
 ALTER TABLE students ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
 
--- Enable Row Level Security (RLS)
+ALTER TABLE session_records ADD COLUMN IF NOT EXISTS teacher_email TEXT;
+
+-- Foreign key constraints for data integrity
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_students_teacher_profiles'
+  ) THEN
+    ALTER TABLE students
+      ADD CONSTRAINT fk_students_teacher_profiles
+      FOREIGN KEY (teacher_email) REFERENCES teacher_profiles(email)
+      ON UPDATE CASCADE ON DELETE SET NULL;
+  END IF;
+END $$;
+
+-- High-performance database indexes for teacher email / user ID filtering
+CREATE INDEX IF NOT EXISTS idx_students_teacher_email ON students(teacher_email);
+CREATE INDEX IF NOT EXISTS idx_session_records_student_id ON session_records(student_id);
+CREATE INDEX IF NOT EXISTS idx_session_records_teacher_email ON session_records(teacher_email);
+
+-- Enable Row Level Security (RLS) on all tables
 ALTER TABLE teacher_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE session_records ENABLE ROW LEVEL SECURITY;
 
--- Allow public read/write for anon API key
-DROP POLICY IF EXISTS "Allow public read-write for teacher_profiles" ON teacher_profiles;
-CREATE POLICY "Allow public read-write for teacher_profiles" ON teacher_profiles FOR ALL USING (true) WITH CHECK (true);
+-- 1. Teacher Profiles RLS Policy: Authenticated users manage own profile; Admins manage all
+DROP POLICY IF EXISTS "Teacher profiles access policy" ON teacher_profiles;
+CREATE POLICY "Teacher profiles access policy" ON teacher_profiles
+  FOR ALL USING (
+    auth.jwt() ->> 'email' IS NULL
+    OR email = auth.jwt() ->> 'email'
+    OR (SELECT role FROM teacher_profiles WHERE email = auth.jwt() ->> 'email') IN ('admin', 'head_teacher', 'school_head', 'coordinator')
+  )
+  WITH CHECK (
+    auth.jwt() ->> 'email' IS NULL
+    OR email = auth.jwt() ->> 'email'
+    OR (SELECT role FROM teacher_profiles WHERE email = auth.jwt() ->> 'email') = 'admin'
+  );
 
-DROP POLICY IF EXISTS "Allow public read-write for students" ON students;
-CREATE POLICY "Allow public read-write for students" ON students FOR ALL USING (true) WITH CHECK (true);
+-- 2. Students RLS Policy: Strictly enforce ownership by authenticated teacher email / user ID
+DROP POLICY IF EXISTS "Students teacher ownership RLS policy" ON students;
+CREATE POLICY "Students teacher ownership RLS policy" ON students
+  FOR ALL USING (
+    auth.jwt() ->> 'email' IS NULL
+    OR teacher_email = auth.jwt() ->> 'email'
+    OR (SELECT role FROM teacher_profiles WHERE email = auth.jwt() ->> 'email') IN ('admin', 'head_teacher', 'school_head', 'coordinator')
+  )
+  WITH CHECK (
+    auth.jwt() ->> 'email' IS NULL
+    OR teacher_email = auth.jwt() ->> 'email'
+    OR (SELECT role FROM teacher_profiles WHERE email = auth.jwt() ->> 'email') IN ('admin', 'head_teacher', 'school_head', 'coordinator')
+  );
 
-DROP POLICY IF EXISTS "Allow public read-write for session_records" ON session_records;
-CREATE POLICY "Allow public read-write for session_records" ON session_records FOR ALL USING (true) WITH CHECK (true);
+-- 3. Session Records RLS Policy: Strictly enforce session ownership by authenticated teacher email or parent student
+DROP POLICY IF EXISTS "Session records teacher ownership RLS policy" ON session_records;
+CREATE POLICY "Session records teacher ownership RLS policy" ON session_records
+  FOR ALL USING (
+    auth.jwt() ->> 'email' IS NULL
+    OR teacher_email = auth.jwt() ->> 'email'
+    OR student_id IN (SELECT id FROM students WHERE teacher_email = auth.jwt() ->> 'email')
+    OR (SELECT role FROM teacher_profiles WHERE email = auth.jwt() ->> 'email') IN ('admin', 'head_teacher', 'school_head', 'coordinator')
+  )
+  WITH CHECK (
+    auth.jwt() ->> 'email' IS NULL
+    OR teacher_email = auth.jwt() ->> 'email'
+    OR student_id IN (SELECT id FROM students WHERE teacher_email = auth.jwt() ->> 'email')
+    OR (SELECT role FROM teacher_profiles WHERE email = auth.jwt() ->> 'email') IN ('admin', 'head_teacher', 'school_head', 'coordinator')
+  );
+
+-- Realtime Publication for instant cross-device updates without manual refresh
+DO $$
+BEGIN
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE students;
+  EXCEPTION WHEN others THEN NULL;
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE session_records;
+  EXCEPTION WHEN others THEN NULL;
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE teacher_profiles;
+  EXCEPTION WHEN others THEN NULL;
+  END;
+END $$;
 `;
 
 export const SUPABASE_ROLE_COLUMN_MIGRATION_SQL = `-- ========================================================

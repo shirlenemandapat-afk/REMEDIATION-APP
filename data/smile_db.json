@@ -100,7 +100,7 @@
       "isPasswordSet": true,
       "name": "Shirlene Mandapat-Tindoc",
       "registeredAt": "2025-06-15",
-      "lastLoginAt": "10/13/2026, 1:55:05 AM",
+      "lastLoginAt": "10/16/2026, 11:43:13 AM",
       "roleTitle": "TEACHER"
     },
     "admin@projectsmile": {
@@ -110,12 +110,12 @@
       "role": "admin",
       "roleTitle": "ADMIN",
       "accountStatus": "Active",
-      "name": "TLE Department Head Admin",
-      "title": "Department Head / System Administrator",
+      "name": "RMCHS",
+      "title": "Teacher II",
       "schoolName": "Ramon Magsaysay (Cubao) High School",
       "division": "SDO Quezon City • TLE Department",
       "region": "National Capital Region (NCR)",
-      "academicYear": "2025-2026",
+      "academicYear": "2026-2027",
       "department": "Technology and Livelihood Education (TLE)",
       "assignedSubjects": [
         "ICT - Computer Programming"
@@ -123,12 +123,39 @@
       "reportsSubmissionStatus": "Submitted",
       "registeredAt": "2025-06-01",
       "lastLoginAt": "10/13/2026, 1:35:51 AM",
-      "headTeacherName": "Dr. Corazon V. Santos",
-      "headTeacherPosition": "Head Teacher III / TLE Department",
-      "principalName": "Dr. Maria Luisa T. Ramos",
-      "principalPosition": "Secondary School Principal IV",
-      "masterTeacherName": "Shirlene M. Mandapat",
-      "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator"
+      "headTeacherName": "MELANI R. SANTOS,PhD",
+      "headTeacherPosition": "Head Teacher VI / TLE Department",
+      "principalName": "JOSEHPINE M. MANINGAS, Phd",
+      "principalPosition": "Principal IV",
+      "masterTeacherName": "TLE Department Head Admin",
+      "masterTeacherPosition": "Master Teacher I"
+    },
+    "teachershirlene@gmail.com": {
+      "title": "Teacher II",
+      "schoolName": "Ramon Magsaysay (Cubao) High School",
+      "division": "SDO Quezon City",
+      "region": "National Capital Region (NCR)",
+      "academicYear": "2026-2027",
+      "department": "Technology and Livelihood Education (TLE)",
+      "assignedSubjects": [
+        "ICT - Computer Programming"
+      ],
+      "reportsSubmissionStatus": "Submitted",
+      "accountStatus": "Active",
+      "role": "teacher",
+      "masterTeacherName": "Shirlene Mandapat-Tindoc",
+      "masterTeacherPosition": "Master Teacher I",
+      "headTeacherName": "MELANI R. SANTOS, PhD",
+      "headTeacherPosition": "Head Teacher VI / TLE Department",
+      "principalName": "JOSEHPINE M. MANINGAS,PhD",
+      "principalPosition": "Principal IV",
+      "email": "teachershirlene@gmail.com",
+      "passwordHash": "teacher123",
+      "isPasswordSet": true,
+      "name": "Shirlene Mandapat-Tindoc",
+      "registeredAt": "2025-06-15",
+      "lastLoginAt": "10/16/2026, 11:43:13 AM",
+      "roleTitle": "TEACHER"
     },
     "corazon.santos@depedqc.ph": {
       "email": "corazon.santos@depedqc.ph",
@@ -501,33 +528,6 @@
       "passwordHash": "teacher123",
       "accountStatus": "Active",
       "isPasswordSet": true
-    },
-    "teachershirlene@gmail.com": {
-      "title": "Teacher II",
-      "schoolName": "Ramon Magsaysay (Cubao) High School",
-      "division": "SDO Quezon City",
-      "region": "National Capital Region (NCR)",
-      "academicYear": "2026-2027",
-      "department": "Technology and Livelihood Education (TLE)",
-      "assignedSubjects": [
-        "ICT - Computer Programming"
-      ],
-      "reportsSubmissionStatus": "Submitted",
-      "accountStatus": "Active",
-      "role": "teacher",
-      "masterTeacherName": "Shirlene Mandapat-Tindoc",
-      "masterTeacherPosition": "Master Teacher I",
-      "headTeacherName": "MELANI R. SANTOS, PhD",
-      "headTeacherPosition": "Head Teacher VI / TLE Department",
-      "principalName": "JOSEHPINE M. MANINGAS,PhD",
-      "principalPosition": "Principal IV",
-      "email": "teachershirlene@gmail.com",
-      "passwordHash": "teacher123",
-      "isPasswordSet": true,
-      "name": "Shirlene Mandapat-Tindoc",
-      "registeredAt": "2025-06-15",
-      "lastLoginAt": "10/13/2026, 2:20:00 AM",
-      "roleTitle": "TEACHER"
     }
   },
   "students": [
@@ -653,7 +653,7 @@
       "programType": "Skills Enhancement",
       "baselineScore": 0,
       "focusTopic": "",
-      "enrolledDate": "2026-07-16",
+      "enrolledDate": "2026-09-28",
       "status": "Progressing",
       "parentName": "MERCY TABORASA",
       "parentContact": "09072322836",
@@ -804,7 +804,7 @@
       "programType": "Remediation",
       "baselineScore": 0,
       "focusTopic": "",
-      "enrolledDate": "2026-09-05",
+      "enrolledDate": "2026-08-26",
       "status": "Progressing",
       "parentName": "JOAN PALERO",
       "parentContact": "09300449131",
@@ -1933,6 +1933,14 @@
   "classes": [],
   "announcements": [],
   "auditLogs": [
+    {
+      "id": "audit-1792150994008-t8tbt",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene Mandapat-Tindoc (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal from device.",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-10-16T11:43:14.008Z"
+    },
     {
       "id": "audit-1791858000657-w0gcs",
       "userEmail": "teachershirlene@gmail.com",
@@ -3234,6 +3242,14 @@
     {
       "id": "audit-1791856560124-0chk",
       "timestamp": "10/13/2026, 9:56:00 AM",
+      "adminEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene Mandapat-Tindoc (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
+      "targetUser": "shirlene.mandapat@depedqc.ph"
+    },
+    {
+      "id": "audit-1792150994348-h87z",
+      "timestamp": "10/16/2026, 7:43:14 PM",
       "adminEmail": "shirlene.mandapat@depedqc.ph",
       "action": "TEACHER_LOGGED_IN",
       "details": "Faculty login: Shirlene Mandapat-Tindoc (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",

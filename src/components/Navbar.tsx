@@ -51,6 +51,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'signatories' | 'teacher' | 'school'>('signatories');
+  const isAdmin = teacher.role === 'admin' || (teacher.email || '').toLowerCase().trim() === 'admin@projectsmile';
 
   // Teacher info
   const [editName, setEditName] = useState(teacher.name);
@@ -226,8 +227,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               </select>
             </div>
 
-            {/* Supabase Live Cloud Status & Manual Sync Button */}
-            {onManualSync && (
+            {/* Supabase Live Cloud Status & Manual Sync Button (Admin Portal Only) */}
+            {isAdmin && onManualSync && (
               <button
                 type="button"
                 onClick={onManualSync}
@@ -240,8 +241,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Supabase Database Hub Button */}
-            {onOpenSupabaseModal && (
+            {/* Supabase Database Hub Button (Admin Portal Only) */}
+            {isAdmin && onOpenSupabaseModal && (
               <button
                 type="button"
                 onClick={onOpenSupabaseModal}
@@ -689,7 +690,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </p>
                   </div>
 
-                  {onOpenSupabaseModal && (
+                  {isAdmin && onOpenSupabaseModal && (
                     <div className="pt-3 border-t border-slate-200">
                       <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
