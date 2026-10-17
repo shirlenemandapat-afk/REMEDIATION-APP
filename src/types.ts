@@ -527,6 +527,18 @@ export interface TeacherProfile {
 
   principalName?: string;         // e.g., "Dr. Maria Luisa T. Ramos"
   principalPosition?: string;     // e.g., "Secondary School Principal IV"
+
+  // Higher Supervisory Signatories (Office of the School Head: Supervisor, Superintendent, etc.)
+  supervisorSignatories?: AdditionalSignatory[];
+  principalRoleLabel?: string; // e.g. "Certified Correct & Submitted by:"
+}
+
+export interface AdditionalSignatory {
+  id: string;
+  roleLabel: string; // e.g. "Noted by:", "Recommending Approval:", "Approved by:"
+  name: string; // e.g. "CARLEEN S. SEDILLA, CESO V"
+  title: string; // e.g. "Schools Division Superintendent"
+  office?: string; // e.g. "Schools Division Office - Quezon City"
 }
 
 export interface AdminAuditLog {

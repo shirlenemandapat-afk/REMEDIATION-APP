@@ -36,9 +36,9 @@ export function generateGuardianNoticePDF(data: GuardianNoticeData): jsPDF {
     timeSchedule = data.schedule || '3:00 PM – 4:00 PM',
     datesRangeStr = data.startDate || dateStr,
     teacherInCharge = teacher.name || 'TLE Teacher',
-    departmentHead = teacher.headTeacherName || 'Dr. Corazon V. Santos',
+    principalName = teacher.principalName || 'Dr. Maria Luisa T. Ramos',
     teacherTitle = 'TLE Teacher',
-    headTeacherTitle = 'Head Teacher VI, TLE Department',
+    principalTitle = teacher.principalPosition || 'Secondary School Principal IV',
     department = teacher.department || 'Technology and Livelihood Education (TLE) Department',
     isFilledTemplate = true,
   } = data;
@@ -225,7 +225,7 @@ export function generateGuardianNoticePDF(data: GuardianNoticeData): jsPDF {
   doc.text('Sincerely,', col1X, currentY);
 
   doc.setFont('times', 'bold');
-  doc.text('Noted by:', col2X, currentY);
+  doc.text('Noted & Approved by:', col2X, currentY);
   currentY += 10.5;
 
   // TLE Teacher Signature Line (Col 1)
@@ -239,16 +239,16 @@ export function generateGuardianNoticePDF(data: GuardianNoticeData): jsPDF {
   doc.setFontSize(9.8);
   doc.text(teacherTitle, col1X, currentY + 4.2);
 
-  // Head Teacher VI, TLE Department Signature Line (Col 2)
-  if (isFilledTemplate && departmentHead) {
+  // School Principal Signature Line (Col 2)
+  if (isFilledTemplate && principalName) {
     doc.setFont('times', 'bold');
     doc.setFontSize(10.5);
-    doc.text(departmentHead, col2X, currentY - 1.2);
+    doc.text(principalName, col2X, currentY - 1.2);
   }
   doc.line(col2X, currentY, col2X + sigLineWidth, currentY);
   doc.setFont('times', 'bold');
   doc.setFontSize(9.8);
-  doc.text(headTeacherTitle, col2X, currentY + 4.2);
+  doc.text(principalTitle, col2X, currentY + 4.2);
 
   currentY += 9.0;
 

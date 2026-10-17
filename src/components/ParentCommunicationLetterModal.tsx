@@ -79,8 +79,8 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
   const [venue, setVenue] = useState<string>(initialParsed.ven);
   const [sessionTime, setSessionTime] = useState<string>(initialParsed.initialTime);
   const [teacherInCharge, setTeacherInCharge] = useState<string>(teacher.name || 'TLE Teacher');
-  const [departmentHead, setDepartmentHead] = useState<string>(
-    teacher.headTeacherName || 'Dr. Corazon V. Santos'
+  const [principalName, setPrincipalName] = useState<string>(
+    teacher.principalName || 'Dr. Maria Luisa T. Ramos'
   );
 
   React.useEffect(() => {
@@ -92,9 +92,9 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
       setStartDateRaw(start);
       setEndDateRaw(calculateDefaultEndDate(start));
       setTeacherInCharge(teacher.name || 'TLE Teacher');
-      setDepartmentHead(teacher.headTeacherName || 'Dr. Corazon V. Santos');
+      setPrincipalName(teacher.principalName || 'Dr. Maria Luisa T. Ramos');
     }
-  }, [student?.id, student?.scheduleDetails, student?.enrolledDate, teacher.name, teacher.headTeacherName, todayStr]);
+  }, [student?.id, student?.scheduleDetails, student?.enrolledDate, teacher.name, teacher.principalName, todayStr]);
 
   if (!isOpen || !student) return null;
 
@@ -201,9 +201,7 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
           startDate: startDateRaw,
           endDate: endDateRaw,
           teacherInCharge,
-          departmentHead,
-          teacherTitle: 'TLE Teacher',
-          headTeacherTitle: 'Head Teacher VI, TLE Department',
+          teacherTitle: teacher.title || 'TLE Teacher',
           isFilledTemplate,
         },
         `${docFilename}.pdf`
@@ -467,13 +465,13 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
               <div>
                 <label className="font-bold text-slate-700 flex items-center gap-1 mb-1">
                   <UserCheck className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Head Teacher VI Name:</span>
+                  <span>School Principal (Approving Authority):</span>
                 </label>
                 <input
                   type="text"
-                  value={departmentHead}
-                  onChange={(e) => setDepartmentHead(e.target.value)}
-                  placeholder="Head Teacher VI Name"
+                  value={principalName}
+                  onChange={(e) => setPrincipalName(e.target.value)}
+                  placeholder="School Principal Name"
                   className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:ring-1 focus:ring-emerald-600"
                 />
               </div>
@@ -635,13 +633,17 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
             </div>
 
             <div>
-              <p className="font-bold">Noted by:</p>
+              <p className="font-bold">Noted & Approved by:</p>
               <div className="mt-4">
-                {isFilledTemplate && departmentHead ? (
-                  <p className="font-bold uppercase tracking-wide text-xs">{departmentHead}</p>
+                {isFilledTemplate ? (
+                  <p className="font-bold uppercase tracking-wide text-xs">
+                    {teacher.principalName || 'Dr. Maria Luisa T. Ramos'}
+                  </p>
                 ) : null}
                 <div className="border-b border-black w-48 sm:w-56 my-0.5"></div>
-                <p className="font-bold text-xs">Head Teacher VI, TLE Department</p>
+                <p className="font-bold text-xs">
+                  {teacher.principalPosition || 'Secondary School Principal IV'}
+                </p>
               </div>
             </div>
           </div>

@@ -925,14 +925,30 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-slate-700 mb-1">
-              {isHTMode ? 'Head Teacher (Prepared by)' : 'Head Teacher (Noted by)'}
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[11px] font-bold text-slate-700">
+                Approving Authority (School Principal)
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(
+                    new CustomEvent('smile:open-profile-signatories', {
+                      detail: { tab: 'signatories' },
+                    })
+                  );
+                }}
+                className="text-[10px] text-emerald-700 hover:text-emerald-900 font-semibold underline cursor-pointer"
+                title="Edit in Teacher Profile & Signatories"
+              >
+                Edit in Profile & Signatories
+              </button>
+            </div>
             <input
               type="text"
-              value={headTeacherName}
-              onChange={(e) => setHeadTeacherName(e.target.value)}
-              placeholder="MELANI R. SANTOS"
+              value={principalName}
+              onChange={(e) => setPrincipalName(e.target.value)}
+              placeholder="JOSEPHINE M. MANINGAS, PhD"
               className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800"
             />
           </div>
@@ -1596,65 +1612,27 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
           )}
 
           {/* OFFICIAL SIGNATORIES SECTION */}
-          {isHTMode ? (
-            <div className="pt-10 grid grid-cols-1 sm:grid-cols-2 gap-8 font-serif">
+          <div className="pt-10 grid grid-cols-1 sm:grid-cols-2 gap-8 font-serif">
+            <div>
+              <p className="text-xs text-slate-800 font-medium mb-5">Prepared by:</p>
               <div>
-                <p className="text-xs text-slate-800 font-medium mb-5">
-                  Prepared & Consolidated by:
+                <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
+                  {teacherName}
                 </p>
-                <div>
-                  <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                    {headTeacherName}
-                  </p>
-                  <p className="text-[11px] text-slate-700">{headTeacherPosition}</p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs text-slate-800 font-medium mb-5">Noted & Approved by:</p>
-                <div>
-                  <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                    {principalName}
-                  </p>
-                  <p className="text-[11px] text-slate-700">{principalPosition}</p>
-                </div>
+                <p className="text-[11px] text-slate-700">{teacherPosition}</p>
               </div>
             </div>
-          ) : (
-            <div className="pt-10 space-y-8 font-serif">
+
+            <div>
+              <p className="text-xs text-slate-800 font-medium mb-5">Noted & Approved by:</p>
               <div>
-                <p className="text-xs text-slate-800 font-medium mb-5">Prepared by:</p>
-                <div>
-                  <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                    {teacherName}
-                  </p>
-                  <p className="text-[11px] text-slate-700">{teacherPosition}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-2">
-                <div>
-                  <p className="text-xs text-slate-800 font-medium mb-5">Noted by:</p>
-                  <div>
-                    <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                      {headTeacherName}
-                    </p>
-                    <p className="text-[11px] text-slate-700">{headTeacherPosition}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-xs text-slate-800 font-medium mb-5">Approved by:</p>
-                  <div>
-                    <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                      {principalName}
-                    </p>
-                    <p className="text-[11px] text-slate-700">{principalPosition}</p>
-                  </div>
-                </div>
+                <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
+                  {principalName}
+                </p>
+                <p className="text-[11px] text-slate-700">{principalPosition}</p>
               </div>
             </div>
-          )}
+          </div>
 
           <DepEdDocFooter />
         </div>
@@ -1758,65 +1736,29 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
           </div>
 
           {/* SIGNATORIES */}
-          {isHTMode ? (
-            <div className="pt-10 grid grid-cols-1 sm:grid-cols-2 gap-8">
+          <div className="pt-10 grid grid-cols-1 sm:grid-cols-2 gap-8 font-serif">
+            <div>
+              <p className="text-xs text-slate-800 font-medium mb-5">
+                Prepared & Certified Correct by:
+              </p>
               <div>
-                <p className="text-xs text-slate-800 font-medium mb-5">
-                  Prepared & Certified Correct by:
+                <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
+                  {teacherName}
                 </p>
-                <div>
-                  <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                    {headTeacherName}
-                  </p>
-                  <p className="text-[11px] text-slate-700">{headTeacherPosition}</p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs text-slate-800 font-medium mb-5">Approved by:</p>
-                <div>
-                  <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                    {principalName}
-                  </p>
-                  <p className="text-[11px] text-slate-700">{principalPosition}</p>
-                </div>
+                <p className="text-[11px] text-slate-700">{teacherPosition}</p>
               </div>
             </div>
-          ) : (
-            <div className="pt-10 space-y-8">
+
+            <div>
+              <p className="text-xs text-slate-800 font-medium mb-5">Noted & Approved by:</p>
               <div>
-                <p className="text-xs text-slate-800 font-medium mb-5">Prepared by:</p>
-                <div>
-                  <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                    {teacherName}
-                  </p>
-                  <p className="text-[11px] text-slate-700">{teacherPosition}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-2">
-                <div>
-                  <p className="text-xs text-slate-800 font-medium mb-5">Noted by:</p>
-                  <div>
-                    <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                      {headTeacherName}
-                    </p>
-                    <p className="text-[11px] text-slate-700">{headTeacherPosition}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-xs text-slate-800 font-medium mb-5">Approved by:</p>
-                  <div>
-                    <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                      {principalName}
-                    </p>
-                    <p className="text-[11px] text-slate-700">{principalPosition}</p>
-                  </div>
-                </div>
+                <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
+                  {principalName}
+                </p>
+                <p className="text-[11px] text-slate-700">{principalPosition}</p>
               </div>
             </div>
-          )}
+          </div>
 
           <DepEdDocFooter />
         </div>
@@ -1984,12 +1926,12 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
                   </div>
 
                   <div>
-                    <p className="text-xs text-slate-800 font-medium mb-5">Noted by:</p>
+                    <p className="text-xs text-slate-800 font-medium mb-5">Noted & Approved by:</p>
                     <div>
                       <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                        {headTeacherName}
+                        {principalName}
                       </p>
-                      <p className="text-[11px] text-slate-700">{headTeacherPosition}</p>
+                      <p className="text-[11px] text-slate-700">{principalPosition}</p>
                     </div>
                   </div>
                 </div>
@@ -2476,65 +2418,27 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
             </table>
           </div>
 
-          {isHTMode ? (
-            <div className="pt-8 grid grid-cols-1 sm:grid-cols-2 gap-8 font-serif">
+          <div className="pt-8 grid grid-cols-1 sm:grid-cols-2 gap-8 font-serif">
+            <div>
+              <p className="text-xs text-slate-800 font-medium mb-5">Prepared by:</p>
               <div>
-                <p className="text-xs text-slate-800 font-medium mb-5">
-                  Prepared & Consolidated by:
+                <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
+                  {teacherName}
                 </p>
-                <div>
-                  <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                    {headTeacherName}
-                  </p>
-                  <p className="text-[11px] text-slate-700">{headTeacherPosition}</p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs text-slate-800 font-medium mb-5">Noted & Approved by:</p>
-                <div>
-                  <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                    {principalName}
-                  </p>
-                  <p className="text-[11px] text-slate-700">{principalPosition}</p>
-                </div>
+                <p className="text-[11px] text-slate-700">{teacherPosition}</p>
               </div>
             </div>
-          ) : (
-            <div className="pt-8 space-y-8 font-serif">
+
+            <div>
+              <p className="text-xs text-slate-800 font-medium mb-5">Noted & Approved by:</p>
               <div>
-                <p className="text-xs text-slate-800 font-medium mb-5">Prepared by:</p>
-                <div>
-                  <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                    {teacherName}
-                  </p>
-                  <p className="text-[11px] text-slate-700">{teacherPosition}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-2">
-                <div>
-                  <p className="text-xs text-slate-800 font-medium mb-5">Noted by:</p>
-                  <div>
-                    <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                      {headTeacherName}
-                    </p>
-                    <p className="text-[11px] text-slate-700">{headTeacherPosition}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-xs text-slate-800 font-medium mb-5">Approved by:</p>
-                  <div>
-                    <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                      {principalName}
-                    </p>
-                    <p className="text-[11px] text-slate-700">{principalPosition}</p>
-                  </div>
-                </div>
+                <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
+                  {principalName}
+                </p>
+                <p className="text-[11px] text-slate-700">{principalPosition}</p>
               </div>
             </div>
-          )}
+          </div>
 
           <DepEdDocFooter />
         </div>

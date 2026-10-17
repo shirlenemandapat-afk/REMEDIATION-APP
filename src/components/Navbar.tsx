@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { TeacherProfile, UserRole, formatRoleTitle, getRoleDefinition } from '../types';
+import React, { useState, useEffect } from 'react';
+import { TeacherProfile, UserRole, formatRoleTitle, getRoleDefinition, AdditionalSignatory } from '../types';
 import { storage } from '../services/storage';
 import { isSupabaseConfigured } from '../services/supabase';
 import { SchoolLogo } from './SchoolLogo';
@@ -24,6 +24,10 @@ import {
   Cloud,
   UserCheck,
   RefreshCw,
+  Plus,
+  Trash2,
+  UserPlus,
+  PenLine,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -64,25 +68,28 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [editDivision, setEditDivision] = useState(teacher.division || 'SDO Quezon City • TLE Department');
   const [editAcademicYear, setEditAcademicYear] = useState(teacher.academicYear || '2025-2026');
 
-  // Official Signatories
-  const [editMasterTeacherName, setEditMasterTeacherName] = useState(
-    teacher.masterTeacherName || 'Shirlene M. Mandapat'
-  );
-  const [editMasterTeacherPosition, setEditMasterTeacherPosition] = useState(
-    teacher.masterTeacherPosition || 'Master Teacher I / TLE Subject Coordinator'
-  );
-  const [editHeadTeacherName, setEditHeadTeacherName] = useState(
-    teacher.headTeacherName || 'Dr. Corazon V. Santos'
-  );
-  const [editHeadTeacherPosition, setEditHeadTeacherPosition] = useState(
-    teacher.headTeacherPosition || 'Head Teacher III / TLE Department'
-  );
+  // Official Signatories (Head Teacher & Master Teacher removed per user specification)
   const [editPrincipalName, setEditPrincipalName] = useState(
     teacher.principalName || 'Dr. Maria Luisa T. Ramos'
   );
   const [editPrincipalPosition, setEditPrincipalPosition] = useState(
     teacher.principalPosition || 'Secondary School Principal IV'
   );
+
+  // Higher Supervisory Signatories (For School Head / Principal Reports & Endorsements)
+  const [editPrincipalRoleLabel, setEditPrincipalRoleLabel] = useState<string>(
+    teacher.principalRoleLabel || 'Certified Correct & Submitted by:'
+  );
+  const [editSupervisorSignatories, setEditSupervisorSignatories] = useState<AdditionalSignatory[]>(() => {
+    if (teacher.supervisorSignatories && Array.isArray(teacher.supervisorSignatories)) {
+      return teacher.supervisorSignatories;
+    }
+    try {
+      const saved = localStorage.getItem('smile_schoolhead_additional_signatories');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  });
 
   const [newPassword, setNewPassword] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
@@ -109,8 +116,100 @@ export const Navbar: React.FC<NavbarProps> = ({
     setEditPrincipalPosition(
       teacher.principalPosition || 'Secondary School Principal IV'
     );
+
+    setEditPrincipalRoleLabel(teacher.principalRoleLabel || 'Certified Correct & Submitted by:');
+    if (teacher.supervisorSignatories && Array.isArray(teacher.supervisorSignatories)) {
+      setEditSupervisorSignatories(teacher.supervisorSignatories);
+    } else {
+      try {
+        const saved = localStorage.getItem('smile_schoolhead_additional_signatories');
+        if (saved) setEditSupervisorSignatories(JSON.parse(saved));
+        else setEditSupervisorSignatories([]);
+      } catch (e) {
+        setEditSupervisorSignatories([]);
+      }
+    }
+
     setNewPassword('');
     setSaveSuccess('');
+  };
+
+  // Listen to open-profile-signatories custom event dispatched from anywhere
+  useEffect(() => {
+    const handleOpenSignatoriesEvent = (e: any) => {
+      const tab = e?.detail?.tab || 'signatories';
+      setActiveTab(tab);
+      syncStateFromTeacher();
+      setShowProfileModal(true);
+    };
+
+    window.addEventListener('smile:open-profile-signatories', handleOpenSignatoriesEvent);
+    return () => {
+      window.removeEventListener('smile:open-profile-signatories', handleOpenSignatoriesEvent);
+    };
+  }, [teacher]);
+
+  const SUPERVISOR_PRESETS = [
+    {
+      roleLabel: 'Noted by:',
+      name: 'DR. REBECCA T. ROXAS',
+      title: 'Public Schools District Supervisor (District IV)',
+      office: 'SDO Quezon City',
+      tag: 'District Supervisor (PSDS)',
+    },
+    {
+      roleLabel: 'Noted by:',
+      name: 'DR. HEIDI B. MACAHILIG',
+      title: 'Education Program Supervisor - EPP/TLE',
+      office: 'SDO Quezon City',
+      tag: 'Education Program Supervisor (EPS)',
+    },
+    {
+      roleLabel: 'Approved by:',
+      name: 'CARLEEN S. SEDILLA, CESO V',
+      title: 'Schools Division Superintendent',
+      office: 'Schools Division Office - Quezon City',
+      tag: 'Division Superintendent (SDS)',
+    },
+    {
+      roleLabel: 'Recommending Approval:',
+      name: 'BRIAN E. ILAN, EdD, CESE',
+      title: 'Assistant Schools Division Superintendent',
+      office: 'Schools Division Office - Quezon City',
+      tag: 'Asst. Superintendent (ASDS)',
+    },
+  ];
+
+  const handleAddSupervisorPreset = (preset: typeof SUPERVISOR_PRESETS[0]) => {
+    const newSig: AdditionalSignatory = {
+      id: `sig_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      roleLabel: preset.roleLabel,
+      name: preset.name,
+      title: preset.title,
+      office: preset.office,
+    };
+    setEditSupervisorSignatories((prev) => [...prev, newSig]);
+  };
+
+  const handleAddCustomSupervisor = () => {
+    const newSig: AdditionalSignatory = {
+      id: `sig_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      roleLabel: 'Noted by:',
+      name: '',
+      title: '',
+      office: 'SDO Quezon City',
+    };
+    setEditSupervisorSignatories((prev) => [...prev, newSig]);
+  };
+
+  const handleUpdateSupervisor = (id: string, field: keyof AdditionalSignatory, val: string) => {
+    setEditSupervisorSignatories((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, [field]: val } : s))
+    );
+  };
+
+  const handleRemoveSupervisor = (id: string) => {
+    setEditSupervisorSignatories((prev) => prev.filter((s) => s.id !== id));
   };
 
   const handleOpenModal = () => {
@@ -125,6 +224,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     setEditPrincipalPosition('Secondary School Principal IV');
     setEditMasterTeacherName('Shirlene M. Mandapat');
     setEditMasterTeacherPosition('Master Teacher I / TLE Subject Coordinator');
+    setEditSupervisorSignatories([]);
+    setEditPrincipalRoleLabel('Certified Correct & Submitted by:');
     setEditDepartment('Technology and Livelihood Education (TLE)');
     setEditSchool('Ramon Magsaysay (Cubao) High School');
     setEditDivision('SDO Quezon City • TLE Department');
@@ -151,6 +252,10 @@ export const Navbar: React.FC<NavbarProps> = ({
       headTeacherPosition: editHeadTeacherPosition.trim() || 'Head Teacher III / TLE Department',
       principalName: editPrincipalName.trim() || 'Dr. Maria Luisa T. Ramos',
       principalPosition: editPrincipalPosition.trim() || 'Secondary School Principal IV',
+
+      // Higher Supervisory Signatories (For School Head / Principal Reports & Endorsements)
+      principalRoleLabel: editPrincipalRoleLabel.trim() || 'Certified Correct & Submitted by:',
+      supervisorSignatories: editSupervisorSignatories,
     };
 
     if (newPassword && newPassword.length >= 4) {
@@ -166,6 +271,20 @@ export const Navbar: React.FC<NavbarProps> = ({
     if (updated.email) {
       storage.adminUpdateUserRole(updated.email, updated.email, effectiveRole).catch(() => {});
     }
+
+    try {
+      localStorage.setItem('smile_schoolhead_additional_signatories', JSON.stringify(editSupervisorSignatories));
+      localStorage.setItem('smile_schoolhead_principal_label', editPrincipalRoleLabel.trim());
+      window.dispatchEvent(
+        new CustomEvent('smile:signatories-updated', {
+          detail: {
+            supervisorSignatories: editSupervisorSignatories,
+            principalRoleLabel: editPrincipalRoleLabel.trim(),
+          },
+        })
+      );
+    } catch (e) {}
+
     onUpdateTeacher(updated);
     setSaveSuccess('Teacher profile & official signatories updated successfully!');
     setTimeout(() => {
@@ -415,55 +534,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </div>
                   </div>
 
-                  {/* Head Teacher / TLE Department */}
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/90 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
-                        <Award className="w-4 h-4 text-emerald-700" />
-                        Head Teacher / TLE Department (Noted / Recommending Approval)
-                      </label>
-                      <span className="text-[10px] text-emerald-800 font-bold bg-emerald-100 px-2 py-0.5 rounded-md">
-                        Primary Approver
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                          Head Teacher Full Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={editHeadTeacherName}
-                          onChange={(e) => setEditHeadTeacherName(e.target.value)}
-                          placeholder="e.g. Dr. Corazon V. Santos"
-                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                          Head Teacher Official Position / Title
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={editHeadTeacherPosition}
-                          onChange={(e) => setEditHeadTeacherPosition(e.target.value)}
-                          placeholder="e.g. Head Teacher III / TLE Department"
-                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* School Principal */}
+                  {/* School Principal / School Head (Official Approving Authority) */}
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/90 space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
                         <Building2 className="w-4 h-4 text-emerald-700" />
-                        School Principal / School Head (Approved By)
+                        School Principal / School Head (Approved & Certified By)
                       </label>
                       <span className="text-[10px] text-emerald-800 font-bold bg-emerald-100 px-2 py-0.5 rounded-md">
                         School Head
@@ -501,43 +577,142 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </div>
                   </div>
 
-                  {/* Master Teacher / Subject Coordinator */}
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/90 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
-                        <Sparkles className="w-4 h-4 text-amber-600" />
-                        Master Teacher / Subject Coordinator (Optional Signatory)
-                      </label>
-                      <span className="text-[10px] text-slate-500 font-medium">
-                        Curriculum Leader
+                  {/* Higher Supervisory Signatories (For School Head / Principal Reports & Endorsements) */}
+                  <div className="bg-blue-50/70 p-4 rounded-xl border border-blue-200/90 space-y-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <Building2 className="w-4 h-4 text-blue-900" />
+                        <label className="text-xs font-extrabold text-blue-950">
+                          Higher Supervisory Signatories (For School Head / Principal Reports)
+                        </label>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-100 text-blue-800">
+                        {editSupervisorSignatories.length === 0
+                          ? 'Principal-Only (Default)'
+                          : `Principal + ${editSupervisorSignatories.length} Supervisory Authorities`}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                          Master Teacher Full Name
-                        </label>
-                        <input
-                          type="text"
-                          value={editMasterTeacherName}
-                          onChange={(e) => setEditMasterTeacherName(e.target.value)}
-                          placeholder="e.g. Shirlene M. Mandapat"
-                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                        />
-                      </div>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      In the School Head dashboard, only the Principal’s name appears on official institutional reports by default. You can add higher supervisory endorsement signatories (e.g., District Supervisor, Education Program Supervisor, Schools Division Superintendent) below.
+                    </p>
 
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                          Master Teacher Designation
-                        </label>
-                        <input
-                          type="text"
-                          value={editMasterTeacherPosition}
-                          onChange={(e) => setEditMasterTeacherPosition(e.target.value)}
-                          placeholder="e.g. Master Teacher I / TLE Subject Coordinator"
-                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                        />
+                    {/* Principal Endorsement Role Header */}
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Principal Endorsement Role Label
+                      </label>
+                      <select
+                        value={editPrincipalRoleLabel}
+                        onChange={(e) => setEditPrincipalRoleLabel(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      >
+                        <option value="Certified Correct & Submitted by:">Certified Correct & Submitted by: (Standard)</option>
+                        <option value="Submitted by:">Submitted by:</option>
+                        <option value="Certified Correct:">Certified Correct:</option>
+                        <option value="Approved & Certified by:">Approved & Certified by:</option>
+                      </select>
+                    </div>
+
+                    {/* Added Supervisory Signatories List */}
+                    {editSupervisorSignatories.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-blue-200/70">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-slate-800">
+                            Configured Supervisory Endorsers ({editSupervisorSignatories.length})
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setEditSupervisorSignatories([])}
+                            className="text-[10px] font-semibold text-red-600 hover:text-red-800 transition cursor-pointer"
+                          >
+                            Remove All (Keep Principal Only)
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          {editSupervisorSignatories.map((sig) => (
+                            <div
+                              key={sig.id}
+                              className="p-3 bg-white rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center"
+                            >
+                              <div className="sm:col-span-3">
+                                <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">
+                                  Role Header
+                                </label>
+                                <input
+                                  type="text"
+                                  value={sig.roleLabel}
+                                  onChange={(e) => handleUpdateSupervisor(sig.id, 'roleLabel', e.target.value)}
+                                  placeholder="e.g. Noted by:"
+                                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800"
+                                />
+                              </div>
+                              <div className="sm:col-span-4">
+                                <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">
+                                  Signatory Full Name
+                                </label>
+                                <input
+                                  type="text"
+                                  value={sig.name}
+                                  onChange={(e) => handleUpdateSupervisor(sig.id, 'name', e.target.value)}
+                                  placeholder="e.g. DR. REBECCA T. ROXAS"
+                                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-900"
+                                />
+                              </div>
+                              <div className="sm:col-span-4">
+                                <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">
+                                  Designation & Office
+                                </label>
+                                <input
+                                  type="text"
+                                  value={sig.title}
+                                  onChange={(e) => handleUpdateSupervisor(sig.id, 'title', e.target.value)}
+                                  placeholder="e.g. Public Schools District Supervisor"
+                                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-700"
+                                />
+                              </div>
+                              <div className="sm:col-span-1 flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveSupervisor(sig.id)}
+                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
+                                  title="Remove this signatory"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Quick Add Presets & Custom Buttons */}
+                    <div className="space-y-1.5 pt-2 border-t border-blue-200/70">
+                      <span className="text-[10px] font-bold text-slate-600 block uppercase tracking-wider">
+                        Add Supervisory Signatory (SDO Quezon City Authorities):
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {SUPERVISOR_PRESETS.map((preset) => (
+                          <button
+                            key={preset.tag}
+                            type="button"
+                            onClick={() => handleAddSupervisorPreset(preset)}
+                            className="px-2.5 py-1 bg-white hover:bg-blue-100 border border-blue-300 text-blue-950 text-[11px] font-semibold rounded-lg flex items-center gap-1 transition cursor-pointer shadow-xs"
+                          >
+                            <Plus className="w-3 h-3 text-blue-700" />
+                            <span>{preset.tag}</span>
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={handleAddCustomSupervisor}
+                          className="px-2.5 py-1 bg-white hover:bg-amber-50 border border-amber-300 text-amber-900 text-[11px] font-semibold rounded-lg flex items-center gap-1 transition cursor-pointer shadow-xs"
+                        >
+                          <UserPlus className="w-3 h-3 text-amber-700" />
+                          <span>+ Custom Signatory</span>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -550,7 +725,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       className="text-xs text-slate-600 hover:text-emerald-800 flex items-center gap-1 font-semibold transition cursor-pointer"
                     >
                       <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
-                      Reset to Official RMCHS TLE Signatories
+                      Reset to Official DepEd RMCHS Signatories
                     </button>
                   </div>
                 </div>

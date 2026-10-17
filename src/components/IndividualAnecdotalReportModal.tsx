@@ -397,16 +397,16 @@ export const IndividualAnecdotalReportModal: React.FC<IndividualAnecdotalReportM
                 <p className="text-[10px] text-slate-500 mt-0.5">Date: {currentDate}</p>
               </div>
 
-              {/* Head Teacher / TLE Department Signature */}
+              {/* School Principal / School Head Signature */}
               <div>
                 <p className="text-[11px] text-slate-500 mb-8 font-semibold">Noted & Approved by:</p>
                 <div className="border-b border-slate-900 pb-1">
                   <p className="font-black text-xs uppercase text-slate-950">
-                    {teacher.headTeacherName || 'Dr. Corazon V. Santos'}
+                    {teacher.principalName || 'Dr. Maria Luisa T. Ramos'}
                   </p>
                 </div>
                 <p className="text-[11px] font-bold text-slate-700 mt-1">
-                  {teacher.headTeacherPosition || 'Head Teacher III / TLE Department'}
+                  {teacher.principalPosition || 'Secondary School Principal IV'}
                 </p>
                 <p className="text-[10px] text-slate-500 italic">{teacher.schoolName || 'Ramon Magsaysay (Cubao) High School'}</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">Date: {currentDate}</p>

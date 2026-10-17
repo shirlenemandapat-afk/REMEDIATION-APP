@@ -34,6 +34,14 @@ import {
   GraduationCap,
   Activity,
   Compass,
+  UserPlus,
+  Plus,
+  Trash2,
+  PenLine,
+  Info,
+  RotateCcw,
+  Check,
+  SlidersHorizontal,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -50,6 +58,14 @@ import {
   PieChart,
   Pie,
 } from 'recharts';
+
+export interface AdditionalSignatory {
+  id: string;
+  roleLabel: string; // e.g. "Noted by:", "Recommending Approval:", "Approved by:"
+  name: string; // e.g. "CARLEEN S. SEDILLA, CESO V"
+  title: string; // e.g. "Schools Division Superintendent"
+  office?: string; // e.g. "Schools Division Office - Quezon City"
+}
 
 export type SchoolHeadTab =
   | 'overview'
@@ -98,6 +114,67 @@ export const SchoolHeadDashboard: React.FC<SchoolHeadDashboardProps> = ({
   const [selectedGrade, setSelectedGrade] = useState<string>('ALL');
   const [selectedSubject, setSelectedSubject] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Signatory Configuration for School Head Institutional Reports
+  // By default, ONLY the principal's name is on the signatories!
+  // Adding or editing signatories is officially managed in the Teacher Profile & Signatories modal.
+  const [principalRoleLabel, setPrincipalRoleLabel] = useState<string>(() => {
+    return (
+      currentPrincipal?.principalRoleLabel ||
+      localStorage.getItem('smile_schoolhead_principal_label') ||
+      'Certified Correct & Submitted by:'
+    );
+  });
+
+  const [additionalSignatories, setAdditionalSignatories] = useState<AdditionalSignatory[]>(() => {
+    if (currentPrincipal?.supervisorSignatories && Array.isArray(currentPrincipal.supervisorSignatories)) {
+      return currentPrincipal.supervisorSignatories;
+    }
+    try {
+      const saved = localStorage.getItem('smile_schoolhead_additional_signatories');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Failed to parse additional signatories from storage', e);
+    }
+    return []; // By default, only the principal's name is on the signatories!
+  });
+
+  // Keep synced with currentPrincipal from App
+  useEffect(() => {
+    if (currentPrincipal?.principalRoleLabel) {
+      setPrincipalRoleLabel(currentPrincipal.principalRoleLabel);
+    }
+    if (currentPrincipal?.supervisorSignatories) {
+      setAdditionalSignatories(currentPrincipal.supervisorSignatories);
+    }
+  }, [currentPrincipal]);
+
+  // Real-time listener when signatories are updated in Teacher Profile & Signatories
+  useEffect(() => {
+    const handleSignatoriesUpdated = (e: any) => {
+      if (e?.detail?.supervisorSignatories !== undefined) {
+        setAdditionalSignatories(e.detail.supervisorSignatories);
+      }
+      if (e?.detail?.principalRoleLabel) {
+        setPrincipalRoleLabel(e.detail.principalRoleLabel);
+      }
+    };
+    window.addEventListener('smile:signatories-updated', handleSignatoriesUpdated);
+    return () => {
+      window.removeEventListener('smile:signatories-updated', handleSignatoriesUpdated);
+    };
+  }, []);
+
+  // Helper to open the official Teacher Profile & Signatories modal
+  const handleOpenTeacherProfileSignatories = () => {
+    window.dispatchEvent(
+      new CustomEvent('smile:open-profile-signatories', {
+        detail: { tab: 'signatories' },
+      })
+    );
+  };
 
   // Keep live data synchronized with parent props and background events
   useEffect(() => {
@@ -647,6 +724,19 @@ export const SchoolHeadDashboard: React.FC<SchoolHeadDashboardProps> = ({
             >
               <RefreshCw className={`w-3.5 h-3.5 text-amber-300 ${isSyncing ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">{isSyncing ? 'Syncing...' : 'Refresh'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenTeacherProfileSignatories}
+              className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5 border border-white/20 cursor-pointer"
+              title="Add or Edit Official Signatories in Teacher Profile & Signatories"
+            >
+              <PenLine className="w-3.5 h-3.5 text-blue-300" />
+              <span className="hidden sm:inline">Signatories:</span>
+              <span className="text-[11px] font-semibold text-blue-200">
+                {additionalSignatories.length === 0 ? 'Principal Only' : `Principal + ${additionalSignatories.length}`}
+              </span>
             </button>
 
             <button
@@ -1801,12 +1891,24 @@ export const SchoolHeadDashboard: React.FC<SchoolHeadDashboardProps> = ({
           <div className="bg-white rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6 my-8 max-h-[90vh] overflow-y-auto print:p-0 print:border-none print:shadow-none">
             
             {/* Modal Header Controls (Hidden on print) */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 print:hidden">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 print:hidden flex-wrap gap-2">
               <div className="flex items-center gap-2 text-slate-900">
                 <Building2 className="w-5 h-5 text-blue-900" />
                 <h3 className="font-extrabold text-base">Executive Institutional Summary</h3>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleOpenTeacherProfileSignatories}
+                  className="px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border bg-white hover:bg-slate-50 text-slate-800 border-slate-300 shadow-xs"
+                  title="Add or Edit Signatories in Teacher Profile & Signatories"
+                >
+                  <PenLine className="w-3.5 h-3.5 text-blue-700" />
+                  <span>
+                    Signatories: {additionalSignatories.length === 0 ? 'Principal Only' : `Principal + ${additionalSignatories.length}`}
+                  </span>
+                  <span className="text-[10px] text-blue-600 font-semibold underline ml-1">Edit in Profile</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => window.print()}
@@ -1895,25 +1997,133 @@ export const SchoolHeadDashboard: React.FC<SchoolHeadDashboardProps> = ({
             </div>
 
             {/* Official DepEd Signatories */}
-            <div className="pt-6 border-t border-slate-200 grid grid-cols-3 gap-6 text-center text-xs">
-              <div>
-                <p className="text-[11px] text-slate-500 mb-6">Prepared by:</p>
-                <p className="font-bold text-slate-900 uppercase">MELANI R. SANTOS, PhD</p>
-                <p className="text-[10px] text-slate-600">Head Teacher VI / TLE Department</p>
-              </div>
-              <div>
-                <p className="text-[11px] text-slate-500 mb-6">Attested by:</p>
-                <p className="font-bold text-slate-900 uppercase">SHIRLENE M. MANDAPAT</p>
-                <p className="text-[10px] text-slate-600">Master Teacher I / TLE Subject Coordinator</p>
-              </div>
-              <div>
-                <p className="text-[11px] text-slate-500 mb-6">Approved & Certified:</p>
-                <p className="font-bold text-slate-900 uppercase">
-                  {currentPrincipal?.name || 'JOSEPHINE M. MANINGAS, PhD'}
-                </p>
-                <p className="text-[10px] text-slate-600">
-                  {currentPrincipal?.title || 'Secondary School Principal IV'}
-                </p>
+            <div className="pt-8 border-t border-slate-200 font-serif">
+              {additionalSignatories.length === 0 ? (
+                /* Only the Principal's Name on the signatories (Default) */
+                <div className="flex justify-end">
+                  <div className="w-72 sm:w-80 text-center space-y-1">
+                    <p className="text-[11px] text-slate-600 font-sans font-medium mb-10">
+                      {principalRoleLabel}
+                    </p>
+                    <div className="border-b border-slate-900 mx-2 pb-0.5 mb-1">
+                      <p className="font-extrabold text-xs sm:text-sm text-slate-950 uppercase tracking-wide">
+                        {currentPrincipal?.name || 'JOSEPHINE M. MANINGAS, PhD'}
+                      </p>
+                    </div>
+                    <p className="text-[11px] font-bold text-slate-800">
+                      {currentPrincipal?.title || 'Secondary School Principal IV'}
+                    </p>
+                    <p className="text-[10px] text-slate-600">
+                      Ramon Magsaysay (Cubao) High School · SDO Quezon City
+                    </p>
+                  </div>
+                </div>
+              ) : additionalSignatories.length === 1 ? (
+                /* 2-Column: Principal + 1 Supervisor / Superintendent */
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 text-center text-xs">
+                  <div className="space-y-1">
+                    <p className="text-[11px] text-slate-600 font-sans font-medium mb-10">
+                      {principalRoleLabel}
+                    </p>
+                    <div className="border-b border-slate-900 mx-4 pb-0.5 mb-1">
+                      <p className="font-extrabold text-xs sm:text-sm text-slate-950 uppercase tracking-wide">
+                        {currentPrincipal?.name || 'JOSEPHINE M. MANINGAS, PhD'}
+                      </p>
+                    </div>
+                    <p className="text-[11px] font-bold text-slate-800">
+                      {currentPrincipal?.title || 'Secondary School Principal IV'}
+                    </p>
+                    <p className="text-[10px] text-slate-600">
+                      Ramon Magsaysay (Cubao) High School · SDO Quezon City
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-[11px] text-slate-600 font-sans font-medium mb-10">
+                      {additionalSignatories[0].roleLabel || 'Noted / Approved by:'}
+                    </p>
+                    <div className="border-b border-slate-900 mx-4 pb-0.5 mb-1">
+                      <p className="font-extrabold text-xs sm:text-sm text-slate-950 uppercase tracking-wide">
+                        {additionalSignatories[0].name || '[SIGNATORY NAME]'}
+                      </p>
+                    </div>
+                    <p className="text-[11px] font-bold text-slate-800">
+                      {additionalSignatories[0].title || '[Official Designation]'}
+                    </p>
+                    {additionalSignatories[0].office && (
+                      <p className="text-[10px] text-slate-600">
+                        {additionalSignatories[0].office}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Multi-Column: Principal + Multiple Supervisory Authorities */
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center text-xs">
+                  <div className="space-y-1">
+                    <p className="text-[11px] text-slate-600 font-sans font-medium mb-10">
+                      {principalRoleLabel}
+                    </p>
+                    <div className="border-b border-slate-900 mx-2 pb-0.5 mb-1">
+                      <p className="font-extrabold text-xs text-slate-950 uppercase tracking-wide">
+                        {currentPrincipal?.name || 'JOSEPHINE M. MANINGAS, PhD'}
+                      </p>
+                    </div>
+                    <p className="text-[11px] font-bold text-slate-800">
+                      {currentPrincipal?.title || 'Secondary School Principal IV'}
+                    </p>
+                    <p className="text-[10px] text-slate-600">
+                      Ramon Magsaysay (Cubao) High School
+                    </p>
+                  </div>
+
+                  {additionalSignatories.map((sig) => (
+                    <div key={sig.id} className="space-y-1">
+                      <p className="text-[11px] text-slate-600 font-sans font-medium mb-10">
+                        {sig.roleLabel || 'Noted / Approved by:'}
+                      </p>
+                      <div className="border-b border-slate-900 mx-2 pb-0.5 mb-1">
+                        <p className="font-extrabold text-xs text-slate-950 uppercase tracking-wide">
+                          {sig.name || '[SIGNATORY NAME]'}
+                        </p>
+                      </div>
+                      <p className="text-[11px] font-bold text-slate-800">
+                        {sig.title || '[Designation]'}
+                      </p>
+                      {sig.office && (
+                        <p className="text-[10px] text-slate-600">
+                          {sig.office}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Interactive signatory helper note below signature block in preview */}
+              <div className="print:hidden mt-5 p-3 bg-blue-50/80 border border-blue-200/90 rounded-xl flex items-center justify-between text-xs text-blue-950 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <Info className="w-4 h-4 text-blue-700 shrink-0" />
+                  <span>
+                    {additionalSignatories.length === 0 ? (
+                      <>
+                        Signatories status: <strong>Principal only</strong> (MELANI R. SANTOS & SHIRLENE M. MANDAPAT removed). Adding or editing supervisory signatories is configured in <strong>Teacher Profile & Signatories</strong>.
+                      </>
+                    ) : (
+                      <>
+                        Signatories status: <strong>Principal + {additionalSignatories.length} endorsing authority ({additionalSignatories.map((s) => s.name || s.title).join(', ')})</strong> configured in <strong>Teacher Profile & Signatories</strong>.
+                      </>
+                    )}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenTeacherProfileSignatories}
+                  className="px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer transition shadow-xs shrink-0"
+                >
+                  <PenLine className="w-3.5 h-3.5 text-blue-200" />
+                  <span>Edit Signatories in Profile</span>
+                </button>
               </div>
             </div>
 
