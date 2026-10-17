@@ -126,7 +126,34 @@ export const storage = {
     if (!accounts[shirleneNorm] && !deletedSet.has(shirleneNorm)) {
       accounts[shirleneNorm] = {
         ...INITIAL_TEACHER,
-        role: 'coordinator',
+        role: 'teacher',
+        roleTitle: 'TEACHER',
+        isPasswordSet: true,
+      };
+    }
+
+    const melaniNorm = 'melani.santos@deped.gov.ph';
+    if (!accounts[melaniNorm] && !deletedSet.has(melaniNorm)) {
+      accounts[melaniNorm] = {
+        email: melaniNorm,
+        name: 'MELANI R. SANTOS',
+        title: 'Head Teacher VI',
+        schoolName: 'Ramon Magsaysay (Cubao) High School',
+        division: 'SDO Quezon City • TLE Department',
+        region: 'National Capital Region (NCR)',
+        academicYear: '2026-2027',
+        department: 'Technology and Livelihood Education (TLE)',
+        masterTeacherName: 'Shirlene M. Mandapat',
+        masterTeacherPosition: 'Master Teacher I / TLE Subject Coordinator',
+        headTeacherName: 'MELANI R. SANTOS',
+        headTeacherPosition: 'Head Teacher VI / TLE Department',
+        principalName: 'JOSEPHINE M. MANINGAS, PhD',
+        principalPosition: 'Secondary School Principal IV',
+        role: 'head_teacher',
+        roleTitle: 'HEAD TEACHER',
+        passwordHash: 'admin2026',
+        accountStatus: 'Active',
+        assignedSubjects: [],
         isPasswordSet: true,
       };
     }
@@ -2293,6 +2320,18 @@ export const storage = {
     }
   },
 
+  isHeadTeacherEmail(email?: string | null): boolean {
+    if (!email) return false;
+    const lower = email.toLowerCase().trim();
+    try {
+      const accounts = this.getRegisteredAccounts();
+      const acct = accounts[lower] || this.findAccountByEmail(lower);
+      return acct?.role === 'head_teacher';
+    } catch {
+      return false;
+    }
+  },
+
   isHeadTeacherOrSchoolHead(email?: string | null): boolean {
     if (!email) return false;
     const lower = email.toLowerCase().trim();
@@ -2303,6 +2342,168 @@ export const storage = {
     } catch {
       return false;
     }
+  },
+
+  async headTeacherReviewTeacher(
+    headTeacherEmail: string,
+    headTeacherName: string,
+    targetTeacherEmail: string,
+    status: 'Submitted' | 'Pending' | 'Needs Revision' | 'Draft',
+    feedback?: string
+  ): Promise<{ success: boolean; message: string }> {
+    const reviewedAt = new Date().toLocaleString();
+    const updates: Partial<TeacherProfile> = {
+      reportsSubmissionStatus: status,
+      headTeacherFeedback: feedback !== undefined ? feedback.trim() : undefined,
+      headTeacherReviewedAt: reviewedAt,
+      headTeacherReviewedBy: headTeacherName || 'Head Teacher',
+    };
+
+    const result = await this.adminUpdateTeacher(headTeacherEmail, targetTeacherEmail, updates);
+    this.addAuditLog(
+      headTeacherEmail,
+      'HEAD_TEACHER_REVIEW_FACULTY',
+      `Head Teacher ${headTeacherName} reviewed ${targetTeacherEmail}: Status set to "${status}"${feedback ? ` — "${feedback.trim()}"` : ''}.`,
+      targetTeacherEmail
+    );
+    return {
+      success: result.success,
+      message: `Supervisory review saved for ${result.profile?.name || targetTeacherEmail} (${status}).`,
+    };
+  },
+
+  async headTeacherReviewSession(
+    headTeacherEmail: string,
+    headTeacherName: string,
+    sessionId: string,
+    supervisoryStatus: 'Pending Review' | 'Verified' | 'Exemplary' | 'Needs Follow-up',
+    supervisoryRemarks?: string
+  ): Promise<{ success: boolean; session?: SessionRecord; message: string }> {
+    const allSessions = this.getAllSessions();
+    const idx = allSessions.findIndex((s) => String(s.id) === String(sessionId));
+    if (idx === -1) {
+      return { success: false, message: 'Session record not found.' };
+    }
+
+    const updatedSession: SessionRecord = {
+      ...allSessions[idx],
+      supervisoryStatus,
+      supervisoryRemarks: supervisoryRemarks !== undefined ? supervisoryRemarks.trim() : allSessions[idx].supervisoryRemarks,
+      supervisedBy: headTeacherName || 'Head Teacher',
+      supervisedAt: new Date().toLocaleString(),
+    };
+
+    allSessions[idx] = updatedSession;
+    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(allSessions));
+
+    try {
+      await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session: updatedSession }),
+      });
+    } catch (e) {
+      console.warn('Head Teacher session review sync notice:', e);
+    }
+
+    this.addAuditLog(
+      headTeacherEmail,
+      'HEAD_TEACHER_REVIEW_LOG',
+      `Head Teacher ${headTeacherName} marked session log (${updatedSession.studentName} - ${updatedSession.date}) as "${supervisoryStatus}"${supervisoryRemarks ? `: "${supervisoryRemarks.trim()}"` : ''}.`,
+      updatedSession.teacherEmail || sessionId
+    );
+
+    try {
+      window.dispatchEvent(new CustomEvent('deped-data-synced'));
+    } catch {}
+
+    return {
+      success: true,
+      session: updatedSession,
+      message: `Session log for ${updatedSession.studentName} marked as ${supervisoryStatus}.`,
+    };
+  },
+
+  async headTeacherEvaluateMOV(
+    headTeacherEmail: string,
+    headTeacherName: string,
+    sessionId: string,
+    movId: string,
+    evaluation: {
+      evaluationStatus: 'Pending' | 'Verified' | 'Exemplary' | 'Needs Revision';
+      evaluationNotes?: string;
+      rubricChecks?: {
+        alignedWithCompetency: boolean;
+        authenticLearnerOutput: boolean;
+        clearDocumentation: boolean;
+      };
+    }
+  ): Promise<{ success: boolean; session?: SessionRecord; message: string }> {
+    const allSessions = this.getAllSessions();
+    const idx = allSessions.findIndex((s) => String(s.id) === String(sessionId));
+    if (idx === -1) {
+      return { success: false, message: 'Session record not found.' };
+    }
+
+    const targetSession = { ...allSessions[idx] };
+    const evaluatedAt = new Date().toLocaleString();
+    const evaluatedBy = headTeacherName || 'Head Teacher';
+
+    if (Array.isArray(targetSession.movs)) {
+      targetSession.movs = targetSession.movs.map((m) =>
+        String(m.id) === String(movId)
+          ? {
+              ...m,
+              evaluationStatus: evaluation.evaluationStatus,
+              evaluationNotes: evaluation.evaluationNotes !== undefined ? evaluation.evaluationNotes.trim() : m.evaluationNotes,
+              evaluatedBy,
+              evaluatedAt,
+              rubricChecks: evaluation.rubricChecks || m.rubricChecks,
+            }
+          : m
+      );
+    }
+
+    if (targetSession.assessmentTool && String(targetSession.assessmentTool.id) === String(movId)) {
+      targetSession.assessmentTool = {
+        ...targetSession.assessmentTool,
+        evaluationStatus: evaluation.evaluationStatus,
+        evaluationNotes: evaluation.evaluationNotes !== undefined ? evaluation.evaluationNotes.trim() : targetSession.assessmentTool.evaluationNotes,
+        evaluatedBy,
+        evaluatedAt,
+        rubricChecks: evaluation.rubricChecks || targetSession.assessmentTool.rubricChecks,
+      };
+    }
+
+    allSessions[idx] = targetSession;
+    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(allSessions));
+
+    try {
+      await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session: targetSession }),
+      });
+    } catch (e) {
+      console.warn('Head Teacher MOV evaluation sync notice:', e);
+    }
+
+    this.addAuditLog(
+      headTeacherEmail,
+      'HEAD_TEACHER_EVALUATE_MOV',
+      `Head Teacher ${headTeacherName} evaluated MOV (${movId}) for ${targetSession.studentName} as "${evaluation.evaluationStatus}".`,
+      targetSession.teacherEmail || sessionId
+    );
+
+    try {
+      window.dispatchEvent(new CustomEvent('deped-data-synced'));
+    } catch {}
+
+    return {
+      success: true,
+      session: targetSession,
+      message: `MOV evaluation (${evaluation.evaluationStatus}) saved for ${targetSession.studentName}.`,
+    };
   },
 
   isAdministrativeOrSupervisoryRole(email?: string | null): boolean {

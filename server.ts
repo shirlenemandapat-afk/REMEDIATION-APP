@@ -1393,13 +1393,39 @@ async function startServer() {
         });
       }
 
-      // Fallback seed accounts for initial administrative coordinators
+      // Fallback seed accounts for initial administrative coordinators & head teacher
       if (!account) {
         if (
           cleanEmail === 'admin@projectsmile' ||
+          cleanEmail === 'melani.santos@deped.gov.ph' ||
           (!deletedSet.has(cleanEmail) && isSameTeacher(cleanEmail, 'shirlene.mandapat@depedqc.ph'))
         ) {
-          account = INITIAL_DEFAULT_DB.accounts[cleanEmail] || INITIAL_DEFAULT_DB.accounts['shirlene.mandapat@depedqc.ph'];
+          account =
+            INITIAL_DEFAULT_DB.accounts[cleanEmail] ||
+            (cleanEmail === 'melani.santos@deped.gov.ph'
+              ? {
+                  email: 'melani.santos@deped.gov.ph',
+                  name: 'MELANI R. SANTOS',
+                  title: 'Head Teacher VI',
+                  schoolName: 'Ramon Magsaysay (Cubao) High School',
+                  division: 'SDO Quezon City • TLE Department',
+                  region: 'National Capital Region (NCR)',
+                  academicYear: '2026-2027',
+                  department: 'Technology and Livelihood Education (TLE)',
+                  masterTeacherName: 'Shirlene M. Mandapat',
+                  masterTeacherPosition: 'Master Teacher I / TLE Subject Coordinator',
+                  headTeacherName: 'MELANI R. SANTOS',
+                  headTeacherPosition: 'Head Teacher VI / TLE Department',
+                  principalName: 'JOSEPHINE M. MANINGAS, PhD',
+                  principalPosition: 'Secondary School Principal IV',
+                  role: 'head_teacher',
+                  roleTitle: 'HEAD TEACHER',
+                  passwordHash: 'admin2026',
+                  accountStatus: 'Active',
+                  assignedSubjects: [],
+                  isPasswordSet: true,
+                }
+              : INITIAL_DEFAULT_DB.accounts['shirlene.mandapat@depedqc.ph']);
           if (account) {
             account = { ...account, email: cleanEmail };
             db.accounts[cleanEmail] = account;
@@ -1422,6 +1448,7 @@ async function startServer() {
         storedPass === cleanPassword ||
         (cleanEmail === 'admin@projectsmile' && (cleanPassword === 'admin2025' || cleanPassword === storedPass)) ||
         (cleanEmail.includes('shirlene') && (cleanPassword === 'teacher123' || cleanPassword === '111204' || cleanPassword === storedPass)) ||
+        (cleanEmail.includes('melani') && (cleanPassword === 'admin2026' || cleanPassword === 'head2025' || cleanPassword === storedPass)) ||
         (cleanEmail.includes('corazon') && (cleanPassword === 'head2025' || cleanPassword === storedPass)) ||
         (cleanEmail.includes('ramos') && (cleanPassword === 'principal2025' || cleanPassword === storedPass)) ||
         cleanPassword === 'deped2025';

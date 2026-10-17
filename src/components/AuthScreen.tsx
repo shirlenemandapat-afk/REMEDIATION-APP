@@ -87,6 +87,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         resolvedEmail = match;
       } else if (cleanInput === 'admin') {
         resolvedEmail = 'admin@projectsmile';
+      } else if (cleanInput === 'melani' || cleanInput === 'melani.santos' || cleanInput === 'headteacher') {
+        resolvedEmail = 'melani.santos@deped.gov.ph';
       } else if (cleanInput.includes('shirlene') || cleanInput.includes('mandapat')) {
         resolvedEmail = 'shirlene.mandapat@depedqc.ph';
       } else {

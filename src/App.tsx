@@ -10,6 +10,7 @@ import { ClassProgressDashboard } from './components/ClassProgressDashboard';
 import { NarrativeReportGenerator } from './components/NarrativeReportGenerator';
 import { ArchiveManagement } from './components/ArchiveManagement';
 import { AdminDashboard } from './components/AdminDashboard';
+import { HeadTeacherDashboard } from './components/HeadTeacherDashboard';
 import { EnrollStudentModal } from './components/EnrollStudentModal';
 import { EditStudentModal } from './components/EditStudentModal';
 import { AddSessionModal } from './components/AddSessionModal';
@@ -61,8 +62,13 @@ export default function App() {
 
   // Navigation & Filtering State
   const [activeTab, setActiveTab] = useState<
-    'admin-portal' | 'students' | 'sessions' | 'class-progress' | 'report' | 'archive'
-  >(() => (storage.getTeacherProfile().role === 'admin' ? 'admin-portal' : 'students'));
+    'admin-portal' | 'head-teacher-portal' | 'students' | 'sessions' | 'class-progress' | 'report' | 'archive'
+  >(() => {
+    const initialRole = storage.getTeacherProfile().role;
+    if (initialRole === 'admin') return 'admin-portal';
+    if (initialRole === 'head_teacher') return 'head-teacher-portal';
+    return 'students';
+  });
   const [selectedSection, setSelectedSection] = useState<string>('ALL');
 
   // Modal Controls
@@ -105,15 +111,15 @@ export default function App() {
       const activeEmail = (teacher?.email || storage.getActiveUserEmail() || '').toLowerCase().trim();
       if (!activeEmail) return;
       await storage.syncFromServer(activeEmail);
-      const isAdmin = storage.isAdminEmail(activeEmail);
-      const myStudents = isAdmin ? storage.getAllStudents() : storage.getStudents(activeEmail);
-      const mySessions = isAdmin ? storage.getAllSessions() : storage.getSessions(activeEmail);
+      const isDepartmentWide = storage.isAdminEmail(activeEmail) || storage.isHeadTeacherEmail(activeEmail);
+      const myStudents = isDepartmentWide ? storage.getAllStudents() : storage.getStudents(activeEmail);
+      const mySessions = isDepartmentWide ? storage.getAllSessions() : storage.getSessions(activeEmail);
       setStudents(myStudents);
       setSessions(mySessions);
       setTeacher(storage.getTeacherProfile());
       setLastSyncTime(new Date());
       showToast(
-        `Sync complete: Loaded ${mySessions.length} session logs and ${myStudents.length} students enrolled in ${isAdmin ? 'school database' : 'your account'}.`,
+        `Sync complete: Loaded ${mySessions.length} session logs and ${myStudents.length} students enrolled in ${isDepartmentWide ? 'school database' : 'your account'}.`,
         'success'
       );
     } catch (err) {
@@ -130,11 +136,19 @@ export default function App() {
     setIsLoggedIn(loggedIn);
     const currentTeacher = storage.getTeacherProfile();
     const activeEmail = (currentTeacher?.email || storage.getActiveUserEmail() || '').toLowerCase().trim();
-    const isAdmin = storage.isAdminEmail(activeEmail);
+    const isDepartmentWide =
+      storage.isAdminEmail(activeEmail) ||
+      storage.isHeadTeacherEmail(activeEmail) ||
+      currentTeacher?.role === 'head_teacher';
     if (loggedIn && activeEmail) {
       setTeacher(currentTeacher);
-      setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(activeEmail));
-      setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(activeEmail));
+      if (currentTeacher?.role === 'head_teacher') {
+        setActiveTab('head-teacher-portal');
+      } else if (currentTeacher?.role === 'admin') {
+        setActiveTab('admin-portal');
+      }
+      setStudents(isDepartmentWide ? storage.getAllStudents() : storage.getStudents(activeEmail));
+      setSessions(isDepartmentWide ? storage.getAllSessions() : storage.getSessions(activeEmail));
     } else {
       setStudents([]);
       setSessions([]);
@@ -148,11 +162,21 @@ export default function App() {
         setIsLoggedIn(isNowLoggedIn);
         if (isNowLoggedIn) {
           const freshTeacher = syncResult?.profile || storage.getTeacherProfile();
-          if (freshTeacher) setTeacher(freshTeacher);
+          if (freshTeacher) {
+            setTeacher(freshTeacher);
+            if (freshTeacher.role === 'head_teacher') {
+              setActiveTab('head-teacher-portal');
+            } else if (freshTeacher.role === 'admin') {
+              setActiveTab('admin-portal');
+            }
+          }
           const email = (freshTeacher?.email || activeEmail).toLowerCase().trim();
-          const isFreshAdmin = storage.isAdminEmail(email);
-          setStudents(isFreshAdmin ? storage.getAllStudents() : storage.getStudents(email));
-          setSessions(isFreshAdmin ? storage.getAllSessions() : storage.getSessions(email));
+          const isFreshDeptWide =
+            storage.isAdminEmail(email) ||
+            storage.isHeadTeacherEmail(email) ||
+            freshTeacher?.role === 'head_teacher';
+          setStudents(isFreshDeptWide ? storage.getAllStudents() : storage.getStudents(email));
+          setSessions(isFreshDeptWide ? storage.getAllSessions() : storage.getSessions(email));
           setLastSyncTime(new Date());
         }
       }).catch((e) => {
@@ -179,9 +203,12 @@ export default function App() {
         if (freshTeacher && freshTeacher.email) {
           setTeacher(freshTeacher);
         }
-        const isAdminRole = storage.isAdminEmail(activeEmail);
-        setStudents(isAdminRole ? storage.getAllStudents() : storage.getStudents(activeEmail));
-        setSessions(isAdminRole ? storage.getAllSessions() : storage.getSessions(activeEmail));
+        const isDeptWideRole =
+          storage.isAdminEmail(activeEmail) ||
+          storage.isHeadTeacherEmail(activeEmail) ||
+          freshTeacher?.role === 'head_teacher';
+        setStudents(isDeptWideRole ? storage.getAllStudents() : storage.getStudents(activeEmail));
+        setSessions(isDeptWideRole ? storage.getAllSessions() : storage.getSessions(activeEmail));
         setLastSyncTime(new Date());
       }
     };
@@ -222,11 +249,13 @@ export default function App() {
     };
   }, [isLoggedIn, teacher?.email]);
 
-  // Guard against unauthorized accounts accessing admin-portal
+  // Guard against unauthorized accounts accessing admin-portal or head-teacher-portal
   useEffect(() => {
     const isPrivileged = storage.isAdministrativeOrSupervisoryRole(teacher?.email);
-    if (!isPrivileged && activeTab === 'admin-portal') {
+    if (!isPrivileged && (activeTab === 'admin-portal' || activeTab === 'head-teacher-portal')) {
       setActiveTab('students');
+    } else if (teacher?.role === 'head_teacher' && activeTab !== 'head-teacher-portal') {
+      setActiveTab('head-teacher-portal');
     }
   }, [teacher?.role, teacher?.email, activeTab]);
 
@@ -234,9 +263,12 @@ export default function App() {
     const currentTeacher = storage.getTeacherProfile();
     setTeacher(currentTeacher);
     const activeEmail = (currentTeacher?.email || storage.getActiveUserEmail() || '').toLowerCase().trim();
-    const isAdmin = storage.isAdminEmail(activeEmail);
-    setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(activeEmail));
-    setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(activeEmail));
+    const isDeptWide =
+      storage.isAdminEmail(activeEmail) ||
+      storage.isHeadTeacherEmail(activeEmail) ||
+      currentTeacher?.role === 'head_teacher';
+    setStudents(isDeptWide ? storage.getAllStudents() : storage.getStudents(activeEmail));
+    setSessions(isDeptWide ? storage.getAllSessions() : storage.getSessions(activeEmail));
   };
 
   const handleLoginSuccess = async (profile: TeacherProfile) => {
@@ -248,16 +280,22 @@ export default function App() {
     setIsLoggedIn(true);
 
     const isPrivileged = storage.isAdministrativeOrSupervisoryRole(cleanEmail);
-    const isAdmin = storage.isAdminEmail(cleanEmail);
-    if (isPrivileged && (profile.role === 'admin' || profile.role === 'school_head' || profile.role === 'head_teacher')) {
+    const isDeptWide =
+      storage.isAdminEmail(cleanEmail) ||
+      storage.isHeadTeacherEmail(cleanEmail) ||
+      profile.role === 'head_teacher';
+
+    if (profile.role === 'head_teacher') {
+      setActiveTab('head-teacher-portal');
+    } else if (isPrivileged && (profile.role === 'admin' || profile.role === 'school_head')) {
       setActiveTab('admin-portal');
     } else {
       setActiveTab('students');
     }
 
     // Immediately load currently cached students and sessions for this specific account
-    setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(cleanEmail));
-    setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(cleanEmail));
+    setStudents(isDeptWide ? storage.getAllStudents() : storage.getStudents(cleanEmail));
+    setSessions(isDeptWide ? storage.getAllSessions() : storage.getSessions(cleanEmail));
 
     // Immediately trigger authoritative cross-device sync from server database & Supabase
     setIsSyncing(true);
@@ -265,15 +303,18 @@ export default function App() {
       const syncResult = await storage.syncFromServer(cleanEmail);
       if (syncResult && syncResult.profile) {
         setTeacher(syncResult.profile);
+        if (syncResult.profile.role === 'head_teacher') {
+          setActiveTab('head-teacher-portal');
+        }
       }
-      const myStudents = isAdmin ? storage.getAllStudents() : storage.getStudents(cleanEmail);
-      const mySessions = isAdmin ? storage.getAllSessions() : storage.getSessions(cleanEmail);
+      const myStudents = isDeptWide ? storage.getAllStudents() : storage.getStudents(cleanEmail);
+      const mySessions = isDeptWide ? storage.getAllSessions() : storage.getSessions(cleanEmail);
       setStudents(myStudents);
       setSessions(mySessions);
       setLastSyncTime(new Date());
     } catch (e) {
-      const myStudents = isAdmin ? storage.getAllStudents() : storage.getStudents(cleanEmail);
-      const mySessions = isAdmin ? storage.getAllSessions() : storage.getSessions(cleanEmail);
+      const myStudents = isDeptWide ? storage.getAllStudents() : storage.getStudents(cleanEmail);
+      const mySessions = isDeptWide ? storage.getAllSessions() : storage.getSessions(cleanEmail);
       setStudents(myStudents);
       setSessions(mySessions);
     } finally {
@@ -514,7 +555,7 @@ export default function App() {
       {/* Main Dashboard Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Department Welcome & Action Banner with RMCHS Green & Gold Theme (For Classroom Teacher views) */}
-        {teacher.role !== 'admin' && teacher.email !== 'admin@projectsmile' && (
+        {teacher.role !== 'admin' && teacher.role !== 'head_teacher' && teacher.email !== 'admin@projectsmile' && (
           <div className="relative overflow-hidden bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-950 rounded-2xl p-6 text-white shadow-xl border border-emerald-800/80">
             <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
               <div className="space-y-2 max-w-2xl">
@@ -586,7 +627,7 @@ export default function App() {
         )}
 
         {/* Navigation Tabs Styled with Green & Gold Accents */}
-        {teacher.role !== 'admin' && teacher.email !== 'admin@projectsmile' && (
+        {teacher.role !== 'admin' && teacher.role !== 'head_teacher' && teacher.email !== 'admin@projectsmile' && (
           <div className="bg-white rounded-2xl p-1.5 border border-emerald-100 shadow-sm flex items-center gap-1.5 overflow-x-auto">
             <button
               type="button"
@@ -659,7 +700,7 @@ export default function App() {
               )}
             </button>
 
-            {['head_teacher', 'school_head', 'coordinator'].includes(teacher.role || '') && (
+            {['school_head', 'coordinator'].includes(teacher.role || '') && (
               <button
                 type="button"
                 onClick={() => setActiveTab('admin-portal')}
@@ -670,14 +711,26 @@ export default function App() {
                 }`}
               >
                 <Sparkles className="w-4 h-4 text-purple-600" />
-                {teacher.role === 'school_head' ? 'EXECUTIVE OVERSIGHT' : teacher.role === 'head_teacher' ? 'SUPERVISORY CONSOLE' : 'COORDINATOR CONSOLE'}
+                {teacher.role === 'school_head' ? 'EXECUTIVE OVERSIGHT' : 'COORDINATOR CONSOLE'}
               </button>
             )}
           </div>
         )}
 
         {/* Tab Content Views */}
-        {activeTab === 'admin-portal' && (teacher.role === 'admin' || teacher.role === 'head_teacher' || teacher.role === 'school_head' || teacher.role === 'coordinator' || teacher.email === 'admin@projectsmile') && (
+        {(activeTab === 'head-teacher-portal' || teacher.role === 'head_teacher') && (
+          <HeadTeacherDashboard
+            headTeacher={teacher}
+            students={students}
+            sessions={sessions}
+            onRefreshData={refreshData}
+            onSelectStudent={(stud) => setViewStudent(stud)}
+            onViewMOV={(url, title) => setViewMovUrl({ url, title })}
+            onShowToast={showToast}
+          />
+        )}
+
+        {activeTab === 'admin-portal' && teacher.role !== 'head_teacher' && (teacher.role === 'admin' || teacher.role === 'school_head' || teacher.role === 'coordinator' || teacher.email === 'admin@projectsmile') && (
           <AdminDashboard
             currentAdmin={teacher}
             students={students}

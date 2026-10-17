@@ -218,6 +218,15 @@ export interface MOVAttachment {
   uploadedAt: string;
   caption: string;
   isAssessmentTool?: boolean; // Tagged if uploaded as assessment / intervention tool
+  evaluationStatus?: 'Pending' | 'Verified' | 'Exemplary' | 'Needs Revision';
+  evaluationNotes?: string;
+  evaluatedBy?: string;
+  evaluatedAt?: string;
+  rubricChecks?: {
+    alignedWithCompetency: boolean;
+    authenticLearnerOutput: boolean;
+    clearDocumentation: boolean;
+  };
 }
 
 export interface Student {
@@ -265,6 +274,10 @@ export interface SessionRecord {
   assessmentTool?: MOVAttachment; // Uploaded assessment/intervention tool with mandatory caption
   createdAt: string;
   teacherEmail?: string; // Teacher account email who conducted/logged this session
+  supervisoryStatus?: 'Pending Review' | 'Verified' | 'Exemplary' | 'Needs Follow-up';
+  supervisoryRemarks?: string;
+  supervisedBy?: string;
+  supervisedAt?: string;
 }
 
 export type UserRole = 'teacher' | 'admin' | 'head_teacher' | 'school_head' | 'coordinator';
@@ -500,6 +513,9 @@ export interface TeacherProfile {
   lastLoginAt?: string;
   phoneNumber?: string;
   reportsSubmissionStatus?: 'Submitted' | 'Pending' | 'Needs Revision' | 'Draft';
+  headTeacherFeedback?: string;
+  headTeacherReviewedAt?: string;
+  headTeacherReviewedBy?: string;
 
   // Official Report Signatories & Approving Authorities
   masterTeacherName?: string;

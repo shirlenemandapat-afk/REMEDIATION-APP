@@ -52,6 +52,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'signatories' | 'teacher' | 'school'>('signatories');
   const isAdmin = teacher.role === 'admin' || (teacher.email || '').toLowerCase().trim() === 'admin@projectsmile';
+  const isHeadTeacher = teacher.role === 'head_teacher';
 
   // Teacher info
   const [editName, setEditName] = useState(teacher.name);
@@ -204,31 +205,33 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Section Selector & Profile Controls */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            {/* Filter by Grade & Section */}
-            <div className="hidden md:flex items-center gap-2 bg-emerald-900/80 px-3 py-1.5 rounded-xl border border-emerald-700/80 shadow-xs">
-              <label htmlFor="navbar-section-select" className="text-xs text-amber-200 font-semibold whitespace-nowrap">
-                Section:
-              </label>
-              <select
-                id="navbar-section-select"
-                aria-label="Filter by Class or Section"
-                value={selectedSection}
-                onChange={(e) => onSelectSection(e.target.value)}
-                className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer pr-1"
-              >
-                <option value="ALL" className="bg-emerald-950 text-white">
-                  All Sections
-                </option>
-                {sectionsList.map((sec) => (
-                  <option key={sec} value={sec} className="bg-emerald-950 text-white">
-                    {sec}
+            {/* Filter by Grade & Section (For Classroom Teachers) */}
+            {!isAdmin && !isHeadTeacher && (
+              <div className="hidden md:flex items-center gap-2 bg-emerald-900/80 px-3 py-1.5 rounded-xl border border-emerald-700/80 shadow-xs">
+                <label htmlFor="navbar-section-select" className="text-xs text-amber-200 font-semibold whitespace-nowrap">
+                  Section:
+                </label>
+                <select
+                  id="navbar-section-select"
+                  aria-label="Filter by Class or Section"
+                  value={selectedSection}
+                  onChange={(e) => onSelectSection(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer pr-1"
+                >
+                  <option value="ALL" className="bg-emerald-950 text-white">
+                    All Sections
                   </option>
-                ))}
-              </select>
-            </div>
+                  {sectionsList.map((sec) => (
+                    <option key={sec} value={sec} className="bg-emerald-950 text-white">
+                      {sec}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-            {/* Supabase Live Cloud Status & Manual Sync Button (Admin Portal Only) */}
-            {isAdmin && onManualSync && (
+            {/* Supabase Live Cloud Status & Manual Sync Button (Admin & Head Teacher Portal) */}
+            {(isAdmin || isHeadTeacher) && onManualSync && (
               <button
                 type="button"
                 onClick={onManualSync}
