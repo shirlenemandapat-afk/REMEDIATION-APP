@@ -500,7 +500,7 @@ async function relayTeacherProfileToSupabase(profile: any) {
       title: profile.title || 'Teacher I / TLE Faculty',
       school_name: profile.schoolName || profile.school_name || 'Ramon Magsaysay (Cubao) High School',
       division: profile.division || 'SDO Quezon City • TLE Department',
-      region: profile.region || 'National Capital Region',
+      region: profile.region || 'National Capital Region (NCR)',
       academic_year: profile.academicYear || profile.academic_year || '2025-2026',
       department: profile.department || 'Technology and Livelihood Education (TLE)',
       master_teacher_name: profile.masterTeacherName || profile.master_teacher_name || null,
@@ -511,12 +511,6 @@ async function relayTeacherProfileToSupabase(profile: any) {
       principal_position: profile.principalPosition || profile.principal_position || null,
       role: profile.role || 'teacher',
       role_title: (profile.roleTitle || profile.role || 'TEACHER').toUpperCase(),
-      account_status: profile.accountStatus || profile.account_status || 'Active',
-      assigned_subjects: Array.isArray(profile.assignedSubjects)
-        ? profile.assignedSubjects
-        : Array.isArray(profile.assigned_subjects)
-        ? profile.assigned_subjects
-        : [],
       updated_at: new Date().toISOString(),
     };
 
@@ -578,6 +572,7 @@ async function pullLatestFromSupabase(db: AppDbState): Promise<boolean> {
     );
 
     if (Array.isArray(teachersRes?.data) && teachersRes.data.length > 0) {
+      const genericDefaultPasswords = new Set(['deped2025', 'teacher123', 'head2025', 'admin2026']);
       teachersRes.data.forEach((t: any) => {
         if (t && t.email) {
           const norm = t.email.toLowerCase().trim();
@@ -585,30 +580,46 @@ async function pullLatestFromSupabase(db: AppDbState): Promise<boolean> {
             return;
           }
           const existingLocal = db.accounts[norm] || {};
-          const { role, roleTitle } = normalizeUserRole(t.role || existingLocal.role);
+          const { role, roleTitle } = normalizeUserRole(existingLocal.role || t.role);
+          const cloudPass = (t.password_hash || '').trim();
+          const localPass = (existingLocal.passwordHash || '').trim();
+
+          // Never overwrite a customized local password with a generic fallback password from cloud
+          let resolvedPasswordHash = localPass || cloudPass || 'deped2025';
+          if (cloudPass && !genericDefaultPasswords.has(cloudPass) && (!localPass || genericDefaultPasswords.has(localPass))) {
+            resolvedPasswordHash = cloudPass;
+          }
+
           db.accounts[norm] = {
             ...existingLocal,
-            email: t.email,
-            name: t.name || existingLocal.name,
-            title: t.title || existingLocal.title,
-            schoolName: t.school_name || existingLocal.schoolName,
-            division: t.division || existingLocal.division,
-            region: t.region || existingLocal.region,
-            academicYear: t.academic_year || existingLocal.academicYear,
-            department: t.department || existingLocal.department,
-            masterTeacherName: t.master_teacher_name || existingLocal.masterTeacherName,
-            masterTeacherPosition: t.master_teacher_position || existingLocal.masterTeacherPosition,
-            headTeacherName: t.head_teacher_name || existingLocal.headTeacherName,
-            headTeacherPosition: t.head_teacher_position || existingLocal.headTeacherPosition,
-            principalName: t.principal_name || existingLocal.principalName,
-            principalPosition: t.principal_position || existingLocal.principalPosition,
+            email: existingLocal.email || t.email,
+            name: existingLocal.name || t.name,
+            title: existingLocal.title || t.title,
+            schoolName: existingLocal.schoolName || t.school_name,
+            division: existingLocal.division || t.division,
+            region: existingLocal.region || t.region,
+            academicYear: existingLocal.academicYear || t.academic_year,
+            department: existingLocal.department || t.department,
+            masterTeacherName: existingLocal.masterTeacherName || t.master_teacher_name,
+            masterTeacherPosition: existingLocal.masterTeacherPosition || t.master_teacher_position,
+            headTeacherName: existingLocal.headTeacherName || t.head_teacher_name,
+            headTeacherPosition: existingLocal.headTeacherPosition || t.head_teacher_position,
+            principalName: existingLocal.principalName || t.principal_name,
+            principalPosition: existingLocal.principalPosition || t.principal_position,
             role,
             roleTitle,
-            passwordHash: t.password_hash || existingLocal.passwordHash || 'deped2025',
-            accountStatus: t.account_status || existingLocal.accountStatus || 'Active',
-            assignedSubjects: Array.isArray(t.assigned_subjects)
-              ? t.assigned_subjects
-              : existingLocal.assignedSubjects || [],
+            passwordHash: resolvedPasswordHash,
+            passwordCustomized: Boolean(
+              existingLocal.passwordCustomized ||
+                (resolvedPasswordHash && !genericDefaultPasswords.has(resolvedPasswordHash))
+            ),
+            accountStatus: existingLocal.accountStatus || t.account_status || 'Active',
+            assignedSubjects:
+              Array.isArray(existingLocal.assignedSubjects) && existingLocal.assignedSubjects.length > 0
+                ? existingLocal.assignedSubjects
+                : Array.isArray(t.assigned_subjects)
+                ? t.assigned_subjects
+                : [],
             isPasswordSet: true,
           };
           changed = true;
@@ -913,13 +924,13 @@ async function startServer() {
       }
 
       const { role, roleTitle } = normalizeUserRole(newRole);
-      const isTeachingRole = role === 'teacher';
+      const hasSubjectSpecialization = ['teacher', 'head_teacher', 'coordinator'].includes(role);
 
       db.accounts[accountKey] = {
         ...db.accounts[accountKey],
         role,
         roleTitle,
-        assignedSubjects: isTeachingRole ? (db.accounts[accountKey].assignedSubjects || []) : [],
+        assignedSubjects: hasSubjectSpecialization ? (db.accounts[accountKey].assignedSubjects || []) : [],
       };
 
       // Add audit log
@@ -1083,7 +1094,7 @@ async function startServer() {
       const existing = db.accounts[accountKey];
       const rawRole = updates.role || existing.role || 'teacher';
       const { role: effectiveRole, roleTitle } = normalizeUserRole(rawRole);
-      const isTeachingRole = effectiveRole === 'teacher';
+      const hasSubjectSpecialization = ['teacher', 'head_teacher', 'coordinator'].includes(effectiveRole);
 
       const requestedNewEmail =
         updates.email && typeof updates.email === 'string' && updates.email.trim()
@@ -1091,6 +1102,14 @@ async function startServer() {
           : existing.email.toLowerCase();
       const isChangingEmail = requestedNewEmail !== accountKey.toLowerCase() && accountKey.toLowerCase() !== 'admin@projectsmile';
       const finalKey = isChangingEmail ? requestedNewEmail : accountKey;
+
+      const isPasswordExplicitlyUpdated = Boolean(
+        (updates.newPassword && typeof updates.newPassword === 'string' && updates.newPassword.trim().length >= 4) ||
+          (updates.passwordHash &&
+            typeof updates.passwordHash === 'string' &&
+            updates.passwordHash.trim().length >= 4 &&
+            updates.passwordHash.trim() !== existing.passwordHash)
+      );
 
       const updatedPasswordHash =
         updates.newPassword && typeof updates.newPassword === 'string' && updates.newPassword.trim().length >= 4
@@ -1105,9 +1124,10 @@ async function startServer() {
         role: effectiveRole,
         roleTitle,
         accountStatus: updates.accountStatus || existing.accountStatus || 'Active',
-        assignedSubjects: isTeachingRole ? (updates.assignedSubjects ?? existing.assignedSubjects ?? []) : [],
+        assignedSubjects: hasSubjectSpecialization ? (updates.assignedSubjects ?? existing.assignedSubjects ?? []) : [],
         email: isChangingEmail ? requestedNewEmail : existing.email,
         passwordHash: updatedPasswordHash,
+        passwordCustomized: Boolean(isPasswordExplicitlyUpdated || existing.passwordCustomized),
         isPasswordSet: !!updatedPasswordHash || existing.isPasswordSet,
       };
       delete (updatedProfile as any).newPassword;
@@ -1240,37 +1260,50 @@ async function startServer() {
         return res.status(400).json({ success: false, message: 'Valid email and password (min 4 characters) are required.' });
       }
 
-      const cleanEmail = email.trim().toLowerCase();
+      const rawInput = email.trim().toLowerCase();
       const cleanPassword = password.trim();
       const db = readDb();
 
+      // Match existing account by exact email or username prefix if user registered with username or alternate DepEd domain
+      let matchedKey = Object.keys(db.accounts).find((k) => k.trim().toLowerCase() === rawInput);
+      if (!matchedKey && !rawInput.includes('@')) {
+        matchedKey = Object.keys(db.accounts).find((k) => k.split('@')[0].toLowerCase() === rawInput);
+      }
+      const cleanEmail = matchedKey ? matchedKey.toLowerCase() : rawInput;
+
       const existing = db.accounts[cleanEmail];
-      const rawRole = role || (cleanEmail.includes('admin') ? 'admin' : cleanEmail.includes('shirlene') ? 'coordinator' : 'teacher');
+      const rawRole =
+        role ||
+        existing?.role ||
+        (cleanEmail.includes('admin') ? 'admin' : 'teacher');
       const { role: effectiveRole, roleTitle } = normalizeUserRole(rawRole);
 
       const newProfile = {
-        title: title || 'Teacher I / TLE Faculty',
-        schoolName: schoolName || 'Ramon Magsaysay (Cubao) High School',
-        division: 'SDO Quezon City • TLE Department',
-        region: 'National Capital Region (NCR)',
-        academicYear: '2025-2026',
-        department: department || 'Technology and Livelihood Education (TLE)',
-        assignedSubjects: ['ICT - Computer Programming'],
-        reportsSubmissionStatus: 'Submitted',
-        accountStatus: 'Active',
+        title: title || existing?.title || 'Teacher I / TLE Faculty',
+        schoolName: schoolName || existing?.schoolName || 'Ramon Magsaysay (Cubao) High School',
+        division: existing?.division || 'SDO Quezon City • TLE Department',
+        region: existing?.region || 'National Capital Region (NCR)',
+        academicYear: existing?.academicYear || '2025-2026',
+        department: department || existing?.department || 'Technology and Livelihood Education (TLE)',
+        assignedSubjects: existing?.assignedSubjects || ['ICT - Computer Programming'],
+        reportsSubmissionStatus: existing?.reportsSubmissionStatus || 'Submitted',
+        accountStatus: existing?.accountStatus || 'Active',
         role: effectiveRole,
         roleTitle,
-        masterTeacherName: 'Shirlene M. Mandapat',
-        masterTeacherPosition: 'Master Teacher I / TLE Subject Coordinator',
-        headTeacherName: 'Dr. Corazon V. Santos',
-        headTeacherPosition: 'Head Teacher III / TLE Department',
-        principalName: 'Dr. Maria Luisa T. Ramos',
-        principalPosition: 'Secondary School Principal IV',
+        masterTeacherName: existing?.masterTeacherName || 'Shirlene M. Mandapat',
+        masterTeacherPosition: existing?.masterTeacherPosition || 'Master Teacher I / TLE Subject Coordinator',
+        headTeacherName: existing?.headTeacherName || 'MELANI R. SANTOS',
+        headTeacherPosition: existing?.headTeacherPosition || 'Head Teacher VI / TLE Department',
+        principalName: existing?.principalName || 'JOSEPHINE M. MANINGAS, PhD',
+        principalPosition: existing?.principalPosition || 'Secondary School Principal IV',
         ...existing,
         ...profileData,
         email: cleanEmail,
         name: name || (existing ? existing.name : 'Teacher'),
+        role: effectiveRole,
+        roleTitle,
         passwordHash: cleanPassword, // Custom teacher password saved on server
+        passwordCustomized: true,
         isPasswordSet: true,
         registeredAt: existing?.registeredAt || new Date().toISOString().split('T')[0],
         lastLoginAt: new Date().toLocaleString(),
@@ -1317,38 +1350,78 @@ async function startServer() {
     }
   });
 
-  // User Login (Strict credential verification with Supabase cross-device lookup)
+  // User Login (Credential verification with flexible username/email/name resolution & Supabase lookup)
   app.post('/api/auth/login', async (req, res) => {
     try {
-      const { email, password } = req.body;
-      if (!email || !password) {
-        return res.status(400).json({ success: false, message: 'Please provide both email and password.' });
+      const { email, username, password } = req.body;
+      const loginIdentifier = (username || email || '').trim();
+      if (!loginIdentifier || !password) {
+        return res.status(400).json({ success: false, message: 'Please provide both username/email and password.' });
       }
 
-      const cleanEmail = email.trim().toLowerCase();
+      const rawInput = loginIdentifier.toLowerCase();
+      let cleanEmail = (email || loginIdentifier).trim().toLowerCase();
       const cleanPassword = (password || '').trim();
       const db = readDb();
-      let account = db.accounts[cleanEmail];
 
-      if (!account) {
-        const foundKey = Object.keys(db.accounts).find((k) => k.trim().toLowerCase() === cleanEmail);
-        if (foundKey) {
-          account = db.accounts[foundKey];
+      // 1. Exact email lookup
+      let accountKey = Object.keys(db.accounts).find(
+        (k) => k.trim().toLowerCase() === cleanEmail || k.trim().toLowerCase() === rawInput
+      );
+
+      // 2. Username prefix lookup before '@' (handles @depedqc.ph vs @deped.gov.ph seamlessly)
+      if (!accountKey) {
+        const inputPrefix = rawInput.split('@')[0].trim();
+        const emailPrefix = cleanEmail.split('@')[0].trim();
+        accountKey = Object.keys(db.accounts).find((k) => {
+          const keyPrefix = k.split('@')[0].trim().toLowerCase();
+          return keyPrefix === inputPrefix || keyPrefix === emailPrefix;
+        });
+      }
+
+      // 3. Teacher full name lookup (in case teacher entered their full name in the Username field)
+      if (!accountKey) {
+        accountKey = Object.keys(db.accounts).find((k) => {
+          const accName = (db.accounts[k]?.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+          const normalizedInput = rawInput.replace(/\s+/g, ' ');
+          return accName === normalizedInput;
+        });
+      }
+
+      // 4. Prefix match stripping trailing digits like "001" if unique (e.g. ryan.varona -> ryan.varona001@deped.gov.ph)
+      if (!accountKey) {
+        const strippedInput = rawInput.split('@')[0].replace(/\d+$/, '').trim();
+        if (strippedInput.length >= 4) {
+          const candidates = Object.keys(db.accounts).filter((k) => {
+            const strippedKey = k.split('@')[0].toLowerCase().replace(/\d+$/, '').trim();
+            return strippedKey === strippedInput;
+          });
+          if (candidates.length === 1) {
+            accountKey = candidates[0];
+          }
         }
       }
 
-      // If account not in local database, query Supabase teacher_profiles directly by exact email
+      let account = accountKey ? db.accounts[accountKey] : undefined;
+      if (accountKey) {
+        cleanEmail = accountKey.toLowerCase().trim();
+      }
+
+      // If account not in local database, query Supabase teacher_profiles directly
       if (!account) {
         const supabase = getServerSupabaseClient(db);
         if (supabase) {
           try {
-            const { data: cloudTeacher } = await supabase
+            const prefix = cleanEmail.split('@')[0];
+            const { data: cloudTeachers } = await supabase
               .from('teacher_profiles')
               .select('*')
-              .ilike('email', cleanEmail)
-              .maybeSingle();
+              .or(`email.ilike.${cleanEmail},email.ilike.${prefix}@%,name.ilike.${rawInput}`);
 
-            if (cloudTeacher) {
+            const cloudTeacher = Array.isArray(cloudTeachers) && cloudTeachers.length > 0 ? cloudTeachers[0] : null;
+
+            if (cloudTeacher && cloudTeacher.email) {
+              cleanEmail = cloudTeacher.email.trim().toLowerCase();
               const { role, roleTitle } = normalizeUserRole(cloudTeacher.role);
               account = {
                 email: cleanEmail,
@@ -1422,7 +1495,8 @@ async function startServer() {
                   roleTitle: 'HEAD TEACHER',
                   passwordHash: 'admin2026',
                   accountStatus: 'Active',
-                  assignedSubjects: [],
+                  specialization: 'TLE',
+                  assignedSubjects: ['TLE'],
                   isPasswordSet: true,
                 }
               : INITIAL_DEFAULT_DB.accounts['shirlene.mandapat@depedqc.ph']);
@@ -1438,19 +1512,27 @@ async function startServer() {
       if (!account || (!account.isPasswordSet && !account.passwordHash)) {
         return res.status(401).json({
           success: false,
-          message: 'Account not found. Please check the email spelling or register your account.',
+          message: 'Account not found. Please check the email/username spelling or register your account.',
         });
       }
 
-      // Strict password match verification
+      // Password verification
       const storedPass = (account.passwordHash || '').trim();
+      const genericDefaultPasswords = new Set(['deped2025', 'teacher123', 'head2025', 'admin2026']);
+
+      // If an existing registered teacher account still holds a generic placeholder password (because their set password was previously overwritten by cloud sync), adopt their entered password (>= 4 chars) and save it permanently
+      const shouldAdoptTeacherSetPassword =
+        cleanEmail !== 'admin@projectsmile' &&
+        cleanPassword.length >= 4 &&
+        !account.passwordCustomized &&
+        (!storedPass || genericDefaultPasswords.has(storedPass));
+
       const isMatch =
         storedPass === cleanPassword ||
+        shouldAdoptTeacherSetPassword ||
         (cleanEmail === 'admin@projectsmile' && (cleanPassword === 'admin2025' || cleanPassword === storedPass)) ||
         (cleanEmail.includes('shirlene') && (cleanPassword === 'teacher123' || cleanPassword === '111204' || cleanPassword === storedPass)) ||
         (cleanEmail.includes('melani') && (cleanPassword === 'admin2026' || cleanPassword === 'head2025' || cleanPassword === storedPass)) ||
-        (cleanEmail.includes('corazon') && (cleanPassword === 'head2025' || cleanPassword === storedPass)) ||
-        (cleanEmail.includes('ramos') && (cleanPassword === 'principal2025' || cleanPassword === storedPass)) ||
         cleanPassword === 'deped2025';
 
       if (!isMatch) {
@@ -1468,22 +1550,22 @@ async function startServer() {
         });
       }
 
+      // If teacher signed in with their set password on an account that had a generic default placeholder, persist their set password permanently
+      if (shouldAdoptTeacherSetPassword && cleanPassword !== 'deped2025') {
+        account.passwordHash = cleanPassword;
+        account.passwordCustomized = true;
+      } else if (storedPass === cleanPassword && !genericDefaultPasswords.has(storedPass)) {
+        account.passwordCustomized = true;
+      }
+
       // Successful login -> update last login timestamp
       account.lastLoginAt = new Date().toLocaleString();
       account.accountStatus = account.accountStatus || 'Active';
       account.isPasswordSet = true;
       db.accounts[cleanEmail] = account;
 
-      // Update last_login_at in Supabase in background
-      const client = getServerSupabaseClient(db);
-      if (client) {
-        Promise.resolve(
-          client
-            .from('teacher_profiles')
-            .update({ last_login_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-            .ilike('email', cleanEmail)
-        ).catch(() => {});
-      }
+      // Sync teacher profile & password_hash to Supabase in background
+      relayTeacherProfileToSupabase(account).catch(() => {});
 
       // Log teacher login event in audit logs for Admin monitoring
       db.auditLogs.unshift({
@@ -1640,33 +1722,40 @@ async function startServer() {
     try {
       const { email, newPassword } = req.body;
       if (!email || !newPassword || newPassword.trim().length < 4) {
-        return res.status(400).json({ success: false, message: 'Valid email and password (min 4 characters) are required.' });
+        return res.status(400).json({ success: false, message: 'Valid email/username and password (min 4 characters) are required.' });
       }
 
-      const cleanEmail = email.trim().toLowerCase();
+      const rawInput = email.trim().toLowerCase();
       const cleanPass = newPassword.trim();
       const db = readDb();
+
+      // Resolve account by exact email, username prefix, or full name
+      let matchedKey = Object.keys(db.accounts).find((k) => k.trim().toLowerCase() === rawInput);
+      if (!matchedKey) {
+        const prefix = rawInput.split('@')[0].trim();
+        matchedKey = Object.keys(db.accounts).find((k) => k.split('@')[0].toLowerCase() === prefix);
+      }
+      if (!matchedKey) {
+        matchedKey = Object.keys(db.accounts).find(
+          (k) => (db.accounts[k]?.name || '').trim().toLowerCase() === rawInput
+        );
+      }
+
+      const cleanEmail = matchedKey ? matchedKey.toLowerCase() : rawInput;
       const account = db.accounts[cleanEmail] || {
         ...INITIAL_DEFAULT_DB.accounts['shirlene.mandapat@depedqc.ph'],
         email: cleanEmail,
       };
 
       account.passwordHash = cleanPass;
+      account.passwordCustomized = true;
       account.isPasswordSet = true;
       account.lastLoginAt = new Date().toLocaleString();
       db.accounts[cleanEmail] = account;
       writeDb(db);
 
       // Also persist password to Supabase teacher_profiles
-      const client = getServerSupabaseClient(db);
-      if (client) {
-        Promise.resolve(
-          client
-            .from('teacher_profiles')
-            .update({ password_hash: cleanPass, updated_at: new Date().toISOString() })
-            .ilike('email', cleanEmail)
-        ).catch(() => {});
-      }
+      relayTeacherProfileToSupabase(account).catch(() => {});
 
       console.log(`[AUTH] Password reset on server for: ${cleanEmail}`);
       res.json({ success: true, profile: account, message: 'Password updated successfully.' });
@@ -1772,12 +1861,28 @@ async function startServer() {
         return res.status(400).json({ success: false, message: 'Teacher email is required.' });
       }
 
-      // Update profile if provided
+      // Update profile if provided (preserving customized server password unless explicitly updated)
       if (profile && typeof profile === 'object') {
+        const existing = db.accounts[cleanEmail] || {};
+        const genericDefaultPasswords = new Set(['deped2025', 'teacher123', 'head2025', 'admin2026']);
+        const incomingPass = (profile.passwordHash || '').trim();
+        const existingPass = (existing.passwordHash || '').trim();
+
+        let resolvedPass = incomingPass || existingPass || 'deped2025';
+        if (existing.passwordCustomized && existingPass && (!incomingPass || genericDefaultPasswords.has(incomingPass))) {
+          resolvedPass = existingPass;
+        }
+
         db.accounts[cleanEmail] = {
-          ...(db.accounts[cleanEmail] || {}),
+          ...existing,
           ...profile,
           email: cleanEmail,
+          passwordHash: resolvedPass,
+          passwordCustomized: Boolean(
+            existing.passwordCustomized ||
+              profile.passwordCustomized ||
+              (incomingPass && !genericDefaultPasswords.has(incomingPass))
+          ),
         };
       }
 
@@ -2159,28 +2264,52 @@ async function startServer() {
       );
 
       if (accounts && typeof accounts === 'object' && Object.keys(accounts).length > 0) {
-        // Authoritative update of accounts from admin sync (respecting deletedAccountEmails)
-        const legacyMockEmails = ['juan.delacruz@depedqc.ph', 'maria.santos@depedqc.ph', 'eduardo.reyes@depedqc.ph'];
-        const cleanAccounts: Record<string, any> = {};
+        // Merge incoming accounts into existing server accounts (NEVER wipe out other registered teachers when a partial map is synced)
+        const legacyMockEmails = ['juan.delacruz@depedqc.ph', 'maria.santos@depedqc.ph', 'eduardo.reyes@depedqc.ph', 'teachershirlene@gmail.com'];
+        const genericDefaultPasswords = new Set(['deped2025', 'teacher123', 'head2025', 'admin2026']);
+        const mergedAccounts: Record<string, any> = {};
+
+        for (const [k, existingAcc] of Object.entries(db.accounts || {})) {
+          const lowerK = k.toLowerCase().trim();
+          if (!legacyMockEmails.includes(lowerK) && !deletedSet.has(lowerK)) {
+            mergedAccounts[lowerK] = existingAcc;
+          }
+        }
+
         for (const [k, v] of Object.entries(accounts)) {
           const lowerK = k.toLowerCase().trim();
           if (!legacyMockEmails.includes(lowerK) && !deletedSet.has(lowerK)) {
-            const existing = db.accounts[lowerK] || {};
+            const existing = mergedAccounts[lowerK] || {};
             const rawRole = (v as any)?.role || existing?.role || 'teacher';
             const { role: effectiveRole, roleTitle } = normalizeUserRole(rawRole);
-            cleanAccounts[lowerK] = {
+            const incomingPass = ((v as any)?.passwordHash || '').trim();
+            const existingPass = (existing.passwordHash || '').trim();
+
+            let resolvedPass = incomingPass || existingPass || 'deped2025';
+            if (existing.passwordCustomized && existingPass && (!incomingPass || genericDefaultPasswords.has(incomingPass))) {
+              resolvedPass = existingPass;
+            }
+
+            mergedAccounts[lowerK] = {
               ...existing,
               ...(v as any),
               role: effectiveRole,
               roleTitle,
-              passwordHash: (v as any)?.passwordHash || existing.passwordHash,
+              passwordHash: resolvedPass,
+              passwordCustomized: Boolean(
+                existing.passwordCustomized ||
+                  (v as any)?.passwordCustomized ||
+                  (incomingPass && !genericDefaultPasswords.has(incomingPass))
+              ),
+              isPasswordSet: true,
             };
           }
         }
-        if (!cleanAccounts['admin@projectsmile'] && db.accounts['admin@projectsmile']) {
-          cleanAccounts['admin@projectsmile'] = db.accounts['admin@projectsmile'];
+
+        if (!mergedAccounts['admin@projectsmile'] && db.accounts['admin@projectsmile']) {
+          mergedAccounts['admin@projectsmile'] = db.accounts['admin@projectsmile'];
         }
-        db.accounts = cleanAccounts;
+        db.accounts = mergedAccounts;
       }
       if (Array.isArray(students)) {
         // Merge students by ID

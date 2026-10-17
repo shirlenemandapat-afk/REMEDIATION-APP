@@ -508,6 +508,7 @@ export interface TeacherProfile {
   region: string;     // e.g., "NCR"
   academicYear: string; // e.g., "2025-2026"
   department?: string; // e.g., "Technology and Livelihood Education (TLE)"
+  specialization?: string; // e.g., "ICT - Technical Drafting" or "Technology and Livelihood Education (TLE)"
   assignedSubjects?: string[]; // e.g. ["ICT - Computer Programming", "Food Preservation"]
   registeredAt?: string;
   lastLoginAt?: string;

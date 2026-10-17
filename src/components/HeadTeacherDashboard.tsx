@@ -35,6 +35,10 @@ import {
   UserCheck,
   Printer,
   Filter,
+  Settings,
+  Plus,
+  Check,
+  Tag,
 } from 'lucide-react';
 
 export type HeadTeacherTab =
@@ -75,6 +79,24 @@ const MOV_EVALUATION_TEMPLATES = [
   'Authentic and clear MOV evidence demonstrating hands-on learner participation and output.',
   'Checked Learning Activity Sheet (LAS) clearly shows learner score progression and teacher feedback.',
   'Please provide a clearer photo or more descriptive caption indicating the specific competency assessed.',
+];
+
+const PRESET_SPECIALIZATION_AREAS = [
+  'TLE',
+  'ICT - Computer Systems Servicing',
+  'ICT - Computer Programming',
+  'ICT - Technical Drafting',
+  'ICT - Illustration & Animation',
+  'TLE - Home Economics (Cookery / Bread & Pastry)',
+  'TLE - Industrial Arts (Electrical / Shielded Metal Arc)',
+  'TLE - Agri-Fishery Arts (Food Processing)',
+  'Mathematics',
+  'Science',
+  'English',
+  'Filipino',
+  'Araling Panlipunan',
+  'MAPEH',
+  'Edukasyon sa Pagpapakatao (EsP)',
 ];
 
 export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
@@ -130,6 +152,22 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
 
   // --- Tab 5: Generate Narrative Reports Scope ---
   const [reportScopeEmail, setReportScopeEmail] = useState<string>('ALL_DEPARTMENT');
+
+  // --- Subject / Specialization Supervision Filter & Configuration Modals ---
+  const [selectedSpecializationFilter, setSelectedSpecializationFilter] = useState<string>('ALL');
+  const [showUnassignedFacultyPanel, setShowUnassignedFacultyPanel] = useState<boolean>(false);
+
+  // Modal: Configure Head Teacher's own Subject / Specialization
+  const [isConfigSpecOpen, setIsConfigSpecOpen] = useState<boolean>(false);
+  const [htSpecList, setHtSpecList] = useState<string[]>([]);
+  const [htCustomSpecInput, setHtCustomSpecInput] = useState<string>('');
+  const [isSavingHtSpec, setIsSavingHtSpec] = useState<boolean>(false);
+
+  // Modal: Assign / Edit a Teacher's Subject / Specialization
+  const [assigningTeacherSpec, setAssigningTeacherSpec] = useState<TeacherProfile | null>(null);
+  const [teacherSpecList, setTeacherSpecList] = useState<string[]>([]);
+  const [teacherCustomSpecInput, setTeacherCustomSpecInput] = useState<string>('');
+  const [isSavingTeacherSpec, setIsSavingTeacherSpec] = useState<boolean>(false);
 
   useEffect(() => {
     setLiveStudents(storage.getAllStudents());
@@ -187,28 +225,94 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
     };
   }, []);
 
-  // Filter department teachers (excluding system admin and the head teacher's own supervisory account)
-  const departmentTeachers = useMemo(() => {
-    return teachers.filter((t) => {
-      const emailNorm = (t.email || '').toLowerCase().trim();
-      if (emailNorm === 'admin@projectsmile' || t.role === 'admin') return false;
-      if (t.role === 'head_teacher' || t.role === 'school_head') return false;
-      return true;
-    });
-  }, [teachers]);
+  // Compute Subject / Specialization Supervision Scope strictly from Head Teacher's assigned specializations
+  const supervisionScope = useMemo(() => {
+    return storage.getHeadTeacherSupervisedData(
+      headTeacher,
+      teachers,
+      liveStudents,
+      liveSessions
+    );
+  }, [headTeacher, teachers, liveStudents, liveSessions]);
 
-  // Compute detailed metrics per department teacher
+  const headTeacherSpecializations = useMemo(
+    () =>
+      Array.isArray(supervisionScope.headTeacherSpecializations)
+        ? supervisionScope.headTeacherSpecializations
+        : Array.isArray(supervisionScope.specializations)
+        ? supervisionScope.specializations
+        : ['TLE'],
+    [supervisionScope]
+  );
+
+  // Filter supervised teachers, students, and sessions by the active specialization pill (or ALL of Head Teacher's specializations)
+  const departmentTeachers = useMemo(() => {
+    const baseSupervised = Array.isArray(supervisionScope.supervisedTeachers)
+      ? supervisionScope.supervisedTeachers
+      : [];
+    if (selectedSpecializationFilter === 'ALL') {
+      return baseSupervised;
+    }
+    return baseSupervised.filter((t) => {
+      const tEmailNorm = (t.email || '').toLowerCase().trim();
+      const tStudents = (supervisionScope.supervisedStudents || []).filter(
+        (s) => (s.teacherEmail || (s as any).teacher_email || '').toLowerCase().trim() === tEmailNorm
+      );
+      const tSessions = (supervisionScope.supervisedSessions || []).filter(
+        (s) => (s.teacherEmail || (s as any).teacher_email || '').toLowerCase().trim() === tEmailNorm
+      );
+      const specs = storage.getTeacherEffectiveSpecializations(t, tStudents, tSessions);
+      return (specs || []).some((sp) =>
+        storage.doSpecializationsMatch(selectedSpecializationFilter, sp)
+      );
+    });
+  }, [supervisionScope, selectedSpecializationFilter]);
+
+  const monitoredTeacherEmailSet = useMemo(
+    () => new Set(departmentTeachers.map((t) => (t.email || '').toLowerCase().trim())),
+    [departmentTeachers]
+  );
+
+  // Students strictly under the Head Teacher's monitored teachers & Subject / Specialization
+  const monitoredStudents = useMemo(() => {
+    return supervisionScope.supervisedStudents.filter((s) => {
+      const sEmail = (s.teacherEmail || (s as any).teacher_email || '').toLowerCase().trim();
+      if (!monitoredTeacherEmailSet.has(sEmail)) return false;
+      if (selectedSpecializationFilter === 'ALL') return true;
+      return !s.subject || storage.doSpecializationsMatch(selectedSpecializationFilter, s.subject);
+    });
+  }, [supervisionScope.supervisedStudents, monitoredTeacherEmailSet, selectedSpecializationFilter]);
+
+  // Sessions strictly under the Head Teacher's monitored teachers & Subject / Specialization
+  const monitoredSessions = useMemo(() => {
+    const validStudentIds = new Set(monitoredStudents.map((s) => String(s.id)));
+    return supervisionScope.supervisedSessions.filter((sess) => {
+      const sEmail = (sess.teacherEmail || (sess as any).teacher_email || '').toLowerCase().trim();
+      const belongsToTeacherOrStudent =
+        monitoredTeacherEmailSet.has(sEmail) || validStudentIds.has(String(sess.studentId));
+      if (!belongsToTeacherOrStudent) return false;
+      if (selectedSpecializationFilter === 'ALL') return true;
+      return !sess.subject || storage.doSpecializationsMatch(selectedSpecializationFilter, sess.subject);
+    });
+  }, [
+    supervisionScope.supervisedSessions,
+    monitoredStudents,
+    monitoredTeacherEmailSet,
+    selectedSpecializationFilter,
+  ]);
+
+  // Compute detailed metrics per monitored teacher under the Head Teacher's Subject / Specialization
   const teacherSupervisionStats = useMemo(() => {
     return departmentTeachers.map((t) => {
       const tEmailNorm = (t.email || '').toLowerCase().trim();
-      const tStudents = liveStudents.filter(
+      const tStudents = monitoredStudents.filter(
         (s) => (s.teacherEmail || (s as any).teacher_email || '').toLowerCase().trim() === tEmailNorm
       );
       const activeStudents = tStudents.filter((s) => !s.isArchived);
       const archivedStudents = tStudents.filter((s) => s.isArchived);
 
       const tStudentIds = new Set(tStudents.map((s) => String(s.id)));
-      const tSessions = liveSessions.filter((sess) => {
+      const tSessions = monitoredSessions.filter((sess) => {
         const sEmail = (sess.teacherEmail || (sess as any).teacher_email || '').toLowerCase().trim();
         return sEmail === tEmailNorm || tStudentIds.has(String(sess.studentId));
       });
@@ -236,13 +340,19 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
 
       const masteryGain = activeStudents.length > 0 && tSessions.length > 0 ? avgSessionScore - avgBaseline : 0;
 
-      // Derive subjects handled from teacher profile + enrolled students + sessions
+      // Derive subjects / specializations handled from teacher profile + enrolled students + sessions
       const derivedSubjects = Array.from(
         new Set([
           ...(t.assignedSubjects || []),
+          ...(t.specialization ? [t.specialization] : []),
           ...tStudents.map((s) => s.subject).filter(Boolean),
           ...tSessions.map((s) => s.subject).filter(Boolean),
         ])
+      );
+
+      // Identify which specific Head Teacher specializations matched this teacher
+      const matchedSpecializations = derivedSubjects.filter((sub) =>
+        headTeacherSpecializations.some((htSpec) => storage.doSpecializationsMatch(htSpec, sub))
       );
 
       const masteredCount = activeStudents.filter((s) => s.status === 'Mastered / Promoted').length;
@@ -262,6 +372,7 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
         avgSessionScore,
         masteryGain,
         derivedSubjects,
+        matchedSpecializations,
         masteredCount,
         progressingCount,
         needsRemediationCount,
@@ -272,16 +383,16 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
           | 'Draft',
       };
     });
-  }, [departmentTeachers, liveStudents, liveSessions]);
+  }, [departmentTeachers, monitoredStudents, monitoredSessions, headTeacherSpecializations]);
 
-  // Flatten all MOVs and Assessment Tools across all sessions for Tab 4
+  // Flatten all MOVs and Assessment Tools across monitored sessions for Tab 4
   const allMovItems = useMemo<FlattenedMOVItem[]>(() => {
     const items: FlattenedMOVItem[] = [];
-    liveSessions.forEach((sess) => {
-      const student = liveStudents.find((st) => String(st.id) === String(sess.studentId));
+    monitoredSessions.forEach((sess) => {
+      const student = monitoredStudents.find((st) => String(st.id) === String(sess.studentId));
       const tEmail = (sess.teacherEmail || student?.teacherEmail || '').toLowerCase().trim();
       const teacherObj = teachers.find((t) => (t.email || '').toLowerCase().trim() === tEmail);
-      const teacherName = teacherObj?.name || tEmail || 'TLE Faculty';
+      const teacherName = teacherObj?.name || tEmail || 'Supervised Faculty';
 
       const seenIds = new Set<string>();
       if (Array.isArray(sess.movs)) {
@@ -313,19 +424,19 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
     return items.sort(
       (a, b) => new Date(b.session.date).getTime() - new Date(a.session.date).getTime()
     );
-  }, [liveSessions, liveStudents, teachers]);
+  }, [monitoredSessions, monitoredStudents, teachers]);
 
-  // Sessions missing any MOV attachment
+  // Sessions missing any MOV attachment (within monitored scope)
   const sessionsMissingMovs = useMemo(() => {
-    return liveSessions.filter(
+    return monitoredSessions.filter(
       (s) => (!s.movs || s.movs.length === 0) && !s.assessmentTool
     );
-  }, [liveSessions]);
+  }, [monitoredSessions]);
 
-  // Department-wide summary numbers
+  // Specialization-scoped summary numbers
   const activeDeptStudents = useMemo(
-    () => liveStudents.filter((s) => !s.isArchived),
-    [liveStudents]
+    () => monitoredStudents.filter((s) => !s.isArchived),
+    [monitoredStudents]
   );
   const totalDeptMastered = useMemo(
     () => activeDeptStudents.filter((s) => s.status === 'Mastered / Promoted').length,
@@ -354,17 +465,17 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
 
   const verifiedLogsCount = useMemo(
     () =>
-      liveSessions.filter(
+      monitoredSessions.filter(
         (s) => s.supervisoryStatus === 'Verified' || s.supervisoryStatus === 'Exemplary'
       ).length,
-    [liveSessions]
+    [monitoredSessions]
   );
   const pendingLogsCount = useMemo(
     () =>
-      liveSessions.filter(
+      monitoredSessions.filter(
         (s) => !s.supervisoryStatus || s.supervisoryStatus === 'Pending Review'
       ).length,
-    [liveSessions]
+    [monitoredSessions]
   );
 
   const evaluatedMovsCount = useMemo(
@@ -378,16 +489,16 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
   );
 
   const deptAvgMastery = useMemo(() => {
-    if (liveSessions.length === 0) return 0;
+    if (monitoredSessions.length === 0) return 0;
     return Math.round(
-      liveSessions.reduce((acc, s) => acc + (s.score || 0), 0) / liveSessions.length
+      monitoredSessions.reduce((acc, s) => acc + (s.score || 0), 0) / monitoredSessions.length
     );
-  }, [liveSessions]);
+  }, [monitoredSessions]);
 
-  // All unique sections across department
+  // All unique sections across monitored Subject / Specialization
   const allDeptSections = useMemo(() => {
     const set = new Set<string>();
-    liveStudents.forEach((s) => {
+    monitoredStudents.forEach((s) => {
       if (s.gradeLevel && s.section) {
         set.add(`${s.gradeLevel} - ${s.section}`);
       } else if (s.section) {
@@ -395,7 +506,7 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
       }
     });
     return Array.from(set).sort();
-  }, [liveStudents]);
+  }, [monitoredStudents]);
 
   // Filtered teachers for Tab 2
   const filteredTeacherStats = useMemo(() => {
@@ -420,11 +531,11 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
     });
   }, [teacherSupervisionStats, teacherSearch, teacherStatusFilter, teacherActivityFilter]);
 
-  // Filtered sessions for Tab 3
+  // Filtered sessions for Tab 3 (strictly within monitored Subject / Specialization)
   const filteredSessions = useMemo(() => {
-    return liveSessions
+    return monitoredSessions
       .filter((sess) => {
-        const student = liveStudents.find((st) => String(st.id) === String(sess.studentId));
+        const student = monitoredStudents.find((st) => String(st.id) === String(sess.studentId));
         const sTeacherEmail = (sess.teacherEmail || student?.teacherEmail || '').toLowerCase().trim();
 
         const matchesTeacher =
@@ -464,8 +575,8 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [
-    liveSessions,
-    liveStudents,
+    monitoredSessions,
+    monitoredStudents,
     logTeacherFilter,
     logProgramFilter,
     logSectionFilter,
@@ -549,6 +660,97 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
     await handleSyncAll();
     if (onShowToast) {
       onShowToast(res.message, 'success');
+    }
+  };
+
+  // --- Handlers for Head Teacher & Faculty Subject / Specialization Configuration ---
+  const handleOpenConfigHtSpec = () => {
+    setHtSpecList([...headTeacherSpecializations]);
+    setHtCustomSpecInput('');
+    setIsConfigSpecOpen(true);
+  };
+
+  const handleSaveHtSpecialization = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (htSpecList.length === 0) {
+      if (onShowToast) {
+        onShowToast('Please select at least one Subject / Specialization to monitor.', 'warning');
+      }
+      return;
+    }
+    setIsSavingHtSpec(true);
+    try {
+      const res = await storage.headTeacherUpdateSpecialization(
+        headTeacher.email,
+        htSpecList,
+        htSpecList[0]
+      );
+      await handleSyncAll();
+      setSelectedSpecializationFilter('ALL');
+      setIsConfigSpecOpen(false);
+      if (onShowToast) {
+        onShowToast(res.message, 'success');
+      }
+    } finally {
+      setIsSavingHtSpec(false);
+    }
+  };
+
+  const handleOpenAssignTeacherSpec = (teacher: TeacherProfile) => {
+    const tEmailNorm = (teacher.email || '').toLowerCase().trim();
+    const tStudents = liveStudents.filter(
+      (s) => (s.teacherEmail || (s as any).teacher_email || '').toLowerCase().trim() === tEmailNorm
+    );
+    const tSessions = liveSessions.filter(
+      (s) => (s.teacherEmail || (s as any).teacher_email || '').toLowerCase().trim() === tEmailNorm
+    );
+    const currentSpecs = storage.getTeacherEffectiveSpecializations(teacher, tStudents, tSessions);
+    setAssigningTeacherSpec(teacher);
+    setTeacherSpecList(currentSpecs.length > 0 ? currentSpecs : [...headTeacherSpecializations.slice(0, 2)]);
+    setTeacherCustomSpecInput('');
+  };
+
+  const handleSaveTeacherSpec = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assigningTeacherSpec) return;
+    setIsSavingTeacherSpec(true);
+    try {
+      const res = await storage.adminAssignTeacherSubjects(
+        headTeacher.email,
+        assigningTeacherSpec.email,
+        teacherSpecList
+      );
+      await handleSyncAll();
+      setAssigningTeacherSpec(null);
+      if (onShowToast) {
+        onShowToast(res.message, 'success');
+      }
+    } finally {
+      setIsSavingTeacherSpec(false);
+    }
+  };
+
+  const handleQuickAssignToMySpecialization = async (teacher: TeacherProfile) => {
+    const defaultSpecsToAssign =
+      selectedSpecializationFilter !== 'ALL'
+        ? [selectedSpecializationFilter]
+        : headTeacherSpecializations.slice(0, 2);
+    setIsSyncing(true);
+    try {
+      const res = await storage.adminAssignTeacherSubjects(
+        headTeacher.email,
+        teacher.email,
+        defaultSpecsToAssign
+      );
+      await handleSyncAll();
+      if (onShowToast) {
+        onShowToast(
+          `Assigned ${teacher.name} to your Subject / Specialization (${defaultSpecsToAssign.join(', ')}).`,
+          'success'
+        );
+      }
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -740,64 +942,24 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
     }
   };
 
-  // --- Data for Tab 5: Narrative Report Generator ---
+  // --- Data for Tab 5: Narrative Report Generator (Whole Program Conducted by Supervised Teachers & Students) ---
   const reportContext = useMemo(() => {
-    if (reportScopeEmail === 'ALL_DEPARTMENT') {
-      const deptTeacherProfile: TeacherProfile = {
-        ...headTeacher,
-        name: headTeacher.name || 'MELANI R. SANTOS',
-        title: headTeacher.title || 'Head Teacher VI, TLE Department',
-        headTeacherName: headTeacher.name || 'MELANI R. SANTOS',
-        headTeacherPosition: headTeacher.title || 'Head Teacher VI, TLE Dept.',
-        principalName: headTeacher.principalName || 'JOSEPHINE M. MANINGAS, PhD',
-        principalPosition: headTeacher.principalPosition || 'Secondary School Principal IV',
-      };
-      return {
-        teacherProfile: deptTeacherProfile,
-        scopedStudents: activeDeptStudents,
-        scopedSessions: liveSessions,
-        scopedSections: allDeptSections,
-        selectedTeacherStat: null,
-      };
-    }
-
-    const stat = teacherSupervisionStats.find(
-      (item) => item.teacher.email.toLowerCase().trim() === reportScopeEmail.toLowerCase().trim()
-    );
-    const targetTeacher = stat?.teacher || headTeacher;
-    const enrichedProfile: TeacherProfile = {
-      ...targetTeacher,
-      headTeacherName: headTeacher.name || targetTeacher.headTeacherName || 'MELANI R. SANTOS',
-      headTeacherPosition:
-        headTeacher.title || targetTeacher.headTeacherPosition || 'Head Teacher VI, TLE Dept.',
-      principalName:
-        targetTeacher.principalName || headTeacher.principalName || 'JOSEPHINE M. MANINGAS, PhD',
-      principalPosition:
-        targetTeacher.principalPosition || headTeacher.principalPosition || 'Secondary School Principal IV',
+    const deptTeacherProfile: TeacherProfile = {
+      ...headTeacher,
+      name: headTeacher.name || 'MELANI R. SANTOS',
+      title: headTeacher.title || 'Head Teacher VI, TLE Department',
+      headTeacherName: headTeacher.name || 'MELANI R. SANTOS',
+      headTeacherPosition: headTeacher.title || 'Head Teacher VI, TLE Dept.',
+      principalName: headTeacher.principalName || 'JOSEPHINE M. MANINGAS, PhD',
+      principalPosition: headTeacher.principalPosition || 'Secondary School Principal IV',
     };
-    const scopedStudents = stat ? stat.activeStudents : [];
-    const scopedSessions = stat ? stat.sessions : [];
-    const secSet = new Set<string>();
-    scopedStudents.forEach((s) => {
-      if (s.gradeLevel && s.section) secSet.add(`${s.gradeLevel} - ${s.section}`);
-      else if (s.section) secSet.add(s.section);
-    });
-
     return {
-      teacherProfile: enrichedProfile,
-      scopedStudents,
-      scopedSessions,
-      scopedSections: Array.from(secSet).sort(),
-      selectedTeacherStat: stat || null,
+      teacherProfile: deptTeacherProfile,
+      scopedStudents: activeDeptStudents,
+      scopedSessions: monitoredSessions,
+      scopedSections: allDeptSections,
     };
-  }, [
-    reportScopeEmail,
-    headTeacher,
-    activeDeptStudents,
-    liveSessions,
-    allDeptSections,
-    teacherSupervisionStats,
-  ]);
+  }, [headTeacher, activeDeptStudents, monitoredSessions, allDeptSections]);
 
   const navItems: {
     id: HeadTeacherTab;
@@ -808,7 +970,7 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
     { id: 'overview', label: 'Supervisory Overview', icon: LayoutDashboard, count: null },
     {
       id: 'teachers',
-      label: 'Supervise Department Teachers',
+      label: 'Supervise Specialization Teachers',
       icon: Users,
       count: departmentTeachers.length,
     },
@@ -816,7 +978,7 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
       id: 'logs',
       label: 'Review Remediation Logs',
       icon: ClipboardCheck,
-      count: liveSessions.length,
+      count: monitoredSessions.length,
     },
     {
       id: 'movs',
@@ -839,10 +1001,10 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
       {/* ================================================================= */}
       <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white rounded-2xl p-6 sm:p-7 shadow-lg border border-emerald-800/80 relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-          <div className="space-y-2 max-w-3xl">
-            <div className="flex items-center gap-2 text-xs text-amber-300 font-semibold tracking-wide">
+          <div className="space-y-2.5 max-w-3xl">
+            <div className="flex items-center gap-2 text-xs text-amber-300 font-semibold tracking-wide flex-wrap">
               <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>HEAD TEACHER INSTRUCTIONAL SUPERVISION CONSOLE</span>
+              <span>HEAD TEACHER SUBJECT / SPECIALIZATION SUPERVISION CONSOLE</span>
               <span aria-hidden="true">·</span>
               <span className="text-emerald-200">
                 {headTeacher.department || 'Technology and Livelihood Education (TLE)'}
@@ -857,12 +1019,37 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
             </h1>
 
             <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
-              Supervise department teachers, review daily remediation and skills enhancement logs, evaluate session Means of Verification (MOVs), and generate official DepEd narrative accomplishment reports.
+              Strictly monitoring teachers, remediation logs, session Means of Verification (MOVs), and narrative accomplishment reports under your assigned{' '}
+              <strong className="text-yellow-300">Subject / Specialization</strong>.
             </p>
+
+            {/* Active Subject / Specialization Badges */}
+            <div className="pt-1 flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-extrabold text-amber-300 tracking-wide flex items-center gap-1.5">
+                <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+                <span>Subject/ Specialization:</span>
+              </span>
+              {headTeacherSpecializations.map((spec) => (
+                <span
+                  key={spec}
+                  className="px-3 py-0.5 rounded-lg bg-amber-400 text-emerald-950 text-xs font-black tracking-wide shadow-xs"
+                >
+                  {spec}
+                </span>
+              ))}
+              <button
+                type="button"
+                onClick={handleOpenConfigHtSpec}
+                className="px-2.5 py-0.5 rounded-lg bg-emerald-800/80 hover:bg-emerald-700 border border-emerald-600/70 text-emerald-100 text-[11px] font-bold transition cursor-pointer flex items-center gap-1"
+              >
+                <Settings className="w-3 h-3 text-amber-300" />
+                <span>Change Subject/ Specialization</span>
+              </button>
+            </div>
 
             <div className="pt-1 flex items-center gap-3 flex-wrap text-xs text-emerald-200 font-medium tabular-nums">
               <span>
-                Supervised Faculty: <strong className="text-white">{departmentTeachers.length}</strong>
+                Supervised {headTeacherSpecializations.join(' / ')} Teachers: <strong className="text-white">{departmentTeachers.length}</strong>
               </span>
               <span aria-hidden="true">·</span>
               <span>
@@ -870,11 +1057,11 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
               </span>
               <span aria-hidden="true">·</span>
               <span>
-                Department Learners: <strong className="text-white">{activeDeptStudents.length}</strong>
+                Monitored Learners: <strong className="text-white">{activeDeptStudents.length}</strong>
               </span>
               <span aria-hidden="true">·</span>
               <span>
-                Verified Logs: <strong className="text-emerald-300">{verifiedLogsCount}/{liveSessions.length}</strong>
+                Verified Logs: <strong className="text-emerald-300">{verifiedLogsCount}/{monitoredSessions.length}</strong>
               </span>
               <span aria-hidden="true">·</span>
               <span>
@@ -882,30 +1069,52 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
               </span>
             </div>
           </div>
-
-          {/* Primary Supervisory Header Actions */}
-          <div className="flex items-center gap-2.5 flex-wrap shrink-0">
-            <button
-              type="button"
-              onClick={handleSyncAll}
-              disabled={isSyncing}
-              className="px-4 py-2.5 bg-emerald-800 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-2 border border-emerald-600/60 cursor-pointer whitespace-nowrap shrink-0"
-            >
-              <RefreshCw className={`w-4 h-4 text-amber-300 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span>{isSyncing ? 'Syncing Department...' : 'Sync Department Data'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('reports')}
-              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-md border border-amber-300 cursor-pointer whitespace-nowrap shrink-0"
-            >
-              <FileCheck2 className="w-4 h-4 text-emerald-950" />
-              <span>Generate Narrative Report</span>
-            </button>
-          </div>
         </div>
       </div>
+
+      {/* ================================================================= */}
+      {/* SUBJECT / SPECIALIZATION SCOPE FILTER BAR (IF MULTIPLE SPECS)     */}
+      {/* ================================================================= */}
+      {headTeacherSpecializations.length > 1 && (
+        <div className="bg-white rounded-2xl px-4 py-3 border border-emerald-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-extrabold text-emerald-950 flex items-center gap-1.5 mr-1">
+              <Filter className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Filter by Subject / Specialization:</span>
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setSelectedSpecializationFilter('ALL')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer border ${
+                selectedSpecializationFilter === 'ALL'
+                  ? 'bg-emerald-900 text-yellow-300 border-emerald-800 shadow-xs'
+                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-emerald-50'
+              }`}
+            >
+              All My Specializations ({supervisionScope.supervisedTeachers.length} Teachers)
+            </button>
+
+            {headTeacherSpecializations.map((spec) => {
+              const isSelected = selectedSpecializationFilter === spec;
+              return (
+                <button
+                  key={spec}
+                  type="button"
+                  onClick={() => setSelectedSpecializationFilter(spec)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
+                    isSelected
+                      ? 'bg-amber-500 text-emerald-950 border-amber-600 font-extrabold shadow-xs'
+                      : 'bg-emerald-50/70 text-emerald-900 border-emerald-200 hover:bg-emerald-100'
+                  }`}
+                >
+                  {spec}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ================================================================= */}
       {/* PRIMARY NAVIGATION BAR FOR HEAD TEACHER                           */}
@@ -950,7 +1159,7 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-500">Department Teachers</span>
+                <span className="text-xs font-bold text-slate-500">Monitored Specialization Teachers</span>
                 <Users className="w-4 h-4 text-emerald-700" />
               </div>
               <div className="mt-3">
@@ -972,7 +1181,7 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
               </div>
               <div className="mt-3">
                 <p className="text-2xl font-black text-slate-900 font-mono tabular-nums">
-                  {liveSessions.length}
+                  {monitoredSessions.length}
                 </p>
                 <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 tabular-nums">
                   <span className="text-emerald-700 font-semibold">{verifiedLogsCount} Verified</span>
@@ -1001,7 +1210,7 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
 
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-500">Department Learners & Mastery</span>
+                <span className="text-xs font-bold text-slate-500">Specialization Learners & Mastery</span>
                 <TrendingUp className="w-4 h-4 text-emerald-700" />
               </div>
               <div className="mt-3">
@@ -1033,10 +1242,10 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
                   <Users className="w-4 h-4 text-emerald-700" />
                 </div>
                 <h3 className="text-sm font-extrabold text-slate-900">
-                  Supervise Department Teachers
+                  Supervise Specialization Teachers
                 </h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Monitor teacher rosters, check remediation submission compliance, provide coaching remarks, and sign off on faculty records.
+                  Monitor teachers under your Subject / Specialization, verify submission compliance, and sign off on faculty records.
                 </p>
               </div>
               <button
@@ -1059,7 +1268,7 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
                   Review Remediation Logs
                 </h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Inspect daily anecdotal remediation logs across all sections, verify alignment of interventions, and annotate supervisory feedback.
+                  Inspect daily anecdotal remediation logs under your Subject / Specialization, verify interventions, and annotate feedback.
                 </p>
               </div>
               <button
@@ -1067,7 +1276,7 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
                 onClick={() => setActiveTab('logs')}
                 className="w-full py-2 px-4 bg-emerald-900 hover:bg-emerald-800 text-yellow-300 font-bold rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
-                <span>Review Session Logs ({liveSessions.length})</span>
+                <span>Review Session Logs ({monitoredSessions.length})</span>
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -1219,8 +1428,8 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
               </div>
 
               <div className="divide-y divide-slate-100 flex-1 overflow-y-auto max-h-[420px]">
-                {liveSessions.slice(0, 8).map((sess) => {
-                  const student = liveStudents.find((s) => String(s.id) === String(sess.studentId));
+                {monitoredSessions.slice(0, 8).map((sess) => {
+                  const student = monitoredStudents.find((s) => String(s.id) === String(sess.studentId));
                   const tEmail = (sess.teacherEmail || student?.teacherEmail || '').toLowerCase().trim();
                   const tObj = teachers.find((t) => (t.email || '').toLowerCase().trim() === tEmail);
                   const statusLabel = sess.supervisoryStatus || 'Pending Review';
@@ -1269,9 +1478,9 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
                   );
                 })}
 
-                {liveSessions.length === 0 && (
+                {monitoredSessions.length === 0 && (
                   <div className="p-8 text-center text-xs text-slate-400">
-                    No remediation session logs recorded yet.
+                    No remediation session logs recorded yet under this Subject / Specialization.
                   </div>
                 )}
               </div>
@@ -1281,7 +1490,7 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
       )}
 
       {/* ================================================================= */}
-      {/* TAB 2: SUPERVISE DEPARTMENT TEACHERS                              */}
+      {/* TAB 2: SUPERVISE DEPARTMENT TEACHERS (UNDER SPECIALIZATION)       */}
       {/* ================================================================= */}
       {activeTab === 'teachers' && (
         <div className="space-y-6">
@@ -1290,10 +1499,18 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
             <div>
               <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                 <Users className="w-5 h-5 text-emerald-800" />
-                <span>Supervise Department Teachers ({filteredTeacherStats.length})</span>
+                <span>
+                  Teachers Monitored Under Your Subject / Specialization ({filteredTeacherStats.length})
+                </span>
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Inspect each teacher's enrolled learners, remediation session frequency, MOV compliance, and provide official Head Teacher supervisory feedback.
+                Showing only faculty members whose assigned Subject / Specialization matches{' '}
+                <strong className="text-emerald-900">
+                  {selectedSpecializationFilter === 'ALL'
+                    ? headTeacherSpecializations.join(' · ')
+                    : selectedSpecializationFilter}
+                </strong>
+                .
               </p>
             </div>
 
@@ -1304,7 +1521,7 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
                   type="text"
                   value={teacherSearch}
                   onChange={(e) => setTeacherSearch(e.target.value)}
-                  placeholder="Search teacher name, email, subject..."
+                  placeholder="Search teacher name, email, specialization..."
                   className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-700"
                 />
               </div>
@@ -1326,7 +1543,7 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
                 onChange={(e) => setTeacherActivityFilter(e.target.value)}
                 className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none"
               >
-                <option value="all">All Faculty Roster</option>
+                <option value="all">All Monitored Faculty</option>
                 <option value="active">With Enrolled Students / Logs</option>
                 <option value="empty">No Enrolled Students Yet</option>
               </select>
@@ -1339,8 +1556,8 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold text-[11px]">
                   <tr>
-                    <th className="px-5 py-3.5">Department Teacher</th>
-                    <th className="px-4 py-3.5">Learning Areas / Subjects</th>
+                    <th className="px-5 py-3.5">Supervised Teacher</th>
+                    <th className="px-4 py-3.5">Subject / Specialization</th>
                     <th className="px-4 py-3.5 text-right">Enrolled Learners</th>
                     <th className="px-4 py-3.5 text-right">Remediation Logs</th>
                     <th className="px-4 py-3.5 text-right">Avg Mastery</th>
@@ -1364,13 +1581,16 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
                         </td>
 
                         <td className="px-4 py-4 max-w-xs">
-                          {item.derivedSubjects.length > 0 ? (
-                            <p className="text-xs text-slate-700 font-medium line-clamp-2">
-                              {item.derivedSubjects.join(' · ')}
-                            </p>
-                          ) : (
-                            <span className="text-xs text-slate-400">TLE Exploratory / General</span>
-                          )}
+                          <div className="flex flex-wrap gap-1">
+                            {item.derivedSubjects.map((sub) => (
+                              <span
+                                key={sub}
+                                className="px-2 py-0.5 bg-emerald-50 text-emerald-900 border border-emerald-200 rounded-md text-[11px] font-bold"
+                              >
+                                {sub}
+                              </span>
+                            ))}
+                          </div>
                         </td>
 
                         <td className="px-4 py-4 text-right font-mono tabular-nums">
@@ -1478,14 +1698,11 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
 
                             <button
                               type="button"
-                              onClick={() => {
-                                setReportScopeEmail(item.teacher.email);
-                                setActiveTab('reports');
-                              }}
-                              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs transition cursor-pointer whitespace-nowrap"
-                              title="Generate Official DepEd Narrative Report for this Teacher"
+                              onClick={() => handleOpenAssignTeacherSpec(item.teacher)}
+                              className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold rounded-lg text-xs transition border border-amber-200 cursor-pointer whitespace-nowrap"
+                              title="Edit Subject / Specialization for this Teacher"
                             >
-                              Report
+                              Specialization
                             </button>
 
                             {item.submissionStatus !== 'Submitted' && (
@@ -1509,7 +1726,7 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
                   {filteredTeacherStats.length === 0 && (
                     <tr>
                       <td colSpan={8} className="py-12 text-center text-xs text-slate-400">
-                        No department teachers found matching your filter criteria.
+                        No teachers under your Subject / Specialization found matching the current filter criteria.
                       </td>
                     </tr>
                   )}
@@ -1517,6 +1734,70 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
               </table>
             </div>
           </div>
+
+          {/* Collapsible Panel: Assign Subject / Specialization to Unassigned Faculty */}
+          {supervisionScope.unassignedTeachers.length > 0 && (
+            <div className="bg-white rounded-2xl border border-amber-200/90 overflow-hidden">
+              <div className="p-4 sm:p-5 bg-amber-50/60 border-b border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-xs sm:text-sm font-extrabold text-amber-950 flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-amber-700" />
+                    <span>
+                      Unassigned Faculty Without Subject / Specialization ({supervisionScope.unassignedTeachers.length})
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-amber-900/80 mt-0.5">
+                    These teachers are not currently monitored in your dashboard because they do not have a Subject / Specialization assigned yet. Assign them to your specialization if they are under your supervision.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowUnassignedFacultyPanel(!showUnassignedFacultyPanel)}
+                  className="px-3.5 py-2 bg-white hover:bg-amber-100 text-amber-950 font-bold rounded-xl text-xs border border-amber-300 transition cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  {showUnassignedFacultyPanel
+                    ? 'Hide Unassigned Faculty'
+                    : `Show Unassigned Faculty (${supervisionScope.unassignedTeachers.length})`}
+                </button>
+              </div>
+
+              {showUnassignedFacultyPanel && (
+                <div className="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 bg-white">
+                  {supervisionScope.unassignedTeachers.map((ut) => (
+                    <div
+                      key={ut.email}
+                      className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-extrabold text-slate-900 truncate">{ut.name}</p>
+                        <p className="text-[11px] text-slate-500 truncate">{ut.title}</p>
+                        <p className="text-[10px] text-slate-400 font-mono truncate">{ut.email}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleQuickAssignToMySpecialization(ut)}
+                          className="px-2.5 py-1.5 bg-emerald-900 hover:bg-emerald-800 text-yellow-300 font-bold rounded-lg text-[11px] transition cursor-pointer whitespace-nowrap"
+                          title="Assign this teacher to your Subject / Specialization"
+                        >
+                          + Add to My Scope
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenAssignTeacherSpec(ut)}
+                          className="px-2 py-1.5 bg-white hover:bg-slate-100 text-slate-700 font-bold rounded-lg text-[11px] border border-slate-200 transition cursor-pointer"
+                          title="Choose specific Subject / Specialization"
+                        >
+                          Custom
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -2098,66 +2379,15 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
       {/* ================================================================= */}
       {activeTab === 'reports' && (
         <div className="space-y-6">
-          {/* Head Teacher Report Scope & Faculty Selector Bar */}
-          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-xs font-bold text-emerald-800">
-                <FileCheck2 className="w-4 h-4 text-emerald-700" />
-                <span>HEAD TEACHER NARRATIVE & ACCOMPLISHMENT REPORT CENTER</span>
-              </div>
-              <h2 className="text-base font-extrabold text-slate-900">
-                {reportScopeEmail === 'ALL_DEPARTMENT'
-                  ? 'Consolidated TLE Department Narrative Accomplishment Report'
-                  : `Supervised Faculty Report: ${reportContext.teacherProfile.name}`}
-              </h2>
-              <p className="text-xs text-slate-500">
-                Select either the entire TLE Department or a specific department teacher below to generate, inspect, print, or download official DepEd reports with your Head Teacher signatory pre-applied.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 shrink-0">
-              <div className="flex flex-col">
-                <label className="text-[11px] font-bold text-slate-600 mb-1">
-                  Report Scope / Supervised Teacher:
-                </label>
-                <select
-                  value={reportScopeEmail}
-                  onChange={(e) => setReportScopeEmail(e.target.value)}
-                  className="px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-extrabold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-700 min-w-[280px]"
-                >
-                  <option value="ALL_DEPARTMENT">
-                    Consolidated TLE Department ({activeDeptStudents.length} Learners · {liveSessions.length} Logs)
-                  </option>
-                  {teacherSupervisionStats.map((item) => (
-                    <option key={item.teacher.email} value={item.teacher.email}>
-                      {item.teacher.name} ({item.activeStudents.length} Learners · {item.sessionCount} Logs · {item.submissionStatus})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {reportContext.selectedTeacherStat && (
-                <div className="flex items-center gap-2 pt-4">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleOpenTeacherInspector(reportContext.selectedTeacherStat!.teacher)
-                    }
-                    className="px-3.5 py-2 bg-emerald-900 hover:bg-emerald-800 text-yellow-300 font-bold rounded-xl text-xs transition cursor-pointer whitespace-nowrap"
-                  >
-                    Evaluate & Sign Off Teacher
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Embedded Official DepEd Narrative Report Generator */}
+          {/* Official DepEd Whole-Program Narrative Report Generator for Head Teachers */}
           <NarrativeReportGenerator
             teacher={reportContext.teacherProfile}
             students={reportContext.scopedStudents}
             sessions={reportContext.scopedSessions}
             sectionsList={reportContext.scopedSections}
+            isHeadTeacherReport={true}
+            supervisedTeachers={departmentTeachers}
+            subjectSpecialization={headTeacherSpecializations.join(' / ') || 'TLE'}
           />
         </div>
       )}
@@ -2714,6 +2944,272 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
                   className="px-5 py-2 bg-emerald-900 hover:bg-emerald-800 text-yellow-300 font-extrabold rounded-xl text-xs cursor-pointer"
                 >
                   {isSavingMovEval ? 'Saving...' : 'Save MOV Evaluation'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* MODAL 4: CONFIGURE HEAD TEACHER SUBJECT / SPECIALIZATION          */}
+      {/* ================================================================= */}
+      {isConfigSpecOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden my-6">
+            <div className="bg-emerald-950 text-white p-5 flex items-center justify-between border-b border-emerald-800">
+              <div>
+                <p className="text-[11px] font-bold text-amber-300 uppercase tracking-wider">
+                  Head Teacher Supervision Scope
+                </p>
+                <h3 className="text-base font-extrabold text-white mt-0.5">
+                  Configure Monitored Subject / Specialization
+                </h3>
+                <p className="text-xs text-emerald-200">
+                  Your account will strictly monitor teachers, learners, logs, and MOVs under the selected specializations.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsConfigSpecOpen(false)}
+                className="p-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-emerald-900 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveHtSpecialization} className="p-6 space-y-4 text-xs">
+              <div>
+                <label className="block font-extrabold text-slate-800 mb-1.5">
+                  Active Monitored Subject / Specialization Areas ({htSpecList.length})
+                </label>
+                <div className="flex flex-wrap gap-1.5 min-h-[38px] p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                  {htSpecList.map((spec) => (
+                    <span
+                      key={spec}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-900 text-yellow-300 font-bold rounded-lg text-xs"
+                    >
+                      {spec}
+                      <button
+                        type="button"
+                        onClick={() => setHtSpecList((prev) => prev.filter((s) => s !== spec))}
+                        className="text-emerald-200 hover:text-white cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  ))}
+                  {htSpecList.length === 0 && (
+                    <span className="text-slate-400 italic">
+                      Select one or more specializations below...
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1.5">
+                  Click to Toggle Official Subject / Specialization Areas:
+                </label>
+                <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-1">
+                  {PRESET_SPECIALIZATION_AREAS.map((preset) => {
+                    const isSelected = htSpecList.includes(preset);
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setHtSpecList((prev) => prev.filter((s) => s !== preset));
+                          } else {
+                            setHtSpecList((prev) => [...prev, preset]);
+                          }
+                        }}
+                        className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition cursor-pointer flex items-center gap-1 ${
+                          isSelected
+                            ? 'bg-emerald-100 text-emerald-950 border-emerald-500 font-extrabold'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3 h-3 text-emerald-700" />}
+                        <span>{preset}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={htCustomSpecInput}
+                  onChange={(e) => setHtCustomSpecInput(e.target.value)}
+                  placeholder="Or type custom Subject / Specialization (e.g. ICT - CSS)..."
+                  className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const clean = htCustomSpecInput.trim();
+                    if (clean && !htSpecList.includes(clean)) {
+                      setHtSpecList((prev) => [...prev, clean]);
+                      setHtCustomSpecInput('');
+                    }
+                  }}
+                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs cursor-pointer flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add</span>
+                </button>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setIsConfigSpecOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingHtSpec}
+                  className="px-5 py-2 bg-emerald-900 hover:bg-emerald-800 text-yellow-300 font-extrabold rounded-xl text-xs cursor-pointer"
+                >
+                  {isSavingHtSpec ? 'Saving Scope...' : 'Save Monitored Specialization'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* MODAL 5: ASSIGN / EDIT TEACHER SUBJECT / SPECIALIZATION           */}
+      {/* ================================================================= */}
+      {assigningTeacherSpec && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden my-6">
+            <div className="bg-emerald-950 text-white p-5 flex items-center justify-between border-b border-emerald-800">
+              <div>
+                <p className="text-[11px] font-bold text-amber-300 uppercase tracking-wider">
+                  Faculty Subject / Specialization Assignment
+                </p>
+                <h3 className="text-base font-extrabold text-white mt-0.5">
+                  {assigningTeacherSpec.name}
+                </h3>
+                <p className="text-xs text-emerald-200 font-mono">
+                  {assigningTeacherSpec.title} · {assigningTeacherSpec.email}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssigningTeacherSpec(null)}
+                className="p-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-emerald-900 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTeacherSpec} className="p-6 space-y-4 text-xs">
+              <div>
+                <label className="block font-extrabold text-slate-800 mb-1.5">
+                  Assigned Subject / Specialization ({teacherSpecList.length})
+                </label>
+                <div className="flex flex-wrap gap-1.5 min-h-[38px] p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                  {teacherSpecList.map((spec) => (
+                    <span
+                      key={spec}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-900 text-yellow-300 font-bold rounded-lg text-xs"
+                    >
+                      {spec}
+                      <button
+                        type="button"
+                        onClick={() => setTeacherSpecList((prev) => prev.filter((s) => s !== spec))}
+                        className="text-emerald-200 hover:text-white cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  ))}
+                  {teacherSpecList.length === 0 && (
+                    <span className="text-slate-400 italic">
+                      No Subject / Specialization assigned.
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1.5">
+                  Select Subject / Specialization Areas:
+                </label>
+                <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-1">
+                  {PRESET_SPECIALIZATION_AREAS.map((preset) => {
+                    const isSelected = teacherSpecList.includes(preset);
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setTeacherSpecList((prev) => prev.filter((s) => s !== preset));
+                          } else {
+                            setTeacherSpecList((prev) => [...prev, preset]);
+                          }
+                        }}
+                        className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition cursor-pointer flex items-center gap-1 ${
+                          isSelected
+                            ? 'bg-emerald-100 text-emerald-950 border-emerald-500 font-extrabold'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3 h-3 text-emerald-700" />}
+                        <span>{preset}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={teacherCustomSpecInput}
+                  onChange={(e) => setTeacherCustomSpecInput(e.target.value)}
+                  placeholder="Or type custom Subject / Specialization..."
+                  className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const clean = teacherCustomSpecInput.trim();
+                    if (clean && !teacherSpecList.includes(clean)) {
+                      setTeacherSpecList((prev) => [...prev, clean]);
+                      setTeacherCustomSpecInput('');
+                    }
+                  }}
+                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs cursor-pointer flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add</span>
+                </button>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setAssigningTeacherSpec(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingTeacherSpec}
+                  className="px-5 py-2 bg-emerald-900 hover:bg-emerald-800 text-yellow-300 font-extrabold rounded-xl text-xs cursor-pointer"
+                >
+                  {isSavingTeacherSpec ? 'Saving...' : 'Save Teacher Specialization'}
                 </button>
               </div>
             </form>

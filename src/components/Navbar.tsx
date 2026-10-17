@@ -153,8 +153,12 @@ export const Navbar: React.FC<NavbarProps> = ({
     };
 
     if (newPassword && newPassword.length >= 4) {
-      updated.passwordHash = newPassword;
+      updated.passwordHash = newPassword.trim();
       updated.isPasswordSet = true;
+      (updated as any).passwordCustomized = true;
+      if (updated.email) {
+        storage.resetPasswordAsync(updated.email, newPassword.trim()).catch(() => {});
+      }
     }
 
     storage.saveTeacherProfile(updated);

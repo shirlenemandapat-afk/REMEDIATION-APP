@@ -622,9 +622,9 @@ export const supabaseService = {
           principalPosition: t.principal_position || 'Secondary School Principal IV',
           role: (t.role || (t.email?.toLowerCase().includes('admin') ? 'admin' : 'teacher')) as UserRole,
           roleTitle: t.role_title || (t.role ? t.role.toUpperCase() : 'TEACHER'),
-          accountStatus: t.account_status || 'Active',
-          assignedSubjects: Array.isArray(t.assigned_subjects) ? t.assigned_subjects : ['ICT - Computer Programming'],
-          passwordHash: t.password_hash || undefined,
+          ...(t.account_status ? { accountStatus: t.account_status } : {}),
+          ...(Array.isArray(t.assigned_subjects) ? { assignedSubjects: t.assigned_subjects } : {}),
+          ...(t.password_hash ? { passwordHash: String(t.password_hash).trim() } : {}),
           isPasswordSet: true,
         };
       }
@@ -796,8 +796,6 @@ export const supabaseService = {
         title: teacher.title || 'Teacher I / TLE Faculty',
         role: teacher.role || 'teacher',
         role_title: (teacher.roleTitle || teacher.role || 'TEACHER').toUpperCase(),
-        account_status: teacher.accountStatus || 'Active',
-        assigned_subjects: Array.isArray(teacher.assignedSubjects) ? teacher.assignedSubjects : [],
         school_name: teacher.schoolName || 'Ramon Magsaysay (Cubao) High School',
         division: teacher.division || 'SDO Quezon City • TLE Department',
         region: teacher.region || 'National Capital Region (NCR)',
@@ -812,16 +810,16 @@ export const supabaseService = {
         updated_at: new Date().toISOString(),
       };
 
-      if (password || teacher.passwordHash) {
-        payload.password_hash = (password || teacher.passwordHash || '').trim();
+      const effectivePass = (password || teacher.passwordHash || '').trim();
+      if (effectivePass) {
+        payload.password_hash = effectivePass;
       }
 
-      let { error } = await client.from('teacher_profiles').upsert(payload, { onConflict: 'email' });
+      const { error } = await client.from('teacher_profiles').upsert(payload, { onConflict: 'email' });
       if (error) {
-        // If optional columns not in schema, retry with core fields
-        delete payload.password_hash;
-        delete payload.account_status;
-        delete payload.assigned_subjects;
+        if (error.message?.includes('password_hash')) {
+          delete payload.password_hash;
+        }
         const retry = await client.from('teacher_profiles').upsert(payload, { onConflict: 'email' });
         if (retry.error) console.warn('Supabase upsertTeacher notice:', retry.error.message);
       }
@@ -986,9 +984,9 @@ export const supabaseService = {
         principalPosition: t.principal_position || 'Secondary School Principal IV',
         role: (t.role || (t.email?.toLowerCase().includes('admin') ? 'admin' : 'teacher')) as UserRole,
         roleTitle: t.role_title || (t.role ? t.role.toUpperCase() : 'TEACHER'),
-        accountStatus: t.account_status || 'Active',
-        assignedSubjects: Array.isArray(t.assigned_subjects) ? t.assigned_subjects : ['ICT - Computer Programming'],
-        passwordHash: t.password_hash || undefined,
+        ...(t.account_status ? { accountStatus: t.account_status } : {}),
+        ...(Array.isArray(t.assigned_subjects) ? { assignedSubjects: t.assigned_subjects } : {}),
+        ...(t.password_hash ? { passwordHash: String(t.password_hash).trim() } : {}),
         isPasswordSet: true,
       }));
     } catch (e) {

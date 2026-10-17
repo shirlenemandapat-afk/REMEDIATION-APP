@@ -48,6 +48,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [successMsg, setSuccessMsg] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState<boolean>(false);
+  const [resetEmailInput, setResetEmailInput] = useState<string>('');
+  const [resetNewPassword, setResetNewPassword] = useState<string>('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState<string>('');
+  const [resetStatusMsg, setResetStatusMsg] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const [isResettingPassword, setIsResettingPassword] = useState<boolean>(false);
 
   // Sync latest accounts from server on component mount
   useEffect(() => {
@@ -62,6 +67,83 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
     });
   }, []);
 
+  const resolveAccountIdentifier = (rawInput: string, mode: 'signin' | 'register'): string => {
+    const cleanInput = rawInput.trim().toLowerCase();
+    if (!cleanInput) return '';
+    if (cleanInput.includes('@')) return cleanInput;
+
+    const allAccounts = storage.getRegisteredAccounts();
+    const match = Object.keys(allAccounts).find((em) => {
+      const u = em.split('@')[0].toLowerCase();
+      const fullName = (allAccounts[em]?.name || '').trim().toLowerCase();
+      return u === cleanInput || fullName === cleanInput;
+    });
+    if (match) {
+      return match;
+    }
+    if (cleanInput === 'admin') {
+      return 'admin@projectsmile';
+    }
+    if (cleanInput === 'melani' || cleanInput === 'melani.santos' || cleanInput === 'headteacher') {
+      return 'melani.santos@deped.gov.ph';
+    }
+    if (cleanInput === 'shirlene' || cleanInput === 'shirlene.mandapat') {
+      return 'shirlene.mandapat@depedqc.ph';
+    }
+    // For sign-in, pass raw username/name so the server can match @deped.gov.ph, @depedqc.ph, or full name
+    if (mode === 'signin') {
+      return cleanInput;
+    }
+    return `${cleanInput}@depedqc.ph`;
+  };
+
+  const handleDirectPasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetStatusMsg(null);
+    const targetIdentifier = resolveAccountIdentifier(resetEmailInput || username, 'signin');
+    const cleanNewPass = resetNewPassword.trim();
+    const cleanConfirm = resetConfirmPassword.trim();
+
+    if (!targetIdentifier) {
+      setResetStatusMsg({ type: 'error', text: 'Please enter your registered email or username.' });
+      return;
+    }
+    if (cleanNewPass.length < 4) {
+      setResetStatusMsg({ type: 'error', text: 'New password must be at least 4 characters.' });
+      return;
+    }
+    if (cleanNewPass !== cleanConfirm) {
+      setResetStatusMsg({ type: 'error', text: 'Passwords do not match.' });
+      return;
+    }
+
+    setIsResettingPassword(true);
+    try {
+      const res = await storage.resetPasswordAsync(targetIdentifier, cleanNewPass);
+      if (res.success && res.profile) {
+        setResetStatusMsg({
+          type: 'success',
+          text: `Password updated for ${res.profile.name} (${res.profile.email})! Logging you in...`,
+        });
+        setUsername(res.profile.email);
+        setPassword(cleanNewPass);
+        setTimeout(() => {
+          setShowForgotPasswordModal(false);
+          onLoginSuccess(res.profile!);
+        }, 500);
+      } else {
+        setResetStatusMsg({
+          type: 'error',
+          text: res.message || 'Account not found. Please check your email or register a new account.',
+        });
+      }
+    } catch {
+      setResetStatusMsg({ type: 'error', text: 'Could not update password. Please try again.' });
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -75,26 +157,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
       return;
     }
 
-    // Resolve email from username or direct email
-    let resolvedEmail = cleanInput;
-    if (!resolvedEmail.includes('@')) {
-      const allAccounts = storage.getRegisteredAccounts();
-      const match = Object.keys(allAccounts).find((em) => {
-        const u = em.split('@')[0].toLowerCase();
-        return u === cleanInput;
-      });
-      if (match) {
-        resolvedEmail = match;
-      } else if (cleanInput === 'admin') {
-        resolvedEmail = 'admin@projectsmile';
-      } else if (cleanInput === 'melani' || cleanInput === 'melani.santos' || cleanInput === 'headteacher') {
-        resolvedEmail = 'melani.santos@deped.gov.ph';
-      } else if (cleanInput.includes('shirlene') || cleanInput.includes('mandapat')) {
-        resolvedEmail = 'shirlene.mandapat@depedqc.ph';
-      } else {
-        resolvedEmail = `${cleanInput}@depedqc.ph`;
-      }
-    }
+    const resolvedEmail = resolveAccountIdentifier(cleanInput, authMode);
 
     if (rememberMe) {
       localStorage.setItem('projectsmile_remember_username', username.trim());
@@ -126,7 +189,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         });
 
         if (result.success && result.profile) {
-          setSuccessMsg(`Account for ${resolvedEmail} registered successfully! Loading your portal...`);
+          setSuccessMsg(`Account for ${result.profile.email} registered successfully! Loading your portal...`);
           setTimeout(() => {
             onLoginSuccess(result.profile);
           }, 350);
@@ -454,7 +517,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                   </label>
                   <button
                     type="button"
-                    onClick={() => setShowForgotPasswordModal(true)}
+                    onClick={() => {
+                      setResetEmailInput(username);
+                      setResetNewPassword('');
+                      setResetConfirmPassword('');
+                      setResetStatusMsg(null);
+                      setShowForgotPasswordModal(true);
+                    }}
                     className="font-semibold text-[#0b4628] hover:text-[#06321a] hover:underline transition-colors cursor-pointer"
                   >
                     Forgot Password?
@@ -527,60 +596,103 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         </div>
       </div>
 
-      {/* Forgot Password Modal */}
+      {/* Forgot / Reset Password Modal */}
       {showForgotPasswordModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-emerald-100 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-[#0b4628]">
                 <HelpCircle className="w-5 h-5 text-[#0b4628]" />
-                <h3 className="font-extrabold text-base">Account Password Assistance</h3>
+                <h3 className="font-extrabold text-base">Set / Reset Teacher Password</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowForgotPasswordModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="text-xs text-slate-600 space-y-2 leading-relaxed">
-              <p>
-                To reset your <strong>Project S.M.I.L.E.</strong> faculty password:
-              </p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>
-                  Contact your Department Head or ICT Administrator (<strong>admin@projectsmile</strong>).
-                </li>
-                <li>
-                  If you have not set a custom password yet, you can click <strong>Register an Account</strong> to initialize your credentials.
-                </li>
-                <li>
-                  Default administrator credentials remain active for authorized DepEd supervisors.
-                </li>
-              </ul>
-            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Enter your registered <strong>DepEd Email or Username</strong> below to set a new password and sign in immediately:
+            </p>
 
-            <div className="pt-2 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowForgotPasswordModal(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl"
+            {resetStatusMsg && (
+              <div
+                className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                  resetStatusMsg.type === 'success'
+                    ? 'bg-emerald-50 border border-emerald-300 text-emerald-800'
+                    : 'bg-red-50 border border-red-200 text-red-700'
+                }`}
               >
-                Close
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForgotPasswordModal(false);
-                  setAuthMode('register');
-                }}
-                className="px-4 py-2 bg-[#0b4628] hover:bg-[#07301b] text-white text-xs font-bold rounded-xl"
-              >
-                Go to Register
-              </button>
-            </div>
+                {resetStatusMsg.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                )}
+                <span>{resetStatusMsg.text}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleDirectPasswordReset} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1">
+                  Registered Email or Username
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={resetEmailInput}
+                  onChange={(e) => setResetEmailInput(e.target.value)}
+                  placeholder="e.g. teacher@depedqc.ph or username"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0b4628]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={resetNewPassword}
+                  onChange={(e) => setResetNewPassword(e.target.value)}
+                  placeholder="Enter new password (min. 4 characters)"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0b4628]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={resetConfirmPassword}
+                  onChange={(e) => setResetConfirmPassword(e.target.value)}
+                  placeholder="Re-enter new password"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0b4628]"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPasswordModal(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isResettingPassword}
+                  className="px-4 py-2 bg-[#0b4628] hover:bg-[#07301b] disabled:opacity-60 text-white text-xs font-bold rounded-xl cursor-pointer"
+                >
+                  {isResettingPassword ? 'Updating...' : 'Save Password & Sign In'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
