@@ -105,15 +105,15 @@ export default function App() {
       const activeEmail = (teacher?.email || storage.getActiveUserEmail() || '').toLowerCase().trim();
       if (!activeEmail) return;
       await storage.syncFromServer(activeEmail);
-      const isPrivileged = storage.isAdministrativeOrSupervisoryRole(activeEmail);
-      const myStudents = isPrivileged ? storage.getAllStudents() : storage.getStudents(activeEmail);
-      const mySessions = isPrivileged ? storage.getAllSessions() : storage.getSessions(activeEmail);
+      const isAdmin = storage.isAdminEmail(activeEmail);
+      const myStudents = isAdmin ? storage.getAllStudents() : storage.getStudents(activeEmail);
+      const mySessions = isAdmin ? storage.getAllSessions() : storage.getSessions(activeEmail);
       setStudents(myStudents);
       setSessions(mySessions);
       setTeacher(storage.getTeacherProfile());
       setLastSyncTime(new Date());
       showToast(
-        `Sync complete: Loaded ${mySessions.length} session logs and ${myStudents.length} students enrolled in ${isPrivileged ? 'school database' : 'your account'}.`,
+        `Sync complete: Loaded ${mySessions.length} session logs and ${myStudents.length} students enrolled in ${isAdmin ? 'school database' : 'your account'}.`,
         'success'
       );
     } catch (err) {
@@ -130,11 +130,11 @@ export default function App() {
     setIsLoggedIn(loggedIn);
     const currentTeacher = storage.getTeacherProfile();
     const activeEmail = (currentTeacher?.email || storage.getActiveUserEmail() || '').toLowerCase().trim();
-    const isPrivileged = storage.isAdministrativeOrSupervisoryRole(activeEmail);
+    const isAdmin = storage.isAdminEmail(activeEmail);
     if (loggedIn && activeEmail) {
       setTeacher(currentTeacher);
-      setStudents(isPrivileged ? storage.getAllStudents() : storage.getStudents(activeEmail));
-      setSessions(isPrivileged ? storage.getAllSessions() : storage.getSessions(activeEmail));
+      setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(activeEmail));
+      setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(activeEmail));
     } else {
       setStudents([]);
       setSessions([]);
@@ -150,9 +150,9 @@ export default function App() {
           const freshTeacher = syncResult?.profile || storage.getTeacherProfile();
           if (freshTeacher) setTeacher(freshTeacher);
           const email = (freshTeacher?.email || activeEmail).toLowerCase().trim();
-          const isFreshPrivileged = storage.isAdministrativeOrSupervisoryRole(email);
-          setStudents(isFreshPrivileged ? storage.getAllStudents() : storage.getStudents(email));
-          setSessions(isFreshPrivileged ? storage.getAllSessions() : storage.getSessions(email));
+          const isFreshAdmin = storage.isAdminEmail(email);
+          setStudents(isFreshAdmin ? storage.getAllStudents() : storage.getStudents(email));
+          setSessions(isFreshAdmin ? storage.getAllSessions() : storage.getSessions(email));
           setLastSyncTime(new Date());
         }
       }).catch((e) => {
@@ -179,9 +179,9 @@ export default function App() {
         if (freshTeacher && freshTeacher.email) {
           setTeacher(freshTeacher);
         }
-        const isPrivilegedRole = storage.isAdministrativeOrSupervisoryRole(activeEmail);
-        setStudents(isPrivilegedRole ? storage.getAllStudents() : storage.getStudents(activeEmail));
-        setSessions(isPrivilegedRole ? storage.getAllSessions() : storage.getSessions(activeEmail));
+        const isAdminRole = storage.isAdminEmail(activeEmail);
+        setStudents(isAdminRole ? storage.getAllStudents() : storage.getStudents(activeEmail));
+        setSessions(isAdminRole ? storage.getAllSessions() : storage.getSessions(activeEmail));
         setLastSyncTime(new Date());
       }
     };
@@ -234,9 +234,9 @@ export default function App() {
     const currentTeacher = storage.getTeacherProfile();
     setTeacher(currentTeacher);
     const activeEmail = (currentTeacher?.email || storage.getActiveUserEmail() || '').toLowerCase().trim();
-    const isPrivileged = storage.isAdministrativeOrSupervisoryRole(activeEmail);
-    setStudents(isPrivileged ? storage.getAllStudents() : storage.getStudents(activeEmail));
-    setSessions(isPrivileged ? storage.getAllSessions() : storage.getSessions(activeEmail));
+    const isAdmin = storage.isAdminEmail(activeEmail);
+    setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(activeEmail));
+    setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(activeEmail));
   };
 
   const handleLoginSuccess = async (profile: TeacherProfile) => {
@@ -248,15 +248,16 @@ export default function App() {
     setIsLoggedIn(true);
 
     const isPrivileged = storage.isAdministrativeOrSupervisoryRole(cleanEmail);
+    const isAdmin = storage.isAdminEmail(cleanEmail);
     if (isPrivileged && (profile.role === 'admin' || profile.role === 'school_head' || profile.role === 'head_teacher')) {
       setActiveTab('admin-portal');
     } else {
       setActiveTab('students');
     }
 
-    // Immediately load currently cached students and sessions
-    setStudents(isPrivileged ? storage.getAllStudents() : storage.getStudents(cleanEmail));
-    setSessions(isPrivileged ? storage.getAllSessions() : storage.getSessions(cleanEmail));
+    // Immediately load currently cached students and sessions for this specific account
+    setStudents(isAdmin ? storage.getAllStudents() : storage.getStudents(cleanEmail));
+    setSessions(isAdmin ? storage.getAllSessions() : storage.getSessions(cleanEmail));
 
     // Immediately trigger authoritative cross-device sync from server database & Supabase
     setIsSyncing(true);
@@ -265,14 +266,14 @@ export default function App() {
       if (syncResult && syncResult.profile) {
         setTeacher(syncResult.profile);
       }
-      const myStudents = isPrivileged ? storage.getAllStudents() : storage.getStudents(cleanEmail);
-      const mySessions = isPrivileged ? storage.getAllSessions() : storage.getSessions(cleanEmail);
+      const myStudents = isAdmin ? storage.getAllStudents() : storage.getStudents(cleanEmail);
+      const mySessions = isAdmin ? storage.getAllSessions() : storage.getSessions(cleanEmail);
       setStudents(myStudents);
       setSessions(mySessions);
       setLastSyncTime(new Date());
     } catch (e) {
-      const myStudents = isPrivileged ? storage.getAllStudents() : storage.getStudents(cleanEmail);
-      const mySessions = isPrivileged ? storage.getAllSessions() : storage.getSessions(cleanEmail);
+      const myStudents = isAdmin ? storage.getAllStudents() : storage.getStudents(cleanEmail);
+      const mySessions = isAdmin ? storage.getAllSessions() : storage.getSessions(cleanEmail);
       setStudents(myStudents);
       setSessions(mySessions);
     } finally {
@@ -322,7 +323,7 @@ export default function App() {
   const handleUpdateStudent = async (updatedStudent: Student) => {
     storage.updateStudent(updatedStudent);
     if (isSupabaseConfigured()) {
-      await supabaseService.upsertStudent(updatedStudent, teacher.email);
+      await supabaseService.upsertStudent(updatedStudent, updatedStudent.teacherEmail || teacher.email);
     }
     refreshData();
     if (viewStudent && viewStudent.id === updatedStudent.id) {

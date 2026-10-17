@@ -266,7 +266,7 @@ export const INITIAL_STUDENTS: Student[] = [
     "status": "Progressing",
     "scheduleDetails": "Sep. 23 to Oct. 7, 2026, 03:30 PM – 04:30 PM (Designated Section Classroom)",
     "isArchived": false,
-    "teacherEmail": "shirlene.mandapat@depedqc.ph"
+    "teacherEmail": "shirlene.mandapat001@deped.gov.ph"
   },
   {
     "id": "stud-1789788318202",
@@ -285,7 +285,7 @@ export const INITIAL_STUDENTS: Student[] = [
     "parentContact": "45446",
     "scheduleDetails": "Sep. 19 to Oct. 3, 2026, 03:30 PM – 04:30 PM (Designated Section Classroom)",
     "isArchived": false,
-    "teacherEmail": "shirlene.mandapat@depedqc.ph"
+    "teacherEmail": "shirlene.mandapat001@deped.gov.ph"
   },
   {
     "id": "stud-1790512699749",
@@ -304,7 +304,7 @@ export const INITIAL_STUDENTS: Student[] = [
     "parentContact": "1546466",
     "scheduleDetails": "Sep. 27 to Oct. 2, 2026, 02:30 PM – 04:30 PM (Designated Section Classroom)",
     "isArchived": false,
-    "teacherEmail": "shirlene.mandapat@depedqc.ph"
+    "teacherEmail": "shirlene.mandapat001@deped.gov.ph"
   },
   {
     "id": "stud-1787810542332",
@@ -559,7 +559,7 @@ export const INITIAL_SESSIONS: SessionRecord[] = [
     "remarks": "Demonstrated solid mastery of learning competencies with minimal guidance. Accurately completed hands-on practical exercises within the allocated time. Showed marked improvement from baseline diagnostic; progressing well.",
     "movs": [],
     "createdAt": "2026-09-23T06:33:23.409+00:00",
-    "teacherEmail": "shirlene.mandapat@depedqc.ph"
+    "teacherEmail": "shirlene.mandapat001@deped.gov.ph"
   },
   {
     "id": "sess-1790145031601",
@@ -586,7 +586,7 @@ export const INITIAL_SESSIONS: SessionRecord[] = [
     "remarks": "Demonstrated solid mastery of learning competencies with minimal guidance. Demonstrated solid mastery of learning competencies with minimal guidance. Accurately completed hands-on practical exercises within the allocated time.",
     "movs": [],
     "createdAt": "2026-09-23T06:30:31.601+00:00",
-    "teacherEmail": "shirlene.mandapat@depedqc.ph"
+    "teacherEmail": "shirlene.mandapat001@deped.gov.ph"
   },
   {
     "id": "sess-1790216996831",
@@ -613,7 +613,7 @@ export const INITIAL_SESSIONS: SessionRecord[] = [
     "remarks": "Showed marked improvement from baseline diagnostic; progressing well.",
     "movs": [],
     "createdAt": "2026-09-24T02:29:56.831+00:00",
-    "teacherEmail": "shirlene.mandapat@depedqc.ph"
+    "teacherEmail": "shirlene.mandapat001@deped.gov.ph"
   },
   {
     "id": "sess-1790218830699",
@@ -641,7 +641,7 @@ export const INITIAL_SESSIONS: SessionRecord[] = [
     "remarks": "Accurately completed hands-on practical exercises within the allocated time.",
     "movs": [],
     "createdAt": "2026-09-24T03:00:30.699+00:00",
-    "teacherEmail": "shirlene.mandapat@depedqc.ph"
+    "teacherEmail": "shirlene.mandapat001@deped.gov.ph"
   },
   {
     "id": "sess-1790512655638",
@@ -668,7 +668,7 @@ export const INITIAL_SESSIONS: SessionRecord[] = [
     "remarks": "Demonstrated solid mastery of learning competencies with minimal guidance.",
     "movs": [],
     "createdAt": "2026-09-27T12:37:35.638+00:00",
-    "teacherEmail": "shirlene.mandapat@depedqc.ph"
+    "teacherEmail": "shirlene.mandapat001@deped.gov.ph"
   },
   {
     "id": "sess-1790512721032",
@@ -695,7 +695,7 @@ export const INITIAL_SESSIONS: SessionRecord[] = [
     "remarks": "Accurately completed hands-on practical exercises within the allocated time.",
     "movs": [],
     "createdAt": "2026-09-27T12:38:41.032+00:00",
-    "teacherEmail": "shirlene.mandapat@depedqc.ph"
+    "teacherEmail": "shirlene.mandapat001@deped.gov.ph"
   },
   {
     "id": "sess-1788605055579",

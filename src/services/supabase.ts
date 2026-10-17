@@ -532,6 +532,13 @@ export const supabaseService = {
         };
       }
 
+      if (data.account_status === 'Inactive') {
+        return {
+          success: false,
+          message: 'This faculty account has been deactivated by the System Administrator. Please contact the Admin to reactivate your account.',
+        };
+      }
+
       // Update last_login_at in Supabase
       await client
         .from('teacher_profiles')
@@ -580,14 +587,9 @@ export const supabaseService = {
       const cleanEmail = (targetUserEmail || '').toLowerCase().trim();
 
       // 1. Fetch Teacher Profile if target email provided
-      let teacherRes = cleanEmail
+      const teacherRes = cleanEmail
         ? await client.from('teacher_profiles').select('*').ilike('email', cleanEmail).maybeSingle()
         : await client.from('teacher_profiles').select('*').limit(1).maybeSingle();
-
-      if (!teacherRes?.data && cleanEmail && (cleanEmail.includes('shirlene') || cleanEmail.includes('mandapat'))) {
-        const aliasRes = await client.from('teacher_profiles').select('*').ilike('email', '%shirlene%').limit(1).maybeSingle();
-        if (aliasRes?.data) teacherRes = aliasRes;
-      }
 
       // 2. Fetch all students
       const studentsQuery = client.from('students').select('*').order('last_name', { ascending: true });
@@ -630,8 +632,26 @@ export const supabaseService = {
       const rawStudents = studentsRes.data || [];
       const studentMap = new Map<string, Student>();
 
+      const tindocStudentIds = new Set([
+        'stud-1790144980991',
+        'stud-1789788318202',
+        'stud-1790512699749',
+        'stud-1789797295210',
+      ]);
+      const tindocSessionIds = new Set([
+        'sess-1790145203409',
+        'sess-1790145031601',
+        'sess-1790216996831',
+        'sess-1790218830699',
+        'sess-1790512655638',
+        'sess-1790512721032',
+      ]);
+
       rawStudents.forEach((s: any) => {
         const sid = String(s.id);
+        const ownerEmail = tindocStudentIds.has(sid)
+          ? 'shirlene.mandapat001@deped.gov.ph'
+          : (s.teacher_email || '').toLowerCase().trim();
         studentMap.set(sid, {
           id: sid,
           lastName: s.last_name || 'Student',
@@ -651,7 +671,7 @@ export const supabaseService = {
           notes: s.notes || undefined,
           isArchived: Boolean(s.is_archived),
           archivedAt: s.archived_at || undefined,
-          teacherEmail: (s.teacher_email || '').toLowerCase().trim(),
+          teacherEmail: ownerEmail,
         });
       });
 
@@ -662,8 +682,13 @@ export const supabaseService = {
         const sessId = String(sess.id);
         const stId = String(sess.student_id || sess.studentId || '');
         const targetStudent = studentMap.get(stId);
-        const resolvedTeacherEmail =
-          (sess.teacher_email || (targetStudent ? targetStudent.teacherEmail : '') || cleanEmail || '').toLowerCase().trim();
+        const resolvedTeacherEmail = (
+          tindocSessionIds.has(sessId) || tindocStudentIds.has(stId)
+            ? 'shirlene.mandapat001@deped.gov.ph'
+            : sess.teacher_email || (targetStudent ? targetStudent.teacherEmail : '') || ''
+        )
+          .toLowerCase()
+          .trim();
 
         const sessObj: SessionRecord = {
           id: sessId,
@@ -741,14 +766,14 @@ export const supabaseService = {
       // 2. Sync Students
       if (students.length > 0) {
         for (const s of students) {
-          await this.upsertStudent(s, teacher?.email?.toLowerCase());
+          await this.upsertStudent(s, s.teacherEmail || teacher?.email?.toLowerCase());
         }
       }
 
       // 3. Sync Sessions
       if (sessions.length > 0) {
         for (const sess of sessions) {
-          await this.upsertSession(sess, teacher?.email?.toLowerCase());
+          await this.upsertSession(sess, sess.teacherEmail || teacher?.email?.toLowerCase());
         }
       }
 
@@ -771,6 +796,8 @@ export const supabaseService = {
         title: teacher.title || 'Teacher I / TLE Faculty',
         role: teacher.role || 'teacher',
         role_title: (teacher.roleTitle || teacher.role || 'TEACHER').toUpperCase(),
+        account_status: teacher.accountStatus || 'Active',
+        assigned_subjects: Array.isArray(teacher.assignedSubjects) ? teacher.assignedSubjects : [],
         school_name: teacher.schoolName || 'Ramon Magsaysay (Cubao) High School',
         division: teacher.division || 'SDO Quezon City • TLE Department',
         region: teacher.region || 'National Capital Region (NCR)',
@@ -791,13 +818,27 @@ export const supabaseService = {
 
       let { error } = await client.from('teacher_profiles').upsert(payload, { onConflict: 'email' });
       if (error) {
-        // If password_hash not in schema, retry without it
+        // If optional columns not in schema, retry with core fields
         delete payload.password_hash;
+        delete payload.account_status;
+        delete payload.assigned_subjects;
         const retry = await client.from('teacher_profiles').upsert(payload, { onConflict: 'email' });
         if (retry.error) console.warn('Supabase upsertTeacher notice:', retry.error.message);
       }
     } catch (e) {
       console.warn('Supabase upsertTeacher skipped:', e);
+    }
+  },
+
+  // Delete teacher profile from Supabase
+  async deleteTeacher(email: string): Promise<void> {
+    const client = getSupabaseClient();
+    if (!client || !email) return;
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      await client.from('teacher_profiles').delete().ilike('email', cleanEmail);
+    } catch (e) {
+      console.warn('Supabase deleteTeacher notice:', e);
     }
   },
 
@@ -862,7 +903,7 @@ export const supabaseService = {
     try {
       const resolvedTeacherEmail = (session.teacherEmail || teacherEmail || '').toLowerCase().trim();
 
-      // 1. Ensure foreign-key parent student exists in students table
+      // 1. Ensure foreign-key parent student exists in students table without overwriting existing student's teacher_email or baseline_score
       const stId = String(session.studentId);
       if (stId) {
         const studentPayload: any = {
@@ -879,7 +920,7 @@ export const supabaseService = {
           teacher_email: resolvedTeacherEmail || null,
           updated_at: new Date().toISOString(),
         };
-        await client.from('students').upsert(studentPayload, { onConflict: 'id' });
+        await client.from('students').upsert(studentPayload, { onConflict: 'id', ignoreDuplicates: true });
       }
 
       // 2. Prepare session_records payload (do not send teacher_email because it is linked via student_id)

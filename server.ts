@@ -239,29 +239,40 @@ function readDb(): AppDbState {
       const parsed = JSON.parse(raw);
       const accounts = parsed.accounts || {};
       
-      // Purge legacy mock teachers
-      const legacyMockEmails = ['juan.delacruz@depedqc.ph', 'maria.santos@depedqc.ph', 'eduardo.reyes@depedqc.ph'];
+      // Purge legacy mock teachers and unrequested alias clones
+      const legacyMockEmails = [
+        'juan.delacruz@depedqc.ph',
+        'maria.santos@depedqc.ph',
+        'eduardo.reyes@depedqc.ph',
+        'teachershirlene@gmail.com',
+      ];
       legacyMockEmails.forEach((lem) => {
         delete accounts[lem];
       });
 
-      // Ensure master admin, coordinator, head teacher, and school head exist
+      // Track accounts explicitly deleted by Administrator so they are never re-seeded
+      const deletedSet = new Set<string>(
+        Array.isArray(parsed.systemSettings?.deletedAccountEmails)
+          ? parsed.systemSettings.deletedAccountEmails.map((e: string) => String(e).toLowerCase().trim())
+          : []
+      );
+      deletedSet.forEach((delEmail) => {
+        if (delEmail !== 'admin@projectsmile') {
+          delete accounts[delEmail];
+        }
+      });
+
+      // Ensure master admin always exists; seed default accounts only if not deleted by Admin
       if (!accounts['admin@projectsmile']) {
         accounts['admin@projectsmile'] = INITIAL_DEFAULT_DB.accounts['admin@projectsmile'];
       }
-      if (!accounts['shirlene.mandapat@depedqc.ph']) {
+      if (!accounts['shirlene.mandapat@depedqc.ph'] && !deletedSet.has('shirlene.mandapat@depedqc.ph')) {
         accounts['shirlene.mandapat@depedqc.ph'] = INITIAL_DEFAULT_DB.accounts['shirlene.mandapat@depedqc.ph'];
       }
-      if (!accounts['teachershirlene@gmail.com'] && accounts['shirlene.mandapat@depedqc.ph']) {
-        accounts['teachershirlene@gmail.com'] = {
-          ...accounts['shirlene.mandapat@depedqc.ph'],
-          email: 'teachershirlene@gmail.com',
-        };
-      }
-      if (!accounts['corazon.santos@depedqc.ph']) {
+      if (!accounts['corazon.santos@depedqc.ph'] && !deletedSet.has('corazon.santos@depedqc.ph')) {
         accounts['corazon.santos@depedqc.ph'] = INITIAL_DEFAULT_DB.accounts['corazon.santos@depedqc.ph'];
       }
-      if (!accounts['marialuisa.ramos@depedqc.ph']) {
+      if (!accounts['marialuisa.ramos@depedqc.ph'] && !deletedSet.has('marialuisa.ramos@depedqc.ph')) {
         accounts['marialuisa.ramos@depedqc.ph'] = INITIAL_DEFAULT_DB.accounts['marialuisa.ramos@depedqc.ph'];
       }
 
@@ -283,11 +294,54 @@ function readDb(): AppDbState {
         schoolName: parsed.systemSettings?.schoolName || INITIAL_DEFAULT_DB.systemSettings.schoolName,
       };
 
+      // Normalize ownership for the 4 Grade 7 Diamond (ICT - Technical Drafting) students enrolled by Shirlene M. Tindoc (shirlene.mandapat001@deped.gov.ph)
+      const tindocStudentIds = new Set([
+        'stud-1790144980991',
+        'stud-1789788318202',
+        'stud-1790512699749',
+        'stud-1789797295210',
+      ]);
+      const tindocSessionIds = new Set([
+        'sess-1790145203409',
+        'sess-1790145031601',
+        'sess-1790216996831',
+        'sess-1790218830699',
+        'sess-1790512655638',
+        'sess-1790512721032',
+      ]);
+
+      const normalizedStudents = (Array.isArray(parsed.students) ? parsed.students : []).map((s: any) => {
+        if (tindocStudentIds.has(String(s.id))) {
+          return { ...s, teacherEmail: 'shirlene.mandapat001@deped.gov.ph' };
+        }
+        return s;
+      });
+
+      const studentOwnerLookup = new Map<string, string>();
+      normalizedStudents.forEach((s: any) => {
+        if (s && s.id && s.teacherEmail) {
+          studentOwnerLookup.set(String(s.id), String(s.teacherEmail).toLowerCase().trim());
+        }
+      });
+
+      const normalizedSessions = (Array.isArray(parsed.sessions) ? parsed.sessions : []).map((sess: any) => {
+        const sid = String(sess.id);
+        const stId = String(sess.studentId || sess.student_id || '');
+        if (tindocSessionIds.has(sid) || tindocStudentIds.has(stId)) {
+          return { ...sess, teacherEmail: 'shirlene.mandapat001@deped.gov.ph' };
+        }
+        const owner = studentOwnerLookup.get(stId);
+        if (owner) {
+          return { ...sess, teacherEmail: owner };
+        }
+        return sess;
+      });
+
       return {
         roles,
         accounts,
-        students: Array.isArray(parsed.students) ? parsed.students : [],
-        sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
+        students: normalizedStudents,
+        sessions: normalizedSessions,
         programs: Array.isArray(parsed.programs) ? parsed.programs : [],
         classes: Array.isArray(parsed.classes) ? parsed.classes : [],
         announcements: Array.isArray(parsed.announcements) ? parsed.announcements : [],
@@ -315,36 +369,10 @@ function writeDb(db: AppDbState): void {
   }
 }
 
-// Case-insensitive teacher email matching with strict DepEd alias support
+// Strict case-insensitive teacher email matching so distinct accounts never cross-contaminate rosters
 function isSameTeacher(email1?: string | null, email2?: string | null): boolean {
   if (!email1 || !email2) return false;
-  const e1 = email1.toLowerCase().trim();
-  const e2 = email2.toLowerCase().trim();
-  if (e1 === e2) return true;
-
-  // Specific verified aliases for Shirlene M. Mandapat (including teachershirlene@gmail.com)
-  const isShirlene1 =
-    e1 === 'shirlene.mandapat@depedqc.ph' ||
-    e1 === 'shirlene.mandapat001@deped.gov.ph' ||
-    e1 === 'shirlene.mandapat@deped.gov.ph' ||
-    e1 === 'teachershirlene@gmail.com' ||
-    e1.includes('shirlene') ||
-    e1.includes('mandapat');
-  const isShirlene2 =
-    e2 === 'shirlene.mandapat@depedqc.ph' ||
-    e2 === 'shirlene.mandapat001@deped.gov.ph' ||
-    e2 === 'shirlene.mandapat@deped.gov.ph' ||
-    e2 === 'teachershirlene@gmail.com' ||
-    e2.includes('shirlene') ||
-    e2.includes('mandapat');
-  if (isShirlene1 && isShirlene2) return true;
-
-  // DepEd username prefix matching (e.g., ruby.angeles across @depedqc.ph vs @deped.gov.ph)
-  const u1 = e1.split('@')[0].replace(/[0-9]/g, '').replace(/[._]/g, '');
-  const u2 = e2.split('@')[0].replace(/[0-9]/g, '').replace(/[._]/g, '');
-  if (u1 && u2 && u1.length >= 3 && u1 === u2) return true;
-
-  return false;
+  return email1.toLowerCase().trim() === email2.toLowerCase().trim();
 }
 
 // Known centralized Project S.M.I.L.E. Supabase credentials
@@ -483,6 +511,12 @@ async function relayTeacherProfileToSupabase(profile: any) {
       principal_position: profile.principalPosition || profile.principal_position || null,
       role: profile.role || 'teacher',
       role_title: (profile.roleTitle || profile.role || 'TEACHER').toUpperCase(),
+      account_status: profile.accountStatus || profile.account_status || 'Active',
+      assigned_subjects: Array.isArray(profile.assignedSubjects)
+        ? profile.assignedSubjects
+        : Array.isArray(profile.assigned_subjects)
+        ? profile.assigned_subjects
+        : [],
       updated_at: new Date().toISOString(),
     };
 
@@ -537,31 +571,44 @@ async function pullLatestFromSupabase(db: AppDbState): Promise<boolean> {
 
     let changed = false;
 
+    const deletedSet = new Set<string>(
+      Array.isArray((db.systemSettings as any)?.deletedAccountEmails)
+        ? (db.systemSettings as any).deletedAccountEmails.map((e: string) => String(e).toLowerCase().trim())
+        : []
+    );
+
     if (Array.isArray(teachersRes?.data) && teachersRes.data.length > 0) {
       teachersRes.data.forEach((t: any) => {
         if (t && t.email) {
           const norm = t.email.toLowerCase().trim();
-          const { role, roleTitle } = normalizeUserRole(t.role);
+          if (deletedSet.has(norm)) {
+            return;
+          }
+          const existingLocal = db.accounts[norm] || {};
+          const { role, roleTitle } = normalizeUserRole(t.role || existingLocal.role);
           db.accounts[norm] = {
-            ...(db.accounts[norm] || {}),
+            ...existingLocal,
             email: t.email,
-            name: t.name || db.accounts[norm]?.name,
-            title: t.title || db.accounts[norm]?.title,
-            schoolName: t.school_name || db.accounts[norm]?.schoolName,
-            division: t.division || db.accounts[norm]?.division,
-            region: t.region || db.accounts[norm]?.region,
-            academicYear: t.academic_year || db.accounts[norm]?.academicYear,
-            department: t.department || db.accounts[norm]?.department,
-            masterTeacherName: t.master_teacher_name || db.accounts[norm]?.masterTeacherName,
-            masterTeacherPosition: t.master_teacher_position || db.accounts[norm]?.masterTeacherPosition,
-            headTeacherName: t.head_teacher_name || db.accounts[norm]?.headTeacherName,
-            headTeacherPosition: t.head_teacher_position || db.accounts[norm]?.headTeacherPosition,
-            principalName: t.principal_name || db.accounts[norm]?.principalName,
-            principalPosition: t.principal_position || db.accounts[norm]?.principalPosition,
+            name: t.name || existingLocal.name,
+            title: t.title || existingLocal.title,
+            schoolName: t.school_name || existingLocal.schoolName,
+            division: t.division || existingLocal.division,
+            region: t.region || existingLocal.region,
+            academicYear: t.academic_year || existingLocal.academicYear,
+            department: t.department || existingLocal.department,
+            masterTeacherName: t.master_teacher_name || existingLocal.masterTeacherName,
+            masterTeacherPosition: t.master_teacher_position || existingLocal.masterTeacherPosition,
+            headTeacherName: t.head_teacher_name || existingLocal.headTeacherName,
+            headTeacherPosition: t.head_teacher_position || existingLocal.headTeacherPosition,
+            principalName: t.principal_name || existingLocal.principalName,
+            principalPosition: t.principal_position || existingLocal.principalPosition,
             role,
             roleTitle,
-            passwordHash: t.password_hash || db.accounts[norm]?.passwordHash || 'deped2025',
-            accountStatus: t.account_status || 'Active',
+            passwordHash: t.password_hash || existingLocal.passwordHash || 'deped2025',
+            accountStatus: t.account_status || existingLocal.accountStatus || 'Active',
+            assignedSubjects: Array.isArray(t.assigned_subjects)
+              ? t.assigned_subjects
+              : existingLocal.assignedSubjects || [],
             isPasswordSet: true,
           };
           changed = true;
@@ -654,7 +701,7 @@ async function pullLatestFromSupabase(db: AppDbState): Promise<boolean> {
             focusTopic: sess.focus_competency || '',
             enrolledDate: sess.date || new Date().toISOString().split('T')[0],
             status: 'Progressing',
-            teacherEmail: resolvedTeacherEmail || 'shirlene.mandapat@depedqc.ph',
+            teacherEmail: resolvedTeacherEmail || '',
           });
         }
       });
@@ -681,27 +728,39 @@ async function relaySessionsToSupabase(sessions: any[], defaultTeacherEmail?: st
   const client = getServerSupabaseClient();
   if (!client || !Array.isArray(sessions) || sessions.length === 0) return;
 
+  const currentDb = readDb();
+  const studentMap = new Map<string, any>();
+  (currentDb.students || []).forEach((s: any) => studentMap.set(String(s.id), s));
+
   for (const sess of sessions) {
     if (!sess || !sess.id) continue;
     try {
-      // Ensure student exists first in students table
+      // Ensure student exists first in students table without overwriting existing student's teacher_email or baseline_score
       const stId = String(sess.studentId || sess.student_id || '');
       if (stId) {
+        const existingStudent = studentMap.get(stId);
+        const authoritativeTeacherEmail =
+          existingStudent?.teacherEmail ||
+          sess.teacherEmail ||
+          sess.teacher_email ||
+          defaultTeacherEmail ||
+          null;
         await client.from('students').upsert(
           {
             id: stId,
-            last_name: (sess.studentName || sess.student_name || 'Student').split(',')[0]?.trim() || 'Student',
-            first_name: (sess.studentName || sess.student_name || '').split(',')[1]?.trim() || 'Learner',
-            grade_level: sess.gradeLevel || sess.grade_level || 'Grade 7',
-            section: sess.section || 'General',
-            subject: sess.subject || 'TLE',
-            program_type: sess.programType || sess.program_type || 'Remediation',
-            enrolled_date: sess.date || new Date().toISOString().split('T')[0],
-            status: 'Progressing',
-            baseline_score: 0,
-            teacher_email: sess.teacherEmail || sess.teacher_email || defaultTeacherEmail || null,
+            last_name: existingStudent?.lastName || (sess.studentName || sess.student_name || 'Student').split(',')[0]?.trim() || 'Student',
+            first_name: existingStudent?.firstName || (sess.studentName || sess.student_name || '').split(',')[1]?.trim() || 'Learner',
+            middle_initial: existingStudent?.middleInitial || '',
+            grade_level: existingStudent?.gradeLevel || sess.gradeLevel || sess.grade_level || 'Grade 7',
+            section: existingStudent?.section || sess.section || 'General',
+            subject: existingStudent?.subject || sess.subject || 'TLE',
+            program_type: existingStudent?.programType || sess.programType || sess.program_type || 'Remediation',
+            enrolled_date: existingStudent?.enrolledDate || sess.date || new Date().toISOString().split('T')[0],
+            status: existingStudent?.status || 'Progressing',
+            baseline_score: existingStudent ? Number(existingStudent.baselineScore) || 0 : 0,
+            teacher_email: authoritativeTeacherEmail,
           },
-          { onConflict: 'id' }
+          { onConflict: 'id', ignoreDuplicates: true }
         );
       }
 
@@ -875,6 +934,7 @@ async function startServer() {
       db.auditLogs = (db.auditLogs || []).slice(0, 300);
 
       writeDb(db);
+      relayTeacherProfileToSupabase(db.accounts[accountKey]).catch(() => {});
 
       res.json({
         success: true,
@@ -932,7 +992,26 @@ async function startServer() {
 
       const keyToDelete = accountKey || targetEmail;
       const teacherName = db.accounts[keyToDelete]?.name || keyToDelete;
-      delete db.accounts[keyToDelete];
+
+      // Collect all matching keys (including aliases if deleting a faculty account)
+      const keysToRemove = new Set<string>([keyToDelete.toLowerCase(), targetEmail.toLowerCase()]);
+      for (const k of Object.keys(db.accounts)) {
+        if (k.toLowerCase() === keyToDelete.toLowerCase() || k.toLowerCase() === targetEmail.toLowerCase()) {
+          keysToRemove.add(k);
+        }
+      }
+      keysToRemove.forEach((k) => {
+        delete db.accounts[k];
+      });
+
+      // Record deleted emails in systemSettings so readDb() and Supabase sync never resurrect them
+      const existingDeleted: string[] = Array.isArray((db.systemSettings as any)?.deletedAccountEmails)
+        ? (db.systemSettings as any).deletedAccountEmails
+        : [];
+      const updatedDeleted = Array.from(
+        new Set([...existingDeleted.map((e) => String(e).toLowerCase().trim()), ...Array.from(keysToRemove).map((e) => e.toLowerCase().trim())])
+      );
+      (db.systemSettings as any).deletedAccountEmails = updatedDeleted;
 
       // Add audit log
       db.auditLogs.unshift({
@@ -948,20 +1027,27 @@ async function startServer() {
       writeDb(db);
       console.log(`[DELETE ACCOUNT]: Successfully deleted account ${keyToDelete} from server.`);
 
-      // Also delete from Supabase if connected
+      // Also delete from Supabase if connected (case-insensitive)
       const client = getServerSupabaseClient(db);
       if (client) {
-        Promise.resolve(client.from('teacher_profiles').delete().eq('email', keyToDelete)).catch(() => {});
+        Array.from(keysToRemove).forEach((emailKey) => {
+          Promise.resolve(client.from('teacher_profiles').delete().ilike('email', emailKey)).catch(() => {});
+        });
       }
 
-      res.json({ success: true, message: `Account for ${teacherName} was deleted permanently from server.` });
+      res.json({
+        success: true,
+        deletedEmail: keyToDelete,
+        deletedAccountEmails: updatedDeleted,
+        message: `Account for ${teacherName} was deleted permanently from server.`,
+      });
     } catch (err: any) {
       console.error('[DELETE /api/accounts/:email ERROR]:', err);
       res.status(500).json({ success: false, message: 'Failed to delete account from server.' });
     }
   });
 
-  // Update a teacher account profile (name, title, role, assignedSubjects)
+  // Update a teacher account profile (name, email, title, department, role, accountStatus, assignedSubjects, password)
   app.put('/api/accounts/:email', (req, res) => {
     try {
       const db = readDb();
@@ -999,34 +1085,92 @@ async function startServer() {
       const { role: effectiveRole, roleTitle } = normalizeUserRole(rawRole);
       const isTeachingRole = effectiveRole === 'teacher';
 
-      db.accounts[accountKey] = {
+      const requestedNewEmail =
+        updates.email && typeof updates.email === 'string' && updates.email.trim()
+          ? updates.email.trim().toLowerCase()
+          : existing.email.toLowerCase();
+      const isChangingEmail = requestedNewEmail !== accountKey.toLowerCase() && accountKey.toLowerCase() !== 'admin@projectsmile';
+      const finalKey = isChangingEmail ? requestedNewEmail : accountKey;
+
+      const updatedPasswordHash =
+        updates.newPassword && typeof updates.newPassword === 'string' && updates.newPassword.trim().length >= 4
+          ? updates.newPassword.trim()
+          : updates.passwordHash && typeof updates.passwordHash === 'string' && updates.passwordHash.trim().length >= 4
+          ? updates.passwordHash.trim()
+          : existing.passwordHash;
+
+      const updatedProfile = {
         ...existing,
         ...updates,
         role: effectiveRole,
         roleTitle,
+        accountStatus: updates.accountStatus || existing.accountStatus || 'Active',
         assignedSubjects: isTeachingRole ? (updates.assignedSubjects ?? existing.assignedSubjects ?? []) : [],
-        email: existing.email, // preserve canonical email
+        email: isChangingEmail ? requestedNewEmail : existing.email,
+        passwordHash: updatedPasswordHash,
+        isPasswordSet: !!updatedPasswordHash || existing.isPasswordSet,
       };
+      delete (updatedProfile as any).newPassword;
 
-      const teacherName = db.accounts[accountKey]?.name || accountKey;
+      if (isChangingEmail) {
+        delete db.accounts[accountKey];
+        db.accounts[finalKey] = updatedProfile;
+
+        // Reassign student & session ownership to the updated teacher email
+        (db.students || []).forEach((s: any) => {
+          if ((s.teacherEmail || '').toLowerCase() === accountKey.toLowerCase()) {
+            s.teacherEmail = finalKey;
+          }
+        });
+        (db.sessions || []).forEach((sess: any) => {
+          if ((sess.teacherEmail || '').toLowerCase() === accountKey.toLowerCase()) {
+            sess.teacherEmail = finalKey;
+          }
+        });
+
+        const existingDeleted: string[] = Array.isArray((db.systemSettings as any)?.deletedAccountEmails)
+          ? (db.systemSettings as any).deletedAccountEmails
+          : [];
+        (db.systemSettings as any).deletedAccountEmails = Array.from(
+          new Set([...existingDeleted.filter((e) => e.toLowerCase() !== finalKey), accountKey.toLowerCase()])
+        );
+
+        const client = getServerSupabaseClient(db);
+        if (client) {
+          Promise.resolve(client.from('teacher_profiles').delete().ilike('email', accountKey)).catch(() => {});
+        }
+      } else {
+        db.accounts[finalKey] = updatedProfile;
+      }
+
+      // Ensure finalKey is not in deletedAccountEmails
+      if (Array.isArray((db.systemSettings as any)?.deletedAccountEmails)) {
+        (db.systemSettings as any).deletedAccountEmails = (db.systemSettings as any).deletedAccountEmails.filter(
+          (e: string) => String(e).toLowerCase().trim() !== finalKey.toLowerCase()
+        );
+      }
+
+      const teacherName = db.accounts[finalKey]?.name || finalKey;
 
       // Add audit log
       db.auditLogs.unshift({
         id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         userEmail: 'admin@projectsmile',
         action: 'UPDATE_TEACHER',
-        details: `Administrator updated profile for ${teacherName} (${accountKey}).`,
-        targetUser: accountKey,
+        details: `Administrator updated profile for ${teacherName} (${finalKey}).`,
+        targetUser: finalKey,
         timestamp: new Date().toISOString(),
       });
       db.auditLogs = (db.auditLogs || []).slice(0, 300);
 
       writeDb(db);
-      console.log(`[UPDATE ACCOUNT]: Successfully updated account ${accountKey} on server.`);
+      relayTeacherProfileToSupabase(db.accounts[finalKey]).catch(() => {});
+      console.log(`[UPDATE ACCOUNT]: Successfully updated account ${finalKey} on server.`);
 
       res.json({
         success: true,
-        profile: db.accounts[accountKey],
+        profile: db.accounts[finalKey],
+        previousEmail: isChangingEmail ? accountKey : undefined,
         message: `Account for ${teacherName} was updated successfully on server.`,
       });
     } catch (err: any) {
@@ -1074,6 +1218,7 @@ async function startServer() {
       db.auditLogs = (db.auditLogs || []).slice(0, 300);
 
       writeDb(db);
+      relayTeacherProfileToSupabase(db.accounts[keyToUpdate]).catch(() => {});
       console.log(`[STATUS ACCOUNT]: Successfully set account ${keyToUpdate} status to ${status} on server.`);
 
       res.json({
@@ -1133,6 +1278,13 @@ async function startServer() {
 
       db.accounts[cleanEmail] = newProfile;
 
+      // If this email was previously deleted, remove it from deletedAccountEmails upon fresh registration
+      if (Array.isArray((db.systemSettings as any)?.deletedAccountEmails)) {
+        (db.systemSettings as any).deletedAccountEmails = (db.systemSettings as any).deletedAccountEmails.filter(
+          (e: string) => String(e).toLowerCase().trim() !== cleanEmail
+        );
+      }
+
       // Record audit logs for faculty registration & immediate portal access
       db.auditLogs.unshift({
         id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -1185,39 +1337,16 @@ async function startServer() {
         }
       }
 
-      // Check alias mapping (e.g. teachershirlene@gmail.com -> shirlene.mandapat@depedqc.ph)
-      if (!account) {
-        const aliasKey = Object.keys(db.accounts).find((k) => isSameTeacher(k, cleanEmail));
-        if (aliasKey && db.accounts[aliasKey]) {
-          account = {
-            ...db.accounts[aliasKey],
-            email: cleanEmail,
-          };
-          db.accounts[cleanEmail] = account;
-          writeDb(db);
-        }
-      }
-
-      // If account not in local database, query Supabase teacher_profiles directly
+      // If account not in local database, query Supabase teacher_profiles directly by exact email
       if (!account) {
         const supabase = getServerSupabaseClient(db);
         if (supabase) {
           try {
-            let { data: cloudTeacher } = await supabase
+            const { data: cloudTeacher } = await supabase
               .from('teacher_profiles')
               .select('*')
               .ilike('email', cleanEmail)
               .maybeSingle();
-
-            if (!cloudTeacher && (cleanEmail.includes('shirlene') || cleanEmail.includes('mandapat'))) {
-              const { data: aliasTeacher } = await supabase
-                .from('teacher_profiles')
-                .select('*')
-                .ilike('email', '%shirlene%')
-                .limit(1)
-                .maybeSingle();
-              if (aliasTeacher) cloudTeacher = aliasTeacher;
-            }
 
             if (cloudTeacher) {
               const { role, roleTitle } = normalizeUserRole(cloudTeacher.role);
@@ -1252,9 +1381,24 @@ async function startServer() {
         }
       }
 
+      const deletedSet = new Set<string>(
+        Array.isArray((db.systemSettings as any)?.deletedAccountEmails)
+          ? (db.systemSettings as any).deletedAccountEmails.map((e: string) => String(e).toLowerCase().trim())
+          : []
+      );
+      if (deletedSet.has(cleanEmail) && cleanEmail !== 'admin@projectsmile') {
+        return res.status(401).json({
+          success: false,
+          message: 'This account has been deleted by the System Administrator. Please register a new account if needed.',
+        });
+      }
+
       // Fallback seed accounts for initial administrative coordinators
       if (!account) {
-        if (cleanEmail === 'admin@projectsmile' || isSameTeacher(cleanEmail, 'shirlene.mandapat@depedqc.ph')) {
+        if (
+          cleanEmail === 'admin@projectsmile' ||
+          (!deletedSet.has(cleanEmail) && isSameTeacher(cleanEmail, 'shirlene.mandapat@depedqc.ph'))
+        ) {
           account = INITIAL_DEFAULT_DB.accounts[cleanEmail] || INITIAL_DEFAULT_DB.accounts['shirlene.mandapat@depedqc.ph'];
           if (account) {
             account = { ...account, email: cleanEmail };
@@ -1289,9 +1433,17 @@ async function startServer() {
         });
       }
 
-      // Successful login -> update last login timestamp and ensure Active status
+      // Block login if account was deactivated by Administrator
+      if (account.accountStatus === 'Inactive' && cleanEmail !== 'admin@projectsmile') {
+        return res.status(403).json({
+          success: false,
+          message: 'Your account has been deactivated by the System Administrator. Please contact the TLE Department or Administrator.',
+        });
+      }
+
+      // Successful login -> update last login timestamp
       account.lastLoginAt = new Date().toLocaleString();
-      account.accountStatus = 'Active';
+      account.accountStatus = account.accountStatus || 'Active';
       account.isPasswordSet = true;
       db.accounts[cleanEmail] = account;
 
@@ -1540,7 +1692,7 @@ async function startServer() {
       let matchedStudents: any[] = [];
       let matchedSessions: any[] = [];
 
-      if (rawEmail && !isPrivileged) {
+      if (rawEmail && !isAdmin) {
         matchedStudents = (db.students || []).filter((s: any) => {
           const sEmail = (s.teacherEmail || s.teacher_email || '').toLowerCase().trim();
           return isSameTeacher(sEmail, rawEmail);
@@ -1973,13 +2125,19 @@ async function startServer() {
       const { accounts, students, sessions, programs, classes, announcements, auditLogs, systemSettings } = req.body;
       const db = readDb();
 
+      const deletedSet = new Set<string>(
+        Array.isArray((db.systemSettings as any)?.deletedAccountEmails)
+          ? (db.systemSettings as any).deletedAccountEmails.map((e: string) => String(e).toLowerCase().trim())
+          : []
+      );
+
       if (accounts && typeof accounts === 'object' && Object.keys(accounts).length > 0) {
-        // Authoritative update of accounts from admin sync
+        // Authoritative update of accounts from admin sync (respecting deletedAccountEmails)
         const legacyMockEmails = ['juan.delacruz@depedqc.ph', 'maria.santos@depedqc.ph', 'eduardo.reyes@depedqc.ph'];
         const cleanAccounts: Record<string, any> = {};
         for (const [k, v] of Object.entries(accounts)) {
-          if (!legacyMockEmails.includes(k.toLowerCase())) {
-            const lowerK = k.toLowerCase();
+          const lowerK = k.toLowerCase().trim();
+          if (!legacyMockEmails.includes(lowerK) && !deletedSet.has(lowerK)) {
             const existing = db.accounts[lowerK] || {};
             const rawRole = (v as any)?.role || existing?.role || 'teacher';
             const { role: effectiveRole, roleTitle } = normalizeUserRole(rawRole);
@@ -2029,13 +2187,13 @@ async function startServer() {
         });
         db.sessions = Array.from(sessionMap.values());
       }
-      if (Array.isArray(programs) && programs.length > 0) {
+      if (Array.isArray(programs)) {
         db.programs = programs;
       }
-      if (Array.isArray(classes) && classes.length > 0) {
+      if (Array.isArray(classes)) {
         db.classes = classes;
       }
-      if (Array.isArray(announcements) && announcements.length > 0) {
+      if (Array.isArray(announcements)) {
         db.announcements = announcements;
       }
       if (Array.isArray(auditLogs) && auditLogs.length > 0) {

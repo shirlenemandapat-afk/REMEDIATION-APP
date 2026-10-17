@@ -42,9 +42,54 @@ const STORAGE_KEYS = {
   CLASSES: 'remediation_app_classes',
   ANNOUNCEMENTS: 'remediation_app_announcements',
   SYSTEM_SETTINGS: 'remediation_app_system_settings',
+  DELETED_ACCOUNTS: 'remediation_app_deleted_accounts',
 };
 
 export const storage = {
+  getDeletedAccountEmails(): Set<string> {
+    const set = new Set<string>();
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.DELETED_ACCOUNTS);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((e) => set.add(String(e).toLowerCase().trim()));
+        }
+      }
+      const settingsRaw = localStorage.getItem(STORAGE_KEYS.SYSTEM_SETTINGS);
+      if (settingsRaw) {
+        const settings = JSON.parse(settingsRaw);
+        if (Array.isArray(settings?.deletedAccountEmails)) {
+          settings.deletedAccountEmails.forEach((e: string) => set.add(String(e).toLowerCase().trim()));
+        }
+      }
+    } catch {}
+    set.delete('admin@projectsmile');
+    return set;
+  },
+
+  markAccountDeleted(email: string): void {
+    const norm = (email || '').toLowerCase().trim();
+    if (!norm || norm === 'admin@projectsmile') return;
+    const set = this.getDeletedAccountEmails();
+    set.add(norm);
+    try {
+      localStorage.setItem(STORAGE_KEYS.DELETED_ACCOUNTS, JSON.stringify(Array.from(set)));
+    } catch {}
+  },
+
+  unmarkAccountDeleted(email: string): void {
+    const norm = (email || '').toLowerCase().trim();
+    if (!norm) return;
+    const set = this.getDeletedAccountEmails();
+    if (set.has(norm)) {
+      set.delete(norm);
+      try {
+        localStorage.setItem(STORAGE_KEYS.DELETED_ACCOUNTS, JSON.stringify(Array.from(set)));
+      } catch {}
+    }
+  },
+
   // --- MULTI-ACCOUNT MANAGEMENT ---
   getRegisteredAccounts(): Record<string, TeacherProfile> {
     let accounts: Record<string, TeacherProfile> = {};
@@ -56,7 +101,12 @@ export const storage = {
     } catch (e) {
       console.error('Error reading registered accounts', e);
     }
-    
+
+    const deletedSet = this.getDeletedAccountEmails();
+    deletedSet.forEach((delEmail) => {
+      delete accounts[delEmail];
+    });
+
     // Ensure default master admin account exists
     const adminNorm = DEFAULT_ADMIN_ACCOUNT.email.trim().toLowerCase();
     if (!accounts[adminNorm]) {
@@ -73,19 +123,16 @@ export const storage = {
     }
 
     const shirleneNorm = INITIAL_TEACHER.email.trim().toLowerCase();
-    if (!accounts[shirleneNorm]) {
+    if (!accounts[shirleneNorm] && !deletedSet.has(shirleneNorm)) {
       accounts[shirleneNorm] = {
         ...INITIAL_TEACHER,
         role: 'coordinator',
         isPasswordSet: true,
       };
     }
-    if (!accounts['teachershirlene@gmail.com']) {
-      accounts['teachershirlene@gmail.com'] = {
-        ...accounts[shirleneNorm],
-        email: 'teachershirlene@gmail.com',
-      };
-    }
+
+    // Remove unrequested alias clone if present
+    delete accounts['teachershirlene@gmail.com'];
 
     // Enforce: Admin, School Head, Head Teacher, and Remediation Coordinator must NOT have assigned subject areas
     Object.keys(accounts).forEach((key) => {
@@ -137,8 +184,9 @@ export const storage = {
 
   async fetchAllTeachersFromServer(): Promise<TeacherProfile[]> {
     const accounts = this.getRegisteredAccounts();
+    const deletedSet = this.getDeletedAccountEmails();
 
-    // 1. Fetch from local server db
+    // 1. Fetch from local server db (authoritative source of truth for existing accounts)
     try {
       const res = await fetch('/api/accounts');
       if (res.ok) {
@@ -152,28 +200,28 @@ export const storage = {
             : []);
 
         if (Array.isArray(serverList)) {
-          const legacyMockEmails = ['juan.delacruz@depedqc.ph', 'maria.santos@depedqc.ph', 'eduardo.reyes@depedqc.ph'];
+          const legacyMockEmails = [
+            'juan.delacruz@depedqc.ph',
+            'maria.santos@depedqc.ph',
+            'eduardo.reyes@depedqc.ph',
+            'teachershirlene@gmail.com',
+          ];
           const freshAccounts: Record<string, TeacherProfile> = {};
           serverList.forEach((t) => {
-            if (t && t.email && !legacyMockEmails.includes(t.email.trim().toLowerCase())) {
+            if (t && t.email) {
               const norm = t.email.trim().toLowerCase();
-              const existing = accounts[norm] || (Object.values(accounts) as TeacherProfile[]).find((a) => this.isSameTeacherEmail(a.email, norm));
-              const effectiveRole = (t.role || existing?.role || 'teacher') as UserRole;
-              const roleDef = getRoleDefinition(effectiveRole);
-              freshAccounts[norm] = {
-                ...(existing || {}),
-                ...t,
-                role: effectiveRole,
-                roleTitle: t.roleTitle || existing?.roleTitle || roleDef.code,
-                isPasswordSet: true,
-              };
-            }
-          });
-
-          // Also preserve existing local accounts not yet in server list
-          Object.keys(accounts).forEach((accKey) => {
-            if (!legacyMockEmails.includes(accKey) && !freshAccounts[accKey]) {
-              freshAccounts[accKey] = accounts[accKey];
+              if (!legacyMockEmails.includes(norm) && !deletedSet.has(norm)) {
+                const existing = accounts[norm];
+                const effectiveRole = (t.role || existing?.role || 'teacher') as UserRole;
+                const roleDef = getRoleDefinition(effectiveRole);
+                freshAccounts[norm] = {
+                  ...(existing || {}),
+                  ...t,
+                  role: effectiveRole,
+                  roleTitle: t.roleTitle || existing?.roleTitle || roleDef.code,
+                  isPasswordSet: true,
+                };
+              }
             }
           });
 
@@ -198,14 +246,16 @@ export const storage = {
       console.warn('Could not fetch registered accounts from server:', e);
     }
 
-    // 2. Fetch from Supabase
+    // 2. Fallback: Fetch from Supabase if server unreachable
     try {
       const cloudTeachers = await supabaseService.fetchAllTeachers();
       if (cloudTeachers && cloudTeachers.length > 0) {
         cloudTeachers.forEach((t) => {
           if (t && t.email) {
             const norm = t.email.toLowerCase().trim();
-            accounts[norm] = { ...(accounts[norm] || {}), ...t, isPasswordSet: true };
+            if (!deletedSet.has(norm)) {
+              accounts[norm] = { ...(accounts[norm] || {}), ...t, isPasswordSet: true };
+            }
           }
         });
       }
@@ -225,6 +275,7 @@ export const storage = {
     teacherData: Partial<TeacherProfile> & { name: string; email: string; password?: string }
   ): Promise<{ success: boolean; profile?: TeacherProfile; message: string }> {
     const norm = teacherData.email.trim().toLowerCase();
+    this.unmarkAccountDeleted(norm);
     const accounts = this.getRegisteredAccounts();
     if (accounts[norm]) {
       return { success: false, message: `An account with email ${teacherData.email} already exists.` };
@@ -308,23 +359,28 @@ export const storage = {
     }
 
     const teacherName = accounts[norm].name;
+    this.markAccountDeleted(norm);
     delete accounts[norm];
     this.saveRegisteredAccounts(accounts);
 
-    // Sync to backend if available
+    // Sync to backend and Supabase if available
+    fetch(`/api/accounts/${encodeURIComponent(norm)}`, { method: 'DELETE' }).catch(() => {});
     fetch('/api/sync/all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ accounts: accounts }),
     }).catch(() => {});
-    
+    if (isSupabaseConfigured()) {
+      supabaseService.deleteTeacher(norm).catch(() => {});
+    }
+
     this.addAuditLog(
       adminEmail,
       'DELETE_TEACHER',
       `Admin permanently deleted teacher account: ${teacherName} (${norm}).`,
       norm
     );
-    
+
     return { success: true, message: `Account for ${teacherName} (${norm}) was deleted permanently.` };
   },
 
@@ -370,10 +426,13 @@ export const storage = {
     const keyToDelete = accountKey || norm;
     const teacherName = adminAccounts[keyToDelete]?.name || targetEmail;
 
-    if (adminAccounts[keyToDelete]) {
-      delete adminAccounts[keyToDelete];
-      this.saveRegisteredAccounts(adminAccounts);
-    }
+    // Mark deleted so it is never re-seeded locally or on server
+    this.markAccountDeleted(keyToDelete);
+    this.markAccountDeleted(norm);
+
+    delete adminAccounts[keyToDelete];
+    delete adminAccounts[norm];
+    this.saveRegisteredAccounts(adminAccounts);
 
     // Clear active session if target user was logged in
     const activeEmail = localStorage.getItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
@@ -382,7 +441,7 @@ export const storage = {
       localStorage.removeItem(STORAGE_KEYS.TEACHER);
     }
 
-    // Persist deletion directly to server database
+    // Persist deletion directly to server database and Supabase
     try {
       await fetch(`/api/accounts/${encodeURIComponent(keyToDelete)}`, {
         method: 'DELETE',
@@ -394,6 +453,17 @@ export const storage = {
       });
     } catch (e) {
       console.warn('Backend deletion call warning:', e);
+    }
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabaseService.deleteTeacher(keyToDelete);
+        if (norm !== keyToDelete) {
+          await supabaseService.deleteTeacher(norm);
+        }
+      } catch (e) {
+        console.warn('Supabase deletion notice:', e);
+      }
     }
 
     this.addAuditLog(
@@ -431,7 +501,7 @@ export const storage = {
       localStorage.setItem(STORAGE_KEYS.TEACHER, JSON.stringify(accounts[norm]));
     }
 
-    // Persist new password to server database
+    // Persist new password to server database and Supabase
     try {
       await fetch('/api/auth/reset', {
         method: 'POST',
@@ -447,6 +517,10 @@ export const storage = {
       console.warn('Server password reset error:', e);
     }
 
+    if (isSupabaseConfigured()) {
+      supabaseService.upsertTeacher(accounts[norm]).catch(() => {});
+    }
+
     this.addAuditLog(
       adminEmail,
       'RESET_PASSWORD',
@@ -457,7 +531,11 @@ export const storage = {
     return { success: true, message: `Password for ${accounts[norm].name} was reset successfully to "${cleanPass}".` };
   },
 
-  async adminUpdateTeacher(adminEmail: string, targetEmail: string, updates: Partial<TeacherProfile>): Promise<{ success: boolean; profile?: TeacherProfile; message: string }> {
+  async adminUpdateTeacher(
+    adminEmail: string,
+    targetEmail: string,
+    updates: Partial<TeacherProfile> & { newPassword?: string }
+  ): Promise<{ success: boolean; profile?: TeacherProfile; message: string }> {
     const norm = targetEmail.trim().toLowerCase();
     const accounts = this.getRegisteredAccounts();
     if (!accounts[norm]) {
@@ -486,16 +564,53 @@ export const storage = {
     const isTeachingRole = effectiveRole === 'teacher';
     const roleDef = getRoleDefinition(effectiveRole);
 
+    const requestedNewEmail =
+      updates.email && typeof updates.email === 'string' && updates.email.trim()
+        ? updates.email.trim().toLowerCase()
+        : accounts[norm].email.toLowerCase();
+    const isChangingEmail = requestedNewEmail !== norm && norm !== DEFAULT_ADMIN_ACCOUNT.email.toLowerCase();
+    const finalKey = isChangingEmail ? requestedNewEmail : norm;
+
+    const updatedPasswordHash =
+      updates.newPassword && updates.newPassword.trim().length >= 4
+        ? updates.newPassword.trim()
+        : updates.passwordHash && updates.passwordHash.trim().length >= 4
+        ? updates.passwordHash.trim()
+        : accounts[norm].passwordHash;
+
     const updated: TeacherProfile = {
       ...accounts[norm],
       ...updates,
       role: effectiveRole,
       roleTitle: roleDef.code,
+      accountStatus: updates.accountStatus || accounts[norm].accountStatus || 'Active',
       assignedSubjects: isTeachingRole ? (updates.assignedSubjects ?? accounts[norm].assignedSubjects ?? []) : [],
-      email: accounts[norm].email, // preserve canonical email
+      email: isChangingEmail ? requestedNewEmail : accounts[norm].email,
+      passwordHash: updatedPasswordHash,
+      isPasswordSet: true,
     };
+    delete (updated as any).newPassword;
 
-    accounts[norm] = updated;
+    if (isChangingEmail) {
+      this.markAccountDeleted(norm);
+      this.unmarkAccountDeleted(finalKey);
+      delete accounts[norm];
+      accounts[finalKey] = updated;
+
+      // Also update student and session ownership locally if email changed
+      const allStudents = this.getAllStudents().map((s) =>
+        (s.teacherEmail || '').toLowerCase() === norm ? { ...s, teacherEmail: finalKey } : s
+      );
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(allStudents));
+      const allSessions = this.getAllSessions().map((sess) =>
+        (sess.teacherEmail || '').toLowerCase() === norm ? { ...sess, teacherEmail: finalKey } : sess
+      );
+      localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(allSessions));
+    } else {
+      this.unmarkAccountDeleted(finalKey);
+      accounts[finalKey] = updated;
+    }
+
     this.saveRegisteredAccounts(accounts);
 
     // Persist changes to server database
@@ -503,7 +618,12 @@ export const storage = {
       await fetch(`/api/accounts/${encodeURIComponent(norm)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile: updated }),
+        body: JSON.stringify({
+          profile: {
+            ...updated,
+            ...(updates.newPassword ? { newPassword: updates.newPassword.trim() } : {}),
+          },
+        }),
       });
       await fetch('/api/sync/all', {
         method: 'POST',
@@ -514,17 +634,28 @@ export const storage = {
       console.error('Server sync failed:', e);
     }
 
+    // Persist to Supabase if configured
+    if (isSupabaseConfigured()) {
+      if (isChangingEmail) {
+        supabaseService.deleteTeacher(norm).catch(() => {});
+      }
+      supabaseService.upsertTeacher(updated).catch(() => {});
+    }
+
     // If currently logged-in user is target, sync
     const activeEmail = localStorage.getItem(STORAGE_KEYS.ACTIVE_USER_EMAIL);
-    if (activeEmail === norm) {
+    if (activeEmail && activeEmail.toLowerCase() === norm) {
+      if (isChangingEmail) {
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_USER_EMAIL, finalKey);
+      }
       this.saveTeacherProfile(updated);
     }
 
     this.addAuditLog(
       adminEmail,
       'UPDATE_TEACHER',
-      `Updated profile & credentials for ${updated.name} (${targetEmail}).`,
-      targetEmail
+      `Updated profile & credentials for ${updated.name} (${finalKey}).`,
+      finalKey
     );
 
     try {
@@ -546,6 +677,7 @@ export const storage = {
     }
 
     const teacherName = accounts[norm].name;
+    this.markAccountDeleted(norm);
     delete accounts[norm];
     this.saveRegisteredAccounts(accounts);
 
@@ -558,6 +690,10 @@ export const storage = {
       });
     } catch (e) {
       console.warn('Delete server warning:', e);
+    }
+
+    if (isSupabaseConfigured()) {
+      supabaseService.deleteTeacher(norm).catch(() => {});
     }
 
     this.addAuditLog(
@@ -632,7 +768,7 @@ export const storage = {
 
     const teacherName = accounts[keyToUpdate]?.name || targetEmail;
 
-    // Immediate sync to server database
+    // Immediate sync to server database and Supabase
     try {
       await fetch(`/api/accounts/${encodeURIComponent(keyToUpdate)}/status`, {
         method: 'POST',
@@ -646,6 +782,10 @@ export const storage = {
       });
     } catch (e) {
       console.warn('Server status toggle error:', e);
+    }
+
+    if (isSupabaseConfigured()) {
+      supabaseService.upsertTeacher(accounts[keyToUpdate]).catch(() => {});
     }
 
     this.addAuditLog(
@@ -670,17 +810,32 @@ export const storage = {
     }
 
     const targetRole = accounts[norm].role || 'teacher';
-    if (['admin', 'school_head', 'coordinator'].includes(targetRole)) {
+    if (['admin', 'school_head', 'head_teacher', 'coordinator'].includes(targetRole)) {
       accounts[norm].assignedSubjects = [];
       this.saveRegisteredAccounts(accounts);
       return {
         success: false,
-        message: 'Administrators, School Heads, and Remediation Coordinators cannot have assigned subject areas.',
+        message: 'Administrators, School Heads, Head Teachers, and Remediation Coordinators cannot have assigned subject areas.',
       };
     }
 
     accounts[norm].assignedSubjects = subjects;
     this.saveRegisteredAccounts(accounts);
+
+    // Sync assigned subjects to server and Supabase
+    fetch(`/api/accounts/${encodeURIComponent(norm)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile: accounts[norm] }),
+    }).catch(() => {});
+    fetch('/api/sync/all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accounts }),
+    }).catch(() => {});
+    if (isSupabaseConfigured()) {
+      supabaseService.upsertTeacher(accounts[norm]).catch(() => {});
+    }
 
     this.addAuditLog(
       adminEmail,
@@ -688,6 +843,10 @@ export const storage = {
       `Updated assigned learning areas for ${accounts[norm].name}: ${subjects.join(', ') || 'None'}.`,
       targetEmail
     );
+
+    try {
+      window.dispatchEvent(new CustomEvent('deped-data-synced'));
+    } catch {}
 
     return { success: true, message: `Assigned subjects for ${accounts[norm].name} updated successfully.` };
   },
@@ -722,6 +881,11 @@ export const storage = {
   savePrograms(programs: RemediationProgram[]): void {
     try {
       localStorage.setItem(STORAGE_KEYS.PROGRAMS, JSON.stringify(programs));
+      fetch('/api/sync/all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ programs }),
+      }).catch(() => {});
     } catch (e) {
       console.error('Error saving remediation programs', e);
     }
@@ -803,6 +967,11 @@ export const storage = {
   saveRemediationClasses(classes: RemediationClass[]): void {
     try {
       localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
+      fetch('/api/sync/all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classes }),
+      }).catch(() => {});
     } catch (e) {
       console.error('Error saving remediation classes', e);
     }
@@ -878,6 +1047,11 @@ export const storage = {
   saveAnnouncements(announcements: SystemAnnouncement[]): void {
     try {
       localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(announcements));
+      fetch('/api/sync/all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ announcements }),
+      }).catch(() => {});
     } catch (e) {
       console.error('Error saving announcements', e);
     }
@@ -1388,19 +1562,29 @@ export const storage = {
 
           if (systemSettings) {
             localStorage.setItem(STORAGE_KEYS.SYSTEM_SETTINGS, JSON.stringify(systemSettings));
+            if (Array.isArray(systemSettings.deletedAccountEmails)) {
+              systemSettings.deletedAccountEmails.forEach((em: string) => this.markAccountDeleted(em));
+            }
             if (systemSettings.supabaseConfig && systemSettings.supabaseConfig.url && systemSettings.supabaseConfig.anonKey) {
               saveSupabaseConfig(systemSettings.supabaseConfig, false);
             }
           }
 
+          const deletedSet = this.getDeletedAccountEmails();
+
           if (accounts && Object.keys(accounts).length > 0) {
-            const local = this.getRegisteredAccounts();
-            const merged = { ...local, ...accounts };
-            this.saveRegisteredAccounts(merged);
+            const freshAccounts: Record<string, TeacherProfile> = {};
+            for (const [k, v] of Object.entries(accounts)) {
+              const norm = k.toLowerCase().trim();
+              if (!deletedSet.has(norm)) {
+                freshAccounts[norm] = v as TeacherProfile;
+              }
+            }
+            this.saveRegisteredAccounts(freshAccounts);
           }
 
           // If a dedicated profile was returned for the active teacher, sync it locally
-          if (profile && activeEmail) {
+          if (profile && activeEmail && !deletedSet.has(activeEmail.toLowerCase().trim())) {
             const localAccounts = this.getRegisteredAccounts();
             localAccounts[activeEmail] = {
               ...(localAccounts[activeEmail] || {}),
@@ -1521,18 +1705,22 @@ export const storage = {
                 : Object.values(accJson.accounts)
               : []);
           if (serverList && serverList.length > 0) {
+            const deletedSet = this.getDeletedAccountEmails();
+            const freshAccounts: Record<string, TeacherProfile> = {};
             const local = this.getRegisteredAccounts();
             serverList.forEach((t) => {
               if (t && t.email) {
                 const norm = t.email.trim().toLowerCase();
-                local[norm] = {
-                  ...(local[norm] || {}),
-                  ...t,
-                  isPasswordSet: true,
-                };
+                if (!deletedSet.has(norm)) {
+                  freshAccounts[norm] = {
+                    ...(local[norm] || {}),
+                    ...t,
+                    isPasswordSet: true,
+                  };
+                }
               }
             });
-            this.saveRegisteredAccounts(local);
+            this.saveRegisteredAccounts(freshAccounts);
           }
         }
       } catch (err) {
@@ -1576,18 +1764,18 @@ export const storage = {
             const mergedSessions = Array.from(sessionMap.values());
             localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(mergedSessions));
 
-            // Push any local students missing in Supabase
+            // Push any local students missing in Supabase using their exact teacherEmail
             const cloudStudentIdSet = new Set((cloudData.students || []).map((s) => String(s.id)));
             const missingStudentsInCloud = mergedStudents.filter((s) => !cloudStudentIdSet.has(String(s.id)));
             for (const st of missingStudentsInCloud) {
-              try { await supabaseService.upsertStudent(st, activeEmail); } catch {}
+              try { await supabaseService.upsertStudent(st, st.teacherEmail); } catch {}
             }
 
-            // Push any local sessions missing in Supabase
+            // Push any local sessions missing in Supabase using their exact teacherEmail
             const cloudSessionIdSet = new Set((cloudData.sessions || []).map((s) => String(s.id)));
             const missingSessionsInCloud = mergedSessions.filter((s) => !cloudSessionIdSet.has(String(s.id)));
             for (const sess of missingSessionsInCloud) {
-              try { await supabaseService.upsertSession(sess, activeEmail); } catch {}
+              try { await supabaseService.upsertSession(sess, sess.teacherEmail); } catch {}
             }
 
             // Keep server database updated with merged records
@@ -1600,10 +1788,13 @@ export const storage = {
 
           const cloudTeachers = await supabaseService.fetchAllTeachers();
           if (cloudTeachers && cloudTeachers.length > 0) {
+            const deletedSet = this.getDeletedAccountEmails();
             const accounts = this.getRegisteredAccounts();
             cloudTeachers.forEach((t) => {
-              const norm = t.email.toLowerCase();
-              accounts[norm] = { ...(accounts[norm] || {}), ...t, isPasswordSet: true };
+              const norm = t.email.toLowerCase().trim();
+              if (!deletedSet.has(norm) && norm !== 'teachershirlene@gmail.com') {
+                accounts[norm] = { ...(accounts[norm] || {}), ...t, isPasswordSet: true };
+              }
             });
             this.saveRegisteredAccounts(accounts);
           }
@@ -1615,12 +1806,12 @@ export const storage = {
       console.warn('Server sync skipped (offline mode):', e);
     }
 
-    const isPrivileged = this.isAdministrativeOrSupervisoryRole(forTeacherEmail || activeEmail);
+    const isAdmin = this.isAdminEmail(forTeacherEmail || activeEmail);
     return {
       success: true,
       profile: this.getTeacherProfile(),
-      students: isPrivileged ? this.getAllStudents() : this.getStudents(forTeacherEmail || activeEmail),
-      sessions: isPrivileged ? this.getAllSessions() : this.getSessions(forTeacherEmail || activeEmail),
+      students: isAdmin ? this.getAllStudents() : this.getStudents(forTeacherEmail || activeEmail),
+      sessions: isAdmin ? this.getAllSessions() : this.getSessions(forTeacherEmail || activeEmail),
     };
   },
 
@@ -2078,33 +2269,7 @@ export const storage = {
 
   isSameTeacherEmail(email1?: string | null, email2?: string | null): boolean {
     if (!email1 || !email2) return false;
-    const e1 = email1.toLowerCase().trim();
-    const e2 = email2.toLowerCase().trim();
-    if (e1 === e2) return true;
-
-    // Specific verified aliases for Shirlene M. Mandapat (includes teachershirlene@gmail.com)
-    const isShirlene1 =
-      e1 === 'shirlene.mandapat@depedqc.ph' ||
-      e1 === 'shirlene.mandapat001@deped.gov.ph' ||
-      e1 === 'shirlene.mandapat@deped.gov.ph' ||
-      e1 === 'teachershirlene@gmail.com' ||
-      e1.includes('shirlene') ||
-      e1.includes('mandapat');
-    const isShirlene2 =
-      e2 === 'shirlene.mandapat@depedqc.ph' ||
-      e2 === 'shirlene.mandapat001@deped.gov.ph' ||
-      e2 === 'shirlene.mandapat@deped.gov.ph' ||
-      e2 === 'teachershirlene@gmail.com' ||
-      e2.includes('shirlene') ||
-      e2.includes('mandapat');
-    if (isShirlene1 && isShirlene2) return true;
-
-    // DepEd username prefix matching (e.g., ruby.angeles across @depedqc.ph vs @deped.gov.ph)
-    const u1 = e1.split('@')[0].replace(/[0-9]/g, '').replace(/[._]/g, '');
-    const u2 = e2.split('@')[0].replace(/[0-9]/g, '').replace(/[._]/g, '');
-    if (u1 && u2 && u1.length >= 3 && u1 === u2) return true;
-
-    return false;
+    return email1.toLowerCase().trim() === email2.toLowerCase().trim();
   },
 
   getSystemRoles(): RoleDefinition[] {
@@ -2262,14 +2427,29 @@ export const storage = {
 
   // --- STUDENTS ---
   getAllStudents(): Student[] {
+    const tindocStudentIds = new Set([
+      'stud-1790144980991',
+      'stud-1789788318202',
+      'stud-1790512699749',
+      'stud-1789797295210',
+    ]);
     try {
       const data = localStorage.getItem(STORAGE_KEYS.STUDENTS);
       if (data) {
         const list: Student[] = JSON.parse(data);
         const demoStudentIds = ['stud-001', 'stud-002', 'stud-003', 'stud-004', 'stud-005', 'stud-006'];
-        const cleaned = list.filter((s) => !demoStudentIds.includes(s.id));
+        let repaired = false;
+        const cleaned = list
+          .filter((s) => !demoStudentIds.includes(s.id))
+          .map((s) => {
+            if (tindocStudentIds.has(String(s.id)) && s.teacherEmail !== 'shirlene.mandapat001@deped.gov.ph') {
+              repaired = true;
+              return { ...s, teacherEmail: 'shirlene.mandapat001@deped.gov.ph' };
+            }
+            return s;
+          });
         if (cleaned.length > 0) {
-          if (cleaned.length !== list.length) {
+          if (cleaned.length !== list.length || repaired) {
             localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(cleaned));
           }
           // Sanitize any legacy 'Intervention' programType to 'Remediation'
@@ -2295,39 +2475,15 @@ export const storage = {
     const all = this.getAllStudents();
     const activeEmail = (forTeacherEmail || this.getActiveUserEmail() || '').toLowerCase().trim();
 
-    if (!activeEmail) {
+    if (!activeEmail || activeEmail === 'admin@projectsmile') {
       return all;
     }
 
-    // Admin, Head Teacher, School Head, and Coordinator accounts have institutional visibility
-    if (this.isAdministrativeOrSupervisoryRole(activeEmail)) {
-      return all;
-    }
-
-    // Teacher account sees strictly the students enrolled under their account or alias
-    const filtered = all.filter((s) => {
+    // Each faculty account sees strictly the students enrolled under their exact account email
+    return all.filter((s) => {
       const sTeacher = (s.teacherEmail || (s as any).teacher_email || '').toLowerCase().trim();
       return this.isSameTeacherEmail(sTeacher, activeEmail);
     });
-
-    if (filtered.length > 0) {
-      return filtered;
-    }
-
-    // Fallback: If no records directly matched, check if activeEmail is Teacher Shirlene alias
-    const isShirlene =
-      activeEmail === 'teachershirlene@gmail.com' ||
-      activeEmail.includes('shirlene') ||
-      activeEmail.includes('mandapat');
-    if (isShirlene) {
-      const shirleneStudents = all.filter((s) => {
-        const sTeacher = (s.teacherEmail || (s as any).teacher_email || '').toLowerCase().trim();
-        return !sTeacher || this.isSameTeacherEmail(sTeacher, activeEmail);
-      });
-      if (shirleneStudents.length > 0) return shirleneStudents;
-    }
-
-    return filtered;
   },
 
   saveStudents(students: Student[], forTeacherEmail?: string): void {
@@ -2654,15 +2810,41 @@ export const storage = {
 
   // --- SESSIONS ---
   getAllSessions(): SessionRecord[] {
+    const tindocStudentIds = new Set([
+      'stud-1790144980991',
+      'stud-1789788318202',
+      'stud-1790512699749',
+      'stud-1789797295210',
+    ]);
+    const tindocSessionIds = new Set([
+      'sess-1790145203409',
+      'sess-1790145031601',
+      'sess-1790216996831',
+      'sess-1790218830699',
+      'sess-1790512655638',
+      'sess-1790512721032',
+    ]);
     try {
       const data = localStorage.getItem(STORAGE_KEYS.SESSIONS);
       if (data) {
         const list: SessionRecord[] = JSON.parse(data);
         const demoStudentIds = ['stud-001', 'stud-002', 'stud-003', 'stud-004', 'stud-005', 'stud-006'];
         const demoSessionIds = ['sess-101', 'sess-102', 'sess-103', 'sess-104', 'sess-201', 'sess-202', 'sess-301', 'sess-401', 'sess-402'];
-        const cleaned = list.filter((s) => !demoStudentIds.includes(s.studentId) && !demoSessionIds.includes(s.id));
+        let repaired = false;
+        const cleaned = list
+          .filter((s) => !demoStudentIds.includes(s.studentId) && !demoSessionIds.includes(s.id))
+          .map((s) => {
+            if (
+              (tindocSessionIds.has(String(s.id)) || tindocStudentIds.has(String(s.studentId))) &&
+              s.teacherEmail !== 'shirlene.mandapat001@deped.gov.ph'
+            ) {
+              repaired = true;
+              return { ...s, teacherEmail: 'shirlene.mandapat001@deped.gov.ph' };
+            }
+            return s;
+          });
         if (cleaned.length > 0) {
-          if (cleaned.length !== list.length) {
+          if (cleaned.length !== list.length || repaired) {
             localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(cleaned));
           }
           // Sanitize legacy records
@@ -2697,8 +2879,7 @@ export const storage = {
       return [];
     }
 
-    // Admin, Head Teacher, School Head, and Coordinator accounts have global visibility across all sessions
-    if (this.isAdministrativeOrSupervisoryRole(activeEmail)) {
+    if (activeEmail === 'admin@projectsmile') {
       return all;
     }
 

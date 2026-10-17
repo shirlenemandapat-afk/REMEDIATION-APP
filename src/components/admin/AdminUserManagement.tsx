@@ -89,8 +89,12 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   // Edit Teacher Modal
   const [editTeacher, setEditTeacher] = useState<TeacherProfile | null>(null);
   const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
   const [editTitle, setEditTitle] = useState('');
+  const [editDepartment, setEditDepartment] = useState('Technology and Livelihood Education (TLE)');
   const [editRole, setEditRole] = useState<UserRole>('teacher');
+  const [editAccountStatus, setEditAccountStatus] = useState<'Active' | 'Inactive'>('Active');
+  const [editNewPassword, setEditNewPassword] = useState('');
   const [editAssignedSubjects, setEditAssignedSubjects] = useState<string[]>([]);
   const [editSubjectInput, setEditSubjectInput] = useState('');
   const [editFeedback, setEditFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -177,9 +181,13 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   // Open Edit Modal
   const openEditModal = (t: TeacherProfile) => {
     setEditTeacher(t);
-    setEditName(t.name);
-    setEditTitle(t.title);
+    setEditName(t.name || '');
+    setEditEmail(t.email || '');
+    setEditTitle(t.title || 'Teacher I');
+    setEditDepartment(t.department || 'Technology and Livelihood Education (TLE)');
     setEditRole(t.role || 'teacher');
+    setEditAccountStatus(t.accountStatus === 'Inactive' ? 'Inactive' : 'Active');
+    setEditNewPassword('');
     setEditAssignedSubjects(t.assignedSubjects || []);
     setEditSubjectInput('');
     setEditFeedback(null);
@@ -190,15 +198,52 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
     e.preventDefault();
     if (!editTeacher) return;
 
+    if (!editName.trim() || !editEmail.trim()) {
+      setEditFeedback({ type: 'error', message: 'Teacher name and email are required.' });
+      return;
+    }
+
+    if (editNewPassword.trim() && editNewPassword.trim().length < 4) {
+      setEditFeedback({ type: 'error', message: 'New password must be at least 4 characters long.' });
+      return;
+    }
+
     try {
-      if (editTeacher.role !== editRole) {
+      const cleanNewEmail = editEmail.trim().toLowerCase();
+      const updatedSubjects = editRole === 'teacher' ? editAssignedSubjects : [];
+
+      // Optimistic UI update
+      setTeachersList((prev) =>
+        prev.map((item) =>
+          item.email.toLowerCase() === editTeacher.email.toLowerCase()
+            ? {
+                ...item,
+                name: editName.trim(),
+                email: editTeacher.email.toLowerCase() === 'admin@projectsmile' ? item.email : cleanNewEmail,
+                title: editTitle.trim(),
+                department: editDepartment.trim() || 'Technology and Livelihood Education (TLE)',
+                role: editRole,
+                roleTitle: formatRoleTitle(editRole),
+                accountStatus: editTeacher.email.toLowerCase() === 'admin@projectsmile' ? 'Active' : editAccountStatus,
+                assignedSubjects: updatedSubjects,
+              }
+            : item
+        )
+      );
+
+      if (editTeacher.role !== editRole && cleanNewEmail === editTeacher.email.toLowerCase()) {
         await storage.adminUpdateUserRole(currentAdmin.email, editTeacher.email, editRole);
       }
+
       const res = await storage.adminUpdateTeacher(currentAdmin.email, editTeacher.email, {
         name: editName.trim(),
+        email: editTeacher.email.toLowerCase() === 'admin@projectsmile' ? editTeacher.email : cleanNewEmail,
         title: editTitle.trim(),
+        department: editDepartment.trim() || 'Technology and Livelihood Education (TLE)',
         role: editRole,
-        assignedSubjects: editRole === 'teacher' ? editAssignedSubjects : [],
+        accountStatus: editTeacher.email.toLowerCase() === 'admin@projectsmile' ? 'Active' : editAccountStatus,
+        assignedSubjects: updatedSubjects,
+        ...(editNewPassword.trim() ? { newPassword: editNewPassword.trim() } : {}),
       });
 
       if (res.success) {
@@ -206,8 +251,9 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
         await onRefresh();
         setTimeout(() => {
           setEditTeacher(null);
+          setEditNewPassword('');
           setEditFeedback(null);
-        }, 1200);
+        }, 900);
       } else {
         setEditFeedback({ type: 'error', message: res.message || 'Failed to update teacher profile.' });
       }
@@ -235,6 +281,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
     if (!deleteTeacher) return;
 
     try {
+      const targetEmailLower = deleteTeacher.email.toLowerCase();
       const res = await storage.adminDeleteTeacherWithPassword(
         currentAdmin.email,
         deletePasswordInput,
@@ -242,13 +289,15 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
       );
 
       if (res.success) {
+        // Immediately remove from local UI state
+        setTeachersList((prev) => prev.filter((item) => item.email.toLowerCase() !== targetEmailLower));
         setDeleteFeedback({ type: 'success', message: res.message });
         await onRefresh();
         setTimeout(() => {
           setDeleteTeacher(null);
           setDeletePasswordInput('');
           setDeleteFeedback(null);
-        }, 1200);
+        }, 900);
       } else {
         setDeleteFeedback({ type: 'error', message: res.message });
       }
@@ -262,7 +311,8 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
     if (!toggleTeacher) return;
 
     const nextStatus = toggleTeacher.accountStatus === 'Inactive' ? 'Active' : 'Inactive';
-    
+    const targetEmailLower = toggleTeacher.email.toLowerCase();
+
     try {
       const res = await storage.adminToggleAccountStatus(
         currentAdmin.email,
@@ -270,15 +320,20 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
         toggleTeacher.email,
         nextStatus
       );
-      
+
       if (res.success) {
+        setTeachersList((prev) =>
+          prev.map((item) =>
+            item.email.toLowerCase() === targetEmailLower ? { ...item, accountStatus: nextStatus } : item
+          )
+        );
         setToggleFeedback({ type: 'success', message: res.message });
         await onRefresh();
         setTimeout(() => {
           setToggleTeacher(null);
           setTogglePasswordInput('');
           setToggleFeedback(null);
-        }, 1200);
+        }, 900);
       } else {
         setToggleFeedback({ type: 'error', message: res.message });
       }
@@ -816,31 +871,33 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                           <KeyRound className="w-4 h-4" />
                         </button>
 
-                        {t.email.toLowerCase() !== currentAdmin.email.toLowerCase() && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteTeacherPrompt(t)}
-                            title="Delete Account Permanently"
-                            className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-100 hover:text-rose-800 transition cursor-pointer"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
+                        {t.email.toLowerCase() !== currentAdmin.email.toLowerCase() &&
+                          t.email.toLowerCase() !== 'admin@projectsmile' && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteTeacherPrompt(t)}
+                              title="Delete Account Permanently"
+                              className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-100 hover:text-rose-800 transition cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
 
-                        {t.email.toLowerCase() !== currentAdmin.email.toLowerCase() && (
-                          <button
-                            type="button"
-                            onClick={() => handleToggleStatusPrompt(t)}
-                            title={isActive ? 'Deactivate Account' : 'Activate Account'}
-                            className={`p-1.5 rounded-lg transition cursor-pointer ${
-                              isActive
-                                ? 'text-rose-600 hover:bg-rose-50 hover:text-rose-800'
-                                : 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-800'
-                            }`}
-                          >
-                            <Power className="w-4 h-4" />
-                          </button>
-                        )}
+                        {t.email.toLowerCase() !== currentAdmin.email.toLowerCase() &&
+                          t.email.toLowerCase() !== 'admin@projectsmile' && (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleStatusPrompt(t)}
+                              title={isActive ? 'Deactivate Account' : 'Activate Account'}
+                              className={`p-1.5 rounded-lg transition cursor-pointer ${
+                                isActive
+                                  ? 'text-rose-600 hover:bg-rose-50 hover:text-rose-800'
+                                  : 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-800'
+                              }`}
+                            >
+                              <Power className="w-4 h-4" />
+                            </button>
+                          )}
                       </div>
                     </td>
                   </tr>
@@ -1119,7 +1176,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
 
             <form onSubmit={handleSaveEditTeacher} className="space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Full Teacher Name</label>
+                <label className="block font-bold text-slate-700 mb-1">Full Teacher Name *</label>
                 <input
                   type="text"
                   required
@@ -1131,12 +1188,20 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">DepEd Email (Immutable)</label>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    DepEd Email / Username {editTeacher.email.toLowerCase() === 'admin@projectsmile' ? '(System Admin)' : '*'}
+                  </label>
                   <input
                     type="text"
-                    disabled
-                    value={editTeacher.email}
-                    className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed font-mono"
+                    required
+                    disabled={editTeacher.email.toLowerCase() === 'admin@projectsmile'}
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    className={`w-full px-3.5 py-2.5 border border-slate-200 rounded-xl font-mono ${
+                      editTeacher.email.toLowerCase() === 'admin@projectsmile'
+                        ? 'bg-slate-100 text-slate-500 cursor-not-allowed'
+                        : 'bg-slate-50 text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none'
+                    }`}
                   />
                 </div>
 
@@ -1144,8 +1209,9 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                   <label className="block font-bold text-slate-700 mb-1">ROLE *</label>
                   <select
                     value={editRole}
+                    disabled={editTeacher.email.toLowerCase() === 'admin@projectsmile'}
                     onChange={(e) => setEditRole(e.target.value as UserRole)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:opacity-60"
                   >
                     <option value="teacher">TEACHER (Classroom & Subject Teacher)</option>
                     <option value="admin">ADMIN (System & ICT Administrator)</option>
@@ -1156,12 +1222,51 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                 </div>
               </div>
 
-              <div>
-                <TeacherPositionSelect
-                  label="Position / Title"
-                  value={editTitle}
-                  onChange={(val) => setEditTitle(val)}
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <TeacherPositionSelect
+                    label="Position / Title"
+                    value={editTitle}
+                    onChange={(val) => setEditTitle(val)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Department</label>
+                  <input
+                    type="text"
+                    value={editDepartment}
+                    onChange={(e) => setEditDepartment(e.target.value)}
+                    placeholder="Technology and Livelihood Education (TLE)"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Account Status</label>
+                  <select
+                    value={editAccountStatus}
+                    disabled={editTeacher.email.toLowerCase() === 'admin@projectsmile'}
+                    onChange={(e) => setEditAccountStatus(e.target.value as 'Active' | 'Inactive')}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:opacity-60"
+                  >
+                    <option value="Active">Active (Allowed to Sign In)</option>
+                    <option value="Inactive">Deactivated (Blocked from Sign In)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">New Password (Optional)</label>
+                  <input
+                    type="text"
+                    value={editNewPassword}
+                    onChange={(e) => setEditNewPassword(e.target.value)}
+                    placeholder="Leave blank to keep current password"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-mono focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
               </div>
 
               {editRole === 'teacher' ? (
@@ -1221,7 +1326,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-medium flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-amber-700 shrink-0" />
                   <span>
-                    Administrative and supervisory roles (Admin, School Head, Remediation Coordinator) do not hold teaching subject assignments.
+                    Administrative and supervisory roles (Admin, School Head, Head Teacher, Remediation Coordinator) do not hold teaching subject assignments.
                   </span>
                 </div>
               )}
