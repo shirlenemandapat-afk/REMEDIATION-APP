@@ -88,7 +88,7 @@
       "masterTeacherName": "MELANI R. SANTOS",
       "masterTeacherPosition": "Master Teacher I",
       "headTeacherName": "Dr. Corazon V. Santos",
-      "headTeacherPosition": "Head Teacher III / TLE Department Head",
+      "headTeacherPosition": "Head Teacher III / TLE Department",
       "principalName": "Dr. Maria Luisa T. Ramos",
       "principalPosition": "Secondary School Principal IV",
       "role": "head_teacher",
@@ -131,7 +131,7 @@
     },
     "shirlene.mandapat@depedqc.ph": {
       "email": "shirlene.mandapat@depedqc.ph",
-      "passwordHash": "teacher123",
+      "passwordHash": "111204",
       "isPasswordSet": true,
       "role": "teacher",
       "roleTitle": "TEACHER",
@@ -149,14 +149,14 @@
       ],
       "reportsSubmissionStatus": "Submitted",
       "registeredAt": "2025-06-15",
-      "lastLoginAt": "",
+      "lastLoginAt": "10/17/2026, 10:19:17 AM",
       "masterTeacherName": "Shirlene Mandapat-Tindoc",
       "masterTeacherPosition": "Master Teacher I",
       "headTeacherName": "Melani R. Santos, PhD.",
       "headTeacherPosition": "Head Teacher VI / TLE Department",
       "principalName": "Josehpine M. Maningas, PhD.",
       "principalPosition": "Principal IV",
-      "passwordCustomized": false
+      "passwordCustomized": true
     },
     "alain.invierno@depedqc.ph": {
       "email": "alain.invierno@depedqc.ph",
@@ -433,7 +433,7 @@
       "assignedSubjects": [],
       "isPasswordSet": true,
       "passwordCustomized": true,
-      "lastLoginAt": "10/17/2026, 10:18:33 AM"
+      "lastLoginAt": "10/17/2026, 10:26:23 AM"
     },
     "ruby.angeles@depedqc.ph": {
       "email": "ruby.angeles@depedqc.ph",
@@ -1885,6 +1885,14 @@
   "classes": [],
   "announcements": [],
   "auditLogs": [
+    {
+      "id": "audit-1792232357243-zbu7i",
+      "userEmail": "shirlene.mandapat@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: Shirlene Mandapat-Tindoc (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal from device.",
+      "targetUser": "shirlene.mandapat@depedqc.ph",
+      "timestamp": "2026-10-17T10:19:17.243Z"
+    },
     {
       "id": "audit-1792230822002-7s2xs",
       "userEmail": "melani.santos@deped.gov.ph",
@@ -3402,14 +3410,6 @@
     {
       "id": "audit-1791856560124-0chk",
       "timestamp": "10/13/2026, 9:56:00 AM",
-      "adminEmail": "shirlene.mandapat@depedqc.ph",
-      "action": "TEACHER_LOGGED_IN",
-      "details": "Faculty login: Shirlene Mandapat-Tindoc (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",
-      "targetUser": "shirlene.mandapat@depedqc.ph"
-    },
-    {
-      "id": "audit-1792150994348-h87z",
-      "timestamp": "10/16/2026, 7:43:14 PM",
       "adminEmail": "shirlene.mandapat@depedqc.ph",
       "action": "TEACHER_LOGGED_IN",
       "details": "Faculty login: Shirlene Mandapat-Tindoc (shirlene.mandapat@depedqc.ph) accessed Project S.M.I.L.E. Portal.",

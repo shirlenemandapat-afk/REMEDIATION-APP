@@ -322,16 +322,12 @@ export const storage = {
             const norm = t.email.toLowerCase().trim();
             if (!deletedSet.has(norm)) {
               const existing = accounts[norm];
-              const incomingPass = (t.passwordHash || '').trim();
-              const existingPass = (existing?.passwordHash || '').trim();
-              const resolvedPass =
-                incomingPass && incomingPass !== 'deped2025'
-                  ? incomingPass
-                  : existingPass || incomingPass || 'deped2025';
+              const cleanProfile = { ...t };
+              delete (cleanProfile as any).passwordHash;
               accounts[norm] = {
                 ...(existing || {}),
-                ...t,
-                passwordHash: resolvedPass,
+                ...cleanProfile,
+                passwordHash: existing?.passwordHash || 'deped2025',
                 assignedSubjects: existing?.assignedSubjects?.length ? existing.assignedSubjects : (t.assignedSubjects || []),
                 specialization: existing?.specialization || t.specialization,
                 accountStatus: existing?.accountStatus || t.accountStatus || 'Active',
@@ -1944,16 +1940,12 @@ export const storage = {
               const norm = t.email.toLowerCase().trim();
               if (!deletedSet.has(norm) && norm !== 'teachershirlene@gmail.com') {
                 const existing = accounts[norm];
-                const incomingPass = (t.passwordHash || '').trim();
-                const existingPass = (existing?.passwordHash || '').trim();
-                const resolvedPass =
-                  incomingPass && incomingPass !== 'deped2025'
-                    ? incomingPass
-                    : existingPass || incomingPass || 'deped2025';
+                const cleanProfile = { ...t };
+                delete (cleanProfile as any).passwordHash;
                 accounts[norm] = {
                   ...(existing || {}),
-                  ...t,
-                  passwordHash: resolvedPass,
+                  ...cleanProfile,
+                  passwordHash: existing?.passwordHash || 'deped2025',
                   assignedSubjects: existing?.assignedSubjects?.length ? existing.assignedSubjects : (t.assignedSubjects || []),
                   specialization: existing?.specialization || t.specialization,
                   accountStatus: existing?.accountStatus || t.accountStatus || 'Active',
