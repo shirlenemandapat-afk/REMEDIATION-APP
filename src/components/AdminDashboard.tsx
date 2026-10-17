@@ -189,9 +189,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
           <div className="flex items-center gap-4">
-            <div className="p-2.5 bg-emerald-900/90 rounded-2xl border border-amber-400/40 shadow-md shrink-0">
-              <SchoolLogo size="md" />
-            </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-400 text-emerald-950 shadow-xs uppercase tracking-wider">

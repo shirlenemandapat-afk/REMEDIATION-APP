@@ -178,7 +178,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           
           {/* Official RMCHS TLE Department Logo & Header Title */}
           <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-            <div className="relative group cursor-pointer transition-transform hover:scale-105">
+            <div className="relative">
               <SchoolLogo size="sm" className="sm:hidden" />
               <SchoolLogo size="md" className="hidden sm:block" />
             </div>

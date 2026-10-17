@@ -28,7 +28,7 @@ export const RMCHSHeaderBanner: React.FC<RMCHSHeaderBannerProps> = ({
         <div className="shrink-0 flex items-center justify-center">
           <SchoolLogo
             size="xl"
-            className="w-28 h-28 sm:w-36 sm:h-36 md:w-40 md:h-40 hover:scale-105 transition-transform duration-300 drop-shadow-xl"
+            className="w-28 h-28 sm:w-36 sm:h-36 md:w-40 md:h-40 drop-shadow-xl"
           />
         </div>
 

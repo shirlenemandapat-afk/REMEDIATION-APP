@@ -180,21 +180,30 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
             className="absolute inset-0 bg-[linear-gradient(125deg,transparent_28%,rgba(255,255,255,0.12)_43%,rgba(255,255,255,0.03)_50%,transparent_62%)] pointer-events-none z-0"
           />
 
-          {/* Deep Emerald Spotlight Behind Official Seal */}
+          {/* Gentle Moving Emerald Background Glow Behind Official Seal */}
           <div
-            className="absolute inset-0 bg-[radial-gradient(circle_at_50%_28%,rgba(16,185,129,0.22)_0%,rgba(6,78,59,0.1)_42%,transparent_70%)] pointer-events-none z-0"
+            className="absolute inset-0 bg-[radial-gradient(circle_at_50%_28%,rgba(16,185,129,0.28)_0%,rgba(5,150,105,0.14)_40%,transparent_70%)] pointer-events-none z-0 animate-bg-glow-drift"
           />
 
           {/* Top & Left Glossy Bevel Rim */}
           <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/55 to-transparent pointer-events-none z-10" />
           <div className="absolute top-0 bottom-0 left-0 w-[1.5px] bg-gradient-to-b from-white/40 via-white/10 to-transparent pointer-events-none z-10" />
 
-          {/* Golden Wave Flowing Across Bottom */}
-          <div className="absolute bottom-0 left-0 right-0 pointer-events-none z-0">
+          {/* Golden Wave Flowing Across Bottom with Slow Wave Motion */}
+          <div className="absolute bottom-0 left-0 right-0 pointer-events-none z-0 overflow-hidden">
+            {/* Soft Secondary Golden Wave Layer for Depth */}
             <svg
               viewBox="0 0 500 130"
               preserveAspectRatio="none"
-              className="w-full h-28 sm:h-32 md:h-36 text-[#F6B819] fill-current drop-shadow-[0_-4px_12px_rgba(0,0,0,0.45)]"
+              className="h-30 sm:h-34 md:h-38 text-amber-300/35 fill-current absolute bottom-0 left-0 animate-golden-wave-alt"
+            >
+              <path d="M0,35 C160,95 340,-5 500,50 L500,130 L0,130 Z" />
+            </svg>
+            {/* Primary Golden Bottom Wave */}
+            <svg
+              viewBox="0 0 500 130"
+              preserveAspectRatio="none"
+              className="h-28 sm:h-32 md:h-36 text-[#F6B819] fill-current drop-shadow-[0_-4px_12px_rgba(0,0,0,0.45)] relative animate-golden-wave"
             >
               <path d="M0,25 C140,90 320,-10 500,45 L500,130 L0,130 Z" />
             </svg>
@@ -203,23 +212,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
           {/* Center Brand Identity positioned higher on the panel */}
           <div className="relative z-10 flex flex-col items-center text-center my-auto pt-0 pb-24 sm:pb-28 -mt-4 sm:-mt-6">
             
-            {/* Ramon Magsaysay (Cubao) High School Official Seal with Subtle Glow & Gentle Float */}
-            <div className="animate-fade-in-up delay-75">
-              <div className="relative mb-4 flex items-center justify-center animate-logo-float group">
-                {/* Subtle Breathing Golden/Emerald Glow Halo */}
-                <div className="absolute -inset-2.5 rounded-full bg-gradient-to-tr from-[#F6B819]/35 via-emerald-400/20 to-[#F6B819]/35 blur-md animate-logo-glow pointer-events-none" />
-                
-                {/* Crisp Outer Golden Ring */}
-                <div className="absolute -inset-1.5 rounded-full border border-[#F6B819]/45 pointer-events-none transition-transform duration-500 group-hover:scale-105" />
+            {/* Ramon Magsaysay (Cubao) High School Official Seal: Rotates 360° Once on Load + Subtle Green Glow */}
+            <div className="relative mb-4 flex items-center justify-center">
+              {/* Subtle Emerald-Green Glow that appears after the 360° rotation */}
+              <div className="absolute inset-2.5 rounded-full bg-emerald-400/25 blur-xl animate-seal-green-glow pointer-events-none" />
 
-                {/* Main Circular Seal Container */}
-                <div className="w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full border-4 border-[#F6B819] bg-white flex items-center justify-center p-2 shadow-[0_14px_32px_rgba(0,0,0,0.65),0_0_24px_rgba(246,184,25,0.35)] relative overflow-hidden shrink-0 transition-transform duration-500 group-hover:scale-[1.03]">
-                  <SchoolLogo size="xl" showShadow={false} className="w-full h-full object-contain relative z-10 transition-transform duration-500 group-hover:scale-105" />
-                  
-                  {/* Subtle Stationary Glass Gloss & Interactive Hover Sheen */}
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-transparent via-white/10 to-white/30 pointer-events-none z-20" />
-                  <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out bg-gradient-to-r from-transparent via-white/50 to-transparent skew-x-12 pointer-events-none z-20" />
-                </div>
+              {/* Official Seal with One-Time 360° Rotation on Page Load */}
+              <div className="w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 flex items-center justify-center relative shrink-0 animate-seal-rotate-once">
+                <SchoolLogo size="xl" showShadow={false} className="w-full h-full object-contain relative z-10 drop-shadow-[0_12px_24px_rgba(0,0,0,0.65)]" />
               </div>
             </div>
 
@@ -228,12 +228,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
               Project
             </h1>
 
-            {/* "S.M.I.L.E." Bold Golden Title */}
-            <div className="text-5xl sm:text-6xl font-black text-[#F6B819] tracking-wider leading-none mt-1 drop-shadow-[0_3px_8px_rgba(0,0,0,0.55)] animate-fade-in-up delay-225">
-              S.M.I.L.E.
+            {/* "S.M.I.L.E." Bold Golden Title with Soft Shine */}
+            <div className="text-5xl sm:text-6xl font-black tracking-wider leading-none mt-1 animate-fade-in-up delay-225">
+              <span className="animate-title-shine inline-block">S.M.I.L.E.</span>
             </div>
 
-            {/* Iconic Curved Golden Smiley with Cheek Bars under S.M.I.L.E. */}
+            {/* Iconic Curved Golden Smiley with Smooth Self-Drawing Animation */}
             <div className="w-full flex justify-center mt-2 sm:mt-2.5 mb-2 animate-fade-in-up delay-225">
               <svg
                 viewBox="0 0 200 66"
@@ -244,12 +244,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                {/* Main Smile Curve */}
-                <path d="M 25 18 C 62 68, 138 68, 175 18" />
+                {/* Main Smile Curve Drawn Smoothly */}
+                <path className="animate-draw-smile" d="M 25 18 C 62 68, 138 68, 175 18" />
                 {/* Left Cheek Bar */}
-                <path d="M 13.5 27.5 L 36.5 8.5" />
+                <path className="animate-draw-cheek" d="M 13.5 27.5 L 36.5 8.5" />
                 {/* Right Cheek Bar */}
-                <path d="M 163.5 8.5 L 186.5 27.5" />
+                <path className="animate-draw-cheek" d="M 163.5 8.5 L 186.5 27.5" />
               </svg>
             </div>
 
@@ -271,12 +271,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         {/* ============================================================== */}
         <div className="w-full md:w-1/2 bg-[#F8FAF5] relative flex flex-col justify-center p-8 sm:p-12 overflow-hidden">
           
-          {/* Corner Wave Continuation in Right Panel */}
-          <div className="absolute bottom-0 left-0 right-0 pointer-events-none z-0">
+          {/* Corner Wave Continuation in Right Panel with Slow Wave Motion */}
+          <div className="absolute bottom-0 left-0 right-0 pointer-events-none z-0 overflow-hidden">
             <svg
               viewBox="0 0 500 80"
               preserveAspectRatio="none"
-              className="w-full h-16 text-[#F6B819] fill-current opacity-90"
+              className="h-16 text-[#F6B819] fill-current opacity-90 animate-golden-wave-alt"
             >
               <path d="M0,0 C120,60 300,10 500,40 L500,80 L0,80 Z" />
             </svg>
@@ -284,26 +284,16 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
           <div className="relative z-10 max-w-md w-full mx-auto space-y-6">
             
-            {/* Header: User Icon + "Welcome Back!" */}
-            <div className="flex items-center gap-3.5 animate-fade-in-up delay-75">
-              <div className="relative overflow-hidden w-12 h-12 rounded-full bg-gradient-to-b from-[#0b4826] via-[#042412] to-[#011108] flex items-center justify-center text-white shadow-[0_4px_12px_rgba(3,29,14,0.45),inset_0_2px_2px_rgba(255,255,255,0.45)] border border-emerald-700/50 shrink-0 transition-transform duration-300 hover:scale-105">
-                <span className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
-                {authMode === 'signin' ? (
-                  <User className="w-6 h-6 text-white drop-shadow-xs relative z-10" />
-                ) : (
-                  <UserPlus className="w-6 h-6 text-white drop-shadow-xs relative z-10" />
-                )}
-              </div>
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-[#042412] tracking-tight">
-                  {authMode === 'signin' ? 'Welcome Back!' : 'Create Account'}
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-                  {authMode === 'signin'
-                    ? 'Sign in to continue to Project S.M.I.L.E.'
-                    : 'Register your faculty credentials for Project S.M.I.L.E.'}
-                </p>
-              </div>
+            {/* Header: "Welcome Back!" */}
+            <div className="animate-fade-in-up delay-75">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-[#042412] tracking-tight">
+                {authMode === 'signin' ? 'Welcome Back!' : 'Create Account'}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+                {authMode === 'signin'
+                  ? 'Sign in to continue to Project S.M.I.L.E.'
+                  : 'Register your faculty credentials for Project S.M.I.L.E.'}
+              </p>
             </div>
 
             {/* Error & Success Alerts */}
