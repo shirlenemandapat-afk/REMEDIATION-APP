@@ -11,6 +11,7 @@ import { NarrativeReportGenerator } from './components/NarrativeReportGenerator'
 import { ArchiveManagement } from './components/ArchiveManagement';
 import { AdminDashboard } from './components/AdminDashboard';
 import { HeadTeacherDashboard } from './components/HeadTeacherDashboard';
+import { SchoolHeadDashboard } from './components/SchoolHeadDashboard';
 import { EnrollStudentModal } from './components/EnrollStudentModal';
 import { EditStudentModal } from './components/EditStudentModal';
 import { AddSessionModal } from './components/AddSessionModal';
@@ -62,11 +63,12 @@ export default function App() {
 
   // Navigation & Filtering State
   const [activeTab, setActiveTab] = useState<
-    'admin-portal' | 'head-teacher-portal' | 'students' | 'sessions' | 'class-progress' | 'report' | 'archive'
+    'admin-portal' | 'head-teacher-portal' | 'school-head-portal' | 'students' | 'sessions' | 'class-progress' | 'report' | 'archive'
   >(() => {
     const initialRole = storage.getTeacherProfile().role;
     if (initialRole === 'admin') return 'admin-portal';
     if (initialRole === 'head_teacher') return 'head-teacher-portal';
+    if (initialRole === 'school_head') return 'school-head-portal';
     return 'students';
   });
   const [selectedSection, setSelectedSection] = useState<string>('ALL');
@@ -111,7 +113,12 @@ export default function App() {
       const activeEmail = (teacher?.email || storage.getActiveUserEmail() || '').toLowerCase().trim();
       if (!activeEmail) return;
       await storage.syncFromServer(activeEmail);
-      const isDepartmentWide = storage.isAdminEmail(activeEmail) || storage.isHeadTeacherEmail(activeEmail);
+      const isDepartmentWide =
+        storage.isAdminEmail(activeEmail) ||
+        storage.isHeadTeacherEmail(activeEmail) ||
+        storage.isSchoolHeadEmail(activeEmail) ||
+        teacher?.role === 'head_teacher' ||
+        teacher?.role === 'school_head';
       const myStudents = isDepartmentWide ? storage.getAllStudents() : storage.getStudents(activeEmail);
       const mySessions = isDepartmentWide ? storage.getAllSessions() : storage.getSessions(activeEmail);
       setStudents(myStudents);
@@ -139,10 +146,14 @@ export default function App() {
     const isDepartmentWide =
       storage.isAdminEmail(activeEmail) ||
       storage.isHeadTeacherEmail(activeEmail) ||
-      currentTeacher?.role === 'head_teacher';
+      storage.isSchoolHeadEmail(activeEmail) ||
+      currentTeacher?.role === 'head_teacher' ||
+      currentTeacher?.role === 'school_head';
     if (loggedIn && activeEmail) {
       setTeacher(currentTeacher);
-      if (currentTeacher?.role === 'head_teacher') {
+      if (currentTeacher?.role === 'school_head') {
+        setActiveTab('school-head-portal');
+      } else if (currentTeacher?.role === 'head_teacher') {
         setActiveTab('head-teacher-portal');
       } else if (currentTeacher?.role === 'admin') {
         setActiveTab('admin-portal');
@@ -164,7 +175,9 @@ export default function App() {
           const freshTeacher = syncResult?.profile || storage.getTeacherProfile();
           if (freshTeacher) {
             setTeacher(freshTeacher);
-            if (freshTeacher.role === 'head_teacher') {
+            if (freshTeacher.role === 'school_head') {
+              setActiveTab('school-head-portal');
+            } else if (freshTeacher.role === 'head_teacher') {
               setActiveTab('head-teacher-portal');
             } else if (freshTeacher.role === 'admin') {
               setActiveTab('admin-portal');
@@ -174,12 +187,15 @@ export default function App() {
           const isFreshDeptWide =
             storage.isAdminEmail(email) ||
             storage.isHeadTeacherEmail(email) ||
-            freshTeacher?.role === 'head_teacher';
+            storage.isSchoolHeadEmail(email) ||
+            freshTeacher?.role === 'head_teacher' ||
+            freshTeacher?.role === 'school_head';
           setStudents(isFreshDeptWide ? storage.getAllStudents() : storage.getStudents(email));
           setSessions(isFreshDeptWide ? storage.getAllSessions() : storage.getSessions(email));
           setLastSyncTime(new Date());
         }
-      }).catch((e) => {
+      })
+.catch((e) => {
         console.warn('Initial server sync notice:', e);
       }).finally(() => {
         setIsSyncing(false);
@@ -206,7 +222,9 @@ export default function App() {
         const isDeptWideRole =
           storage.isAdminEmail(activeEmail) ||
           storage.isHeadTeacherEmail(activeEmail) ||
-          freshTeacher?.role === 'head_teacher';
+          storage.isSchoolHeadEmail(activeEmail) ||
+          freshTeacher?.role === 'head_teacher' ||
+          freshTeacher?.role === 'school_head';
         setStudents(isDeptWideRole ? storage.getAllStudents() : storage.getStudents(activeEmail));
         setSessions(isDeptWideRole ? storage.getAllSessions() : storage.getSessions(activeEmail));
         setLastSyncTime(new Date());
@@ -249,13 +267,15 @@ export default function App() {
     };
   }, [isLoggedIn, teacher?.email]);
 
-  // Guard against unauthorized accounts accessing admin-portal or head-teacher-portal
+  // Guard against unauthorized accounts accessing admin-portal, head-teacher-portal, or school-head-portal
   useEffect(() => {
     const isPrivileged = storage.isAdministrativeOrSupervisoryRole(teacher?.email);
-    if (!isPrivileged && (activeTab === 'admin-portal' || activeTab === 'head-teacher-portal')) {
+    if (!isPrivileged && (activeTab === 'admin-portal' || activeTab === 'head-teacher-portal' || activeTab === 'school-head-portal')) {
       setActiveTab('students');
     } else if (teacher?.role === 'head_teacher' && activeTab !== 'head-teacher-portal') {
       setActiveTab('head-teacher-portal');
+    } else if (teacher?.role === 'school_head' && activeTab !== 'school-head-portal') {
+      setActiveTab('school-head-portal');
     }
   }, [teacher?.role, teacher?.email, activeTab]);
 
@@ -266,7 +286,9 @@ export default function App() {
     const isDeptWide =
       storage.isAdminEmail(activeEmail) ||
       storage.isHeadTeacherEmail(activeEmail) ||
-      currentTeacher?.role === 'head_teacher';
+      storage.isSchoolHeadEmail(activeEmail) ||
+      currentTeacher?.role === 'head_teacher' ||
+      currentTeacher?.role === 'school_head';
     setStudents(isDeptWide ? storage.getAllStudents() : storage.getStudents(activeEmail));
     setSessions(isDeptWide ? storage.getAllSessions() : storage.getSessions(activeEmail));
   };
@@ -283,11 +305,15 @@ export default function App() {
     const isDeptWide =
       storage.isAdminEmail(cleanEmail) ||
       storage.isHeadTeacherEmail(cleanEmail) ||
-      profile.role === 'head_teacher';
+      storage.isSchoolHeadEmail(cleanEmail) ||
+      profile.role === 'head_teacher' ||
+      profile.role === 'school_head';
 
     if (profile.role === 'head_teacher') {
       setActiveTab('head-teacher-portal');
-    } else if (isPrivileged && (profile.role === 'admin' || profile.role === 'school_head')) {
+    } else if (profile.role === 'school_head') {
+      setActiveTab('school-head-portal');
+    } else if (isPrivileged && (profile.role === 'admin' || profile.role === 'coordinator')) {
       setActiveTab('admin-portal');
     } else {
       setActiveTab('students');
@@ -555,7 +581,7 @@ export default function App() {
       {/* Main Dashboard Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Department Welcome & Action Banner with RMCHS Green & Gold Theme (For Classroom Teacher views) */}
-        {teacher.role !== 'admin' && teacher.role !== 'head_teacher' && teacher.email !== 'admin@projectsmile' && (
+        {teacher.role !== 'admin' && teacher.role !== 'head_teacher' && teacher.role !== 'school_head' && teacher.email !== 'admin@projectsmile' && (
           <div className="relative overflow-hidden bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-950 rounded-2xl p-6 text-white shadow-xl border border-emerald-800/80">
             <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
               <div className="space-y-2 max-w-2xl">
@@ -627,7 +653,7 @@ export default function App() {
         )}
 
         {/* Navigation Tabs Styled with Green & Gold Accents */}
-        {teacher.role !== 'admin' && teacher.role !== 'head_teacher' && teacher.email !== 'admin@projectsmile' && (
+        {teacher.role !== 'admin' && teacher.role !== 'head_teacher' && teacher.role !== 'school_head' && teacher.email !== 'admin@projectsmile' && (
           <div className="bg-white rounded-2xl p-1.5 border border-emerald-100 shadow-sm flex items-center gap-1.5 overflow-x-auto">
             <button
               type="button"
@@ -730,7 +756,19 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'admin-portal' && teacher.role !== 'head_teacher' && (teacher.role === 'admin' || teacher.role === 'school_head' || teacher.role === 'coordinator' || teacher.email === 'admin@projectsmile') && (
+        {(activeTab === 'school-head-portal' || teacher.role === 'school_head') && teacher.role !== 'head_teacher' && (
+          <SchoolHeadDashboard
+            currentPrincipal={teacher}
+            students={students}
+            sessions={sessions}
+            onRefreshData={refreshData}
+            onSelectStudent={(stud) => setViewStudent(stud)}
+            onShowToast={showToast}
+            onBackToAdmin={teacher.role === 'admin' || teacher.email === 'admin@projectsmile' ? () => setActiveTab('admin-portal') : undefined}
+          />
+        )}
+
+        {activeTab === 'admin-portal' && teacher.role !== 'head_teacher' && teacher.role !== 'school_head' && (teacher.role === 'admin' || teacher.role === 'coordinator' || teacher.email === 'admin@projectsmile') && (
           <AdminDashboard
             currentAdmin={teacher}
             students={students}
@@ -738,6 +776,7 @@ export default function App() {
             onRefreshData={refreshData}
             onSelectStudent={(stud) => setViewStudent(stud)}
             onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+            onNavigateSchoolHead={() => setActiveTab('school-head-portal')}
           />
         )}
 
@@ -883,6 +922,7 @@ export default function App() {
         onDeleteStudent={(stud) => handleRequestDeleteStudent(stud)}
         onArchiveStudent={(stud) => handleRequestArchiveStudent(stud)}
         onUnarchiveStudent={(stud) => handleRequestUnarchiveStudent(stud.id)}
+        readOnly={teacher.role === 'school_head'}
       />
 
       {editingSession && (

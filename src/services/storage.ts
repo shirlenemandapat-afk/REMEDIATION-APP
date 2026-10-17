@@ -170,6 +170,32 @@ export const storage = {
       }
     }
 
+    const principalNorm = 'josephine.maningas@depedqc.ph';
+    if (!accounts[principalNorm] && !deletedSet.has(principalNorm)) {
+      accounts[principalNorm] = {
+        email: principalNorm,
+        name: 'JOSEPHINE M. MANINGAS, PhD',
+        title: 'Secondary School Principal IV',
+        schoolName: 'Ramon Magsaysay (Cubao) High School',
+        division: 'SDO Quezon City',
+        region: 'National Capital Region (NCR)',
+        academicYear: '2026-2027',
+        department: 'Office of the School Head / Principal',
+        masterTeacherName: 'Shirlene M. Mandapat',
+        masterTeacherPosition: 'Master Teacher I / TLE Subject Coordinator',
+        headTeacherName: 'MELANI R. SANTOS',
+        headTeacherPosition: 'Head Teacher VI / TLE Department',
+        principalName: 'JOSEPHINE M. MANINGAS, PhD',
+        principalPosition: 'Secondary School Principal IV',
+        role: 'school_head',
+        roleTitle: 'SCHOOL HEAD',
+        passwordHash: 'principal2026',
+        accountStatus: 'Active',
+        assignedSubjects: [],
+        isPasswordSet: true,
+      };
+    }
+
     // Ensure active teachers with enrolled students have their taught subjects reflected if empty
     const knownTeacherSubjects: Record<string, string[]> = {
       'shirlene.mandapat@depedqc.ph': ['ICT - Computer Programming', 'ICT - Computer Systems Servicing'],
@@ -2504,6 +2530,19 @@ export const storage = {
       const accounts = this.getRegisteredAccounts();
       const acct = accounts[lower] || this.findAccountByEmail(lower);
       return acct?.role === 'head_teacher' || acct?.role === 'school_head';
+    } catch {
+      return false;
+    }
+  },
+
+  isSchoolHeadEmail(email?: string | null): boolean {
+    if (!email) return false;
+    const lower = email.toLowerCase().trim();
+    if (lower === 'principal@projectsmile' || lower === 'josephine.maningas@depedqc.ph') return true;
+    try {
+      const accounts = this.getRegisteredAccounts();
+      const acct = accounts[lower] || this.findAccountByEmail(lower);
+      return acct?.role === 'school_head';
     } catch {
       return false;
     }

@@ -1276,8 +1276,6 @@ async function startServer() {
         assignedSubjects: existing?.assignedSubjects || ['ICT - Computer Programming'],
         reportsSubmissionStatus: existing?.reportsSubmissionStatus || 'Submitted',
         accountStatus: existing?.accountStatus || 'Active',
-        role: effectiveRole,
-        roleTitle,
         masterTeacherName: existing?.masterTeacherName || 'Shirlene M. Mandapat',
         masterTeacherPosition: existing?.masterTeacherPosition || 'Master Teacher I / TLE Subject Coordinator',
         headTeacherName: existing?.headTeacherName || 'MELANI R. SANTOS',
@@ -1341,8 +1339,8 @@ async function startServer() {
   // User Login (Credential verification with flexible username/email/name resolution & Supabase lookup)
   app.post('/api/auth/login', async (req, res) => {
     try {
-      const { email, username, password } = req.body;
-      const loginIdentifier = (username || email || '').trim();
+      const { email, username, identifier, password } = req.body;
+      const loginIdentifier = (username || email || identifier || '').trim();
       if (!loginIdentifier || !password) {
         return res.status(400).json({ success: false, message: 'Please provide both username/email and password.' });
       }

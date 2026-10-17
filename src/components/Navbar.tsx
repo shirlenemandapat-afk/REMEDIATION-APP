@@ -53,6 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [activeTab, setActiveTab] = useState<'signatories' | 'teacher' | 'school'>('signatories');
   const isAdmin = teacher.role === 'admin' || (teacher.email || '').toLowerCase().trim() === 'admin@projectsmile';
   const isHeadTeacher = teacher.role === 'head_teacher';
+  const isSchoolHead = teacher.role === 'school_head';
 
   // Teacher info
   const [editName, setEditName] = useState(teacher.name);
@@ -210,7 +211,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Section Selector & Profile Controls */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
             {/* Filter by Grade & Section (For Classroom Teachers) */}
-            {!isAdmin && !isHeadTeacher && (
+            {!isAdmin && !isHeadTeacher && !isSchoolHead && (
               <div className="hidden md:flex items-center gap-2 bg-emerald-900/80 px-3 py-1.5 rounded-xl border border-emerald-700/80 shadow-xs">
                 <label htmlFor="navbar-section-select" className="text-xs text-amber-200 font-semibold whitespace-nowrap">
                   Section:
@@ -234,8 +235,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
 
-            {/* Supabase Live Cloud Status & Manual Sync Button (Admin & Head Teacher Portal) */}
-            {(isAdmin || isHeadTeacher) && onManualSync && (
+            {/* Supabase Live Cloud Status & Manual Sync Button (Admin, Head Teacher & School Head Portal) */}
+            {(isAdmin || isHeadTeacher || isSchoolHead) && onManualSync && (
               <button
                 type="button"
                 onClick={onManualSync}
@@ -267,13 +268,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-white text-xs font-semibold border transition shadow-xs cursor-pointer ${
                 teacher.role === 'admin' || teacher.email === 'admin@projectsmile'
                   ? 'bg-purple-950/90 hover:bg-purple-900 border-purple-500/70 hover:border-amber-400'
+                  : teacher.role === 'school_head'
+                  ? 'bg-blue-950/90 hover:bg-blue-900 border-blue-500/70 hover:border-amber-400'
                   : 'bg-emerald-900/90 hover:bg-emerald-800 border-emerald-700/80 hover:border-amber-400/60'
               }`}
-              title={teacher.role === 'admin' ? "System Administrator Profile & Console" : "Edit Teacher Profile & Official Signatories"}
+              title={teacher.role === 'admin' ? "System Administrator Profile & Console" : teacher.role === 'school_head' ? "School Head Profile & Official Signatories" : "Edit Teacher Profile & Official Signatories"}
             >
               <div className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-xs shadow-xs ${
                 teacher.role === 'admin' || teacher.email === 'admin@projectsmile'
                   ? 'bg-amber-400 text-purple-950'
+                  : teacher.role === 'school_head'
+                  ? 'bg-yellow-300 text-blue-950'
                   : 'bg-amber-500 text-emerald-950'
               }`}>
                 {teacher.name ? teacher.name.charAt(0) : 'A'}

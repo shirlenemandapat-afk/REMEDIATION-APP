@@ -42,6 +42,7 @@ interface StudentDetailModalProps {
   onDeleteStudent?: (student: Student) => void;
   onArchiveStudent?: (student: Student) => void;
   onUnarchiveStudent?: (student: Student) => void;
+  readOnly?: boolean;
 }
 
 export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
@@ -59,6 +60,7 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
   onDeleteStudent,
   onArchiveStudent,
   onUnarchiveStudent,
+  readOnly = false,
 }) => {
   if (!isOpen || !student) return null;
 
@@ -114,9 +116,14 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
               <span className="text-xs font-bold text-emerald-200">
                 {student.gradeLevel} - {student.section} &bull; {student.subject}
               </span>
+              {readOnly && (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/25 text-blue-200 border border-blue-400/40 uppercase">
+                  Read-Only Monitoring
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2">
-              {onEditStudent ? (
+              {!readOnly && onEditStudent ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -148,7 +155,7 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {onEditStudent && (
+            {!readOnly && onEditStudent && (
               <button
                 type="button"
                 onClick={() => {
@@ -181,16 +188,18 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                 Anecdotal Report
               </button>
             )}
-            <button
-              onClick={() => onOpenAddSession(student.id)}
-              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 shadow-md"
-            >
-              <PlusCircle className="w-4 h-4 text-yellow-300" />
-              Add Session
-            </button>
+            {!readOnly && onOpenAddSession && (
+              <button
+                onClick={() => onOpenAddSession(student.id)}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 shadow-md cursor-pointer"
+              >
+                <PlusCircle className="w-4 h-4 text-yellow-300" />
+                Add Session
+              </button>
+            )}
             <button
               onClick={onClose}
-              className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition"
+              className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -361,7 +370,7 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                             {sess.score}% &bull; {sessMastery.description}
                           </span>
 
-                          {onEditSession && (
+                          {!readOnly && onEditSession && (
                             <button
                               type="button"
                               onClick={() => onEditSession(sess)}
@@ -373,7 +382,7 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                             </button>
                           )}
 
-                          {onDeleteSession && (
+                          {!readOnly && onDeleteSession && (
                             <button
                               type="button"
                               onClick={() => onDeleteSession(sess.id)}
@@ -445,12 +454,14 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
             ) : (
               <div className="p-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
                 <p className="text-xs text-slate-500">No daily anecdotal logs added yet for this student.</p>
-                <button
-                  onClick={() => onOpenAddSession(student.id)}
-                  className="mt-2 text-xs font-bold text-emerald-700 hover:text-emerald-900 underline"
-                >
-                  Click here to add first session
-                </button>
+                {!readOnly && onOpenAddSession && (
+                  <button
+                    onClick={() => onOpenAddSession(student.id)}
+                    className="mt-2 text-xs font-bold text-emerald-700 hover:text-emerald-900 underline cursor-pointer"
+                  >
+                    Click here to add first session
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -459,39 +470,48 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
         {/* Modal Footer with Archive & Delete Options */}
         <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            {student.isArchived ? (
-              onUnarchiveStudent && (
-                <button
-                  type="button"
-                  onClick={() => onUnarchiveStudent(student)}
-                  className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-yellow-300" />
-                  Restore to Active Roster
-                </button>
-              )
-            ) : (
-              onArchiveStudent && (
-                <button
-                  type="button"
-                  onClick={() => onArchiveStudent(student)}
-                  className="px-3.5 py-2 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Archive className="w-3.5 h-3.5 text-amber-800" />
-                  Archive Student Record
-                </button>
-              )
-            )}
+            {!readOnly && (
+              <>
+                {student.isArchived ? (
+                  onUnarchiveStudent && (
+                    <button
+                      type="button"
+                      onClick={() => onUnarchiveStudent(student)}
+                      className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-yellow-300" />
+                      Restore to Active Roster
+                    </button>
+                  )
+                ) : (
+                  onArchiveStudent && (
+                    <button
+                      type="button"
+                      onClick={() => onArchiveStudent(student)}
+                      className="px-3.5 py-2 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Archive className="w-3.5 h-3.5 text-amber-800" />
+                      Archive Student Record
+                    </button>
+                  )
+                )}
 
-            {onDeleteStudent && (
-              <button
-                type="button"
-                onClick={() => onDeleteStudent(student)}
-                className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                Delete Student
-              </button>
+                {onDeleteStudent && (
+                  <button
+                    type="button"
+                    onClick={() => onDeleteStudent(student)}
+                    className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                    Delete Student
+                  </button>
+                )}
+              </>
+            )}
+            {readOnly && (
+              <span className="text-xs text-slate-500 font-medium italic">
+                Read-Only Supervisory Monitoring Mode — records are protected against modifications.
+              </span>
             )}
           </div>
 

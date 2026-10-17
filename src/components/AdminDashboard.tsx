@@ -31,8 +31,8 @@ import {
   ShieldCheck,
   FileSpreadsheet,
   Printer,
-  Sparkles,
   RefreshCw,
+  Building2,
 } from 'lucide-react';
 
 export type AdminActiveTab =
@@ -52,6 +52,7 @@ interface AdminDashboardProps {
   onRefreshData: () => void;
   onSelectStudent?: (student: Student) => void;
   onOpenSupabaseModal?: () => void;
+  onNavigateSchoolHead?: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -61,6 +62,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onRefreshData,
   onSelectStudent,
   onOpenSupabaseModal,
+  onNavigateSchoolHead,
 }) => {
   const [activeTab, setActiveTab] = useState<AdminActiveTab>('overview');
 
@@ -269,6 +271,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
           );
         })}
+
+        {onNavigateSchoolHead && (
+          <button
+            type="button"
+            onClick={onNavigateSchoolHead}
+            className="ml-auto px-3.5 py-2.5 rounded-xl bg-blue-900/90 hover:bg-blue-800 text-yellow-300 font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs border border-blue-700 whitespace-nowrap shrink-0"
+            title="Inspect School Head / Principal Executive Analytics Portal"
+          >
+            <Building2 className="w-4 h-4 text-amber-300" />
+            <span>School Head Portal</span>
+          </button>
+        )}
       </div>
 
       {/* Tab Content Panels */}

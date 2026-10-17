@@ -428,12 +428,12 @@
       "principalPosition": "Principal IV",
       "role": "teacher",
       "roleTitle": "TEACHER",
-      "passwordHash": "deped2025",
+      "passwordHash": "myCustomPass2026",
       "accountStatus": "Active",
       "assignedSubjects": [],
       "isPasswordSet": true,
       "passwordCustomized": true,
-      "lastLoginAt": "10/17/2026, 10:26:23 AM"
+      "lastLoginAt": "10/17/2026, 10:18:33 AM"
     },
     "ruby.angeles@depedqc.ph": {
       "email": "ruby.angeles@depedqc.ph",
@@ -480,6 +480,31 @@
       "assignedSubjects": [],
       "isPasswordSet": true,
       "passwordCustomized": false
+    },
+    "josephine.maningas@depedqc.ph": {
+      "email": "josephine.maningas@depedqc.ph",
+      "name": "JOSEPHINE M. MANINGAS, PhD",
+      "title": "Secondary School Principal IV",
+      "schoolName": "Ramon Magsaysay (Cubao) High School",
+      "division": "SDO Quezon City",
+      "region": "National Capital Region (NCR)",
+      "academicYear": "2026-2027",
+      "department": "Office of the School Head / Principal",
+      "masterTeacherName": "Shirlene M. Mandapat",
+      "masterTeacherPosition": "Master Teacher I / TLE Subject Coordinator",
+      "headTeacherName": "MELANI R. SANTOS",
+      "headTeacherPosition": "Head Teacher VI / TLE Department",
+      "principalName": "JOSEPHINE M. MANINGAS, PhD",
+      "principalPosition": "Secondary School Principal IV",
+      "role": "school_head",
+      "roleTitle": "SCHOOL HEAD",
+      "passwordHash": "principal2026",
+      "accountStatus": "Active",
+      "assignedSubjects": [],
+      "isPasswordSet": true,
+      "registeredAt": "2026-08-22",
+      "passwordCustomized": true,
+      "lastLoginAt": "10/17/2026, 10:57:38 AM"
     }
   },
   "students": [
@@ -1885,6 +1910,30 @@
   "classes": [],
   "announcements": [],
   "auditLogs": [
+    {
+      "id": "audit-1792234658663-8rwqm",
+      "userEmail": "josephine.maningas@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: JOSEPHINE M. MANINGAS, PhD (josephine.maningas@depedqc.ph) accessed Project S.M.I.L.E. Portal from device.",
+      "targetUser": "josephine.maningas@depedqc.ph",
+      "timestamp": "2026-10-17T10:57:38.663Z"
+    },
+    {
+      "id": "audit-1792234450091-926gf",
+      "userEmail": "josephine.maningas@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: JOSEPHINE M. MANINGAS, PhD (josephine.maningas@depedqc.ph) accessed Project S.M.I.L.E. Portal from device.",
+      "targetUser": "josephine.maningas@depedqc.ph",
+      "timestamp": "2026-10-17T10:54:10.091Z"
+    },
+    {
+      "id": "audit-1792234436279-gy793",
+      "userEmail": "josephine.maningas@depedqc.ph",
+      "action": "TEACHER_LOGGED_IN",
+      "details": "Faculty login: JOSEPHINE M. MANINGAS, PhD (josephine.maningas@depedqc.ph) accessed Project S.M.I.L.E. Portal from device.",
+      "targetUser": "josephine.maningas@depedqc.ph",
+      "timestamp": "2026-10-17T10:53:56.279Z"
+    },
     {
       "id": "audit-1792232357243-zbu7i",
       "userEmail": "shirlene.mandapat@depedqc.ph",
