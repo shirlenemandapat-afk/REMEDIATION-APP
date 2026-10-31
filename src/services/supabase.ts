@@ -516,7 +516,7 @@ export const supabaseService = {
         };
       }
 
-      const storedHash = (data.password_hash || '').trim();
+      const storedHash = (data.pin || data.password_hash || '').trim();
       const isValid =
         (storedHash && storedHash === cleanPass) ||
         (cleanEmail === 'admin@projectsmile' && (cleanPass === 'admin2025' || cleanPass === storedHash)) ||
@@ -624,7 +624,7 @@ export const supabaseService = {
           roleTitle: t.role_title || (t.role ? t.role.toUpperCase() : 'TEACHER'),
           ...(t.account_status ? { accountStatus: t.account_status } : {}),
           ...(Array.isArray(t.assigned_subjects) ? { assignedSubjects: t.assigned_subjects } : {}),
-          passwordHash: (t.password_hash || '').trim(),
+          passwordHash: (t.pin || t.password_hash || '').trim(),
           isPasswordSet: true,
         };
       }
@@ -812,7 +812,7 @@ export const supabaseService = {
 
       const resolvedPass = (password || teacher.passwordHash || '').trim();
       if (resolvedPass) {
-        payload.password_hash = resolvedPass;
+        payload.pin = resolvedPass;
       }
 
       const { error } = await client.from('teacher_profiles').upsert(payload, { onConflict: 'email' });
@@ -982,7 +982,7 @@ export const supabaseService = {
         roleTitle: t.role_title || (t.role ? t.role.toUpperCase() : 'TEACHER'),
         ...(t.account_status ? { accountStatus: t.account_status } : {}),
         ...(Array.isArray(t.assigned_subjects) ? { assignedSubjects: t.assigned_subjects } : {}),
-        passwordHash: (t.password_hash || '').trim(),
+        passwordHash: (t.pin || t.password_hash || '').trim(),
         isPasswordSet: true,
       }));
     } catch (e) {

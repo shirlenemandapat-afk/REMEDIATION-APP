@@ -494,12 +494,11 @@ async function relayTeacherProfileToSupabase(profile: any) {
   const client = getServerSupabaseClient();
   if (!client || !profile || !profile.email) return;
   try {
-    const cleanEmail = profile.email.trim().toLowerCase();
-    const resolvedPassword = (profile.passwordHash || profile.password_hash || profile.password || '').trim();
+    const resolvedPassword = (profile.passwordHash || profile.password_hash || profile.password || profile.pin || '').trim();
     const payload: Record<string, any> = {
       email: cleanEmail,
       name: profile.name || 'Teacher',
-      password_hash: resolvedPassword || 'deped2025',
+      ...(resolvedPassword ? { pin: resolvedPassword } : {}),
       title: profile.title || 'Teacher I / TLE Faculty',
       school_name: profile.schoolName || profile.school_name || 'Ramon Magsaysay (Cubao) High School',
       division: profile.division || 'SDO Quezon City • TLE Department',
@@ -581,8 +580,9 @@ async function pullLatestFromSupabase(db: AppDbState): Promise<boolean> {
           const existingLocal = db.accounts[norm] || {};
           const { role, roleTitle } = normalizeUserRole(existingLocal.role || t.role);
           // Preserve the teacher's registered password from local database or Supabase
-          const cloudPass = (t.password_hash || '').trim();
-          const localPass = (existingLocal.passwordHash || '').trim() || cloudPass || 'deped2025';
+          const cloudPass = (t.pin || t.password_hash || '').trim();
+          const localPass = (existingLocal.passwordHash || '').trim();
+          const resolvedPass = localPass && localPass !== 'deped2025' ? localPass : (cloudPass || localPass || 'deped2025');
 
           db.accounts[norm] = {
             ...existingLocal,
@@ -602,8 +602,8 @@ async function pullLatestFromSupabase(db: AppDbState): Promise<boolean> {
             principalPosition: existingLocal.principalPosition || t.principal_position,
             role,
             roleTitle,
-            passwordHash: localPass,
-            passwordCustomized: Boolean(existingLocal.passwordCustomized || !genericDefaultPasswords.has(localPass)),
+            passwordHash: resolvedPass,
+            passwordCustomized: Boolean(existingLocal.passwordCustomized || !genericDefaultPasswords.has(resolvedPass)),
             accountStatus: existingLocal.accountStatus || t.account_status || 'Active',
             assignedSubjects:
               Array.isArray(existingLocal.assignedSubjects) && existingLocal.assignedSubjects.length > 0
@@ -1429,7 +1429,7 @@ async function startServer() {
                 principalPosition: cloudTeacher.principal_position || 'Secondary School Principal IV',
                 role,
                 roleTitle,
-                passwordHash: (cloudTeacher.password_hash || '').trim() || 'deped2025',
+                passwordHash: (cloudTeacher.pin || cloudTeacher.password_hash || '').trim() || 'deped2025',
                 isPasswordSet: true,
                 accountStatus: 'Active',
                 assignedSubjects: ['ICT - Computer Programming'],

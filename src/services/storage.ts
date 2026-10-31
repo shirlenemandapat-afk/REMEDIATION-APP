@@ -1972,12 +1972,13 @@ export const storage = {
               const norm = t.email.toLowerCase().trim();
               if (!deletedSet.has(norm) && norm !== 'teachershirlene@gmail.com') {
                 const existing = accounts[norm];
-                const cleanProfile = { ...t };
-                delete (cleanProfile as any).passwordHash;
+                const cloudPass = (t.passwordHash || '').trim();
+                const localPass = (existing?.passwordHash || '').trim();
+                const resolvedPass = localPass && localPass !== 'deped2025' ? localPass : (cloudPass || localPass || 'deped2025');
                 accounts[norm] = {
                   ...(existing || {}),
-                  ...cleanProfile,
-                  passwordHash: existing?.passwordHash || 'deped2025',
+                  ...t,
+                  passwordHash: resolvedPass,
                   assignedSubjects: existing?.assignedSubjects?.length ? existing.assignedSubjects : (t.assignedSubjects || []),
                   specialization: existing?.specialization || t.specialization,
                   accountStatus: existing?.accountStatus || t.accountStatus || 'Active',
