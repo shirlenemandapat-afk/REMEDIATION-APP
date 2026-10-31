@@ -342,14 +342,16 @@ export const IndividualAnecdotalReportModal: React.FC<IndividualAnecdotalReportM
 
           {/* PARENT / GUARDIAN FEEDBACK & OBSERVATIONS SECTION */}
           <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-300 text-xs space-y-3 print:bg-white print:border-slate-400">
-            <div className="flex items-center justify-between border-b border-amber-200 print:border-slate-300 pb-1.5">
-              <h3 className="font-extrabold font-serif text-slate-900 uppercase flex items-center gap-1.5">
-                <span>Parent / Guardian Feedback & Observations</span>
-                <span className="text-[11px] font-normal text-slate-600 italic">
-                  (Puna at Obserbasyon ng Magulang / Tagapangalaga)
-                </span>
+            <div className="border-b border-amber-200 print:border-slate-300 pb-2 space-y-0.5 font-serif text-xs">
+              <h3 className="font-extrabold text-slate-900 uppercase tracking-wide">
+                Parent / Guardian Feedback & Observations
               </h3>
-              <span className="text-[10px] text-slate-500 font-semibold italic">To be accomplished by Parent</span>
+              <p className="text-[11px] font-normal text-slate-600 italic">
+                (Puna at Obserbasyon ng Magulang / Tagapangalaga)
+              </p>
+              <p className="text-[10px] text-slate-500 font-semibold italic">
+                To be accomplished by Parent
+              </p>
             </div>
 
             {/* Quick Feedback Checkboxes */}
@@ -381,40 +383,23 @@ export const IndividualAnecdotalReportModal: React.FC<IndividualAnecdotalReportM
             </div>
           </div>
 
-          {/* SIGNATURES SECTION (TEACHER, DEPARTMENT HEAD, AND PARENT/GUARDIAN) */}
+          {/* SIGNATURES SECTION (TEACHER AND PARENT/GUARDIAN ONLY) */}
           <div className="pt-6 border-t-2 border-slate-800 space-y-6">
-            <div className="grid grid-cols-3 gap-6 text-xs text-slate-800">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 text-xs text-slate-800">
               {/* Teacher Signature */}
               <div>
-                <p className="text-[11px] text-slate-500 mb-8 font-semibold">Prepared by:</p>
+                <p className="text-[11px] text-slate-700 mb-8 font-medium">Prepared by:</p>
                 <div className="border-b border-slate-900 pb-1">
-                  <p className="font-black text-xs uppercase text-slate-950">
+                  <p className="font-bold text-xs uppercase text-slate-950">
                     {teacher.name}
                   </p>
                 </div>
                 <p className="text-[11px] font-bold text-slate-700 mt-1">{teacher.title}</p>
-                <p className="text-[10px] text-slate-500 italic">Project S.M.I.L.E. Subject Teacher</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Date: {currentDate}</p>
-              </div>
-
-              {/* School Principal / School Head Signature */}
-              <div>
-                <p className="text-[11px] text-slate-500 mb-8 font-semibold">Noted & Approved by:</p>
-                <div className="border-b border-slate-900 pb-1">
-                  <p className="font-black text-xs uppercase text-slate-950">
-                    {teacher.principalName || 'Dr. Maria Luisa T. Ramos'}
-                  </p>
-                </div>
-                <p className="text-[11px] font-bold text-slate-700 mt-1">
-                  {teacher.principalPosition || 'Secondary School Principal IV'}
-                </p>
-                <p className="text-[10px] text-slate-500 italic">{teacher.schoolName || 'Ramon Magsaysay (Cubao) High School'}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Date: {currentDate}</p>
               </div>
 
               {/* MANDATORY PARENT / GUARDIAN SIGNATURE SPACE */}
               <div className="bg-amber-50/70 p-3 rounded-xl border border-amber-300 print:bg-transparent print:p-0 print:border-none">
-                <p className="text-[11px] text-amber-900 print:text-slate-700 mb-8 font-bold">
+                <p className="text-[11px] text-amber-900 print:text-slate-700 mb-8 font-medium">
                   Acknowledged & Received by Parent/Guardian:
                 </p>
                 <div className="border-b border-slate-900 pb-1">

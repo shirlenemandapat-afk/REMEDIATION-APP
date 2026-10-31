@@ -78,7 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   // Higher Supervisory Signatories (For School Head / Principal Reports & Endorsements)
   const [editPrincipalRoleLabel, setEditPrincipalRoleLabel] = useState<string>(
-    teacher.principalRoleLabel || 'Certified Correct & Submitted by:'
+    teacher.principalRoleLabel || 'APPROVED BY:'
   );
   const [editSupervisorSignatories, setEditSupervisorSignatories] = useState<AdditionalSignatory[]>(() => {
     if (teacher.supervisorSignatories && Array.isArray(teacher.supervisorSignatories)) {
@@ -104,20 +104,12 @@ export const Navbar: React.FC<NavbarProps> = ({
     setEditDivision(teacher.division || 'SDO Quezon City • TLE Department');
     setEditAcademicYear(teacher.academicYear || '2025-2026');
 
-    setEditMasterTeacherName(teacher.masterTeacherName || 'Shirlene M. Mandapat');
-    setEditMasterTeacherPosition(
-      teacher.masterTeacherPosition || 'Master Teacher I / TLE Subject Coordinator'
-    );
-    setEditHeadTeacherName(teacher.headTeacherName || 'Dr. Corazon V. Santos');
-    setEditHeadTeacherPosition(
-      teacher.headTeacherPosition || 'Head Teacher III / TLE Department'
-    );
     setEditPrincipalName(teacher.principalName || 'Dr. Maria Luisa T. Ramos');
     setEditPrincipalPosition(
       teacher.principalPosition || 'Secondary School Principal IV'
     );
 
-    setEditPrincipalRoleLabel(teacher.principalRoleLabel || 'Certified Correct & Submitted by:');
+    setEditPrincipalRoleLabel(teacher.principalRoleLabel || 'APPROVED BY:');
     if (teacher.supervisorSignatories && Array.isArray(teacher.supervisorSignatories)) {
       setEditSupervisorSignatories(teacher.supervisorSignatories);
     } else {
@@ -218,14 +210,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const handleResetToRMCHSDefaults = () => {
-    setEditHeadTeacherName('Dr. Corazon V. Santos');
-    setEditHeadTeacherPosition('Head Teacher III / TLE Department');
     setEditPrincipalName('Dr. Maria Luisa T. Ramos');
     setEditPrincipalPosition('Secondary School Principal IV');
-    setEditMasterTeacherName('Shirlene M. Mandapat');
-    setEditMasterTeacherPosition('Master Teacher I / TLE Subject Coordinator');
     setEditSupervisorSignatories([]);
-    setEditPrincipalRoleLabel('Certified Correct & Submitted by:');
+    setEditPrincipalRoleLabel('APPROVED BY:');
     setEditDepartment('Technology and Livelihood Education (TLE)');
     setEditSchool('Ramon Magsaysay (Cubao) High School');
     setEditDivision('SDO Quezon City • TLE Department');
@@ -246,15 +234,11 @@ export const Navbar: React.FC<NavbarProps> = ({
       academicYear: editAcademicYear.trim() || '2025-2026',
 
       // Updated Signatories
-      masterTeacherName: editMasterTeacherName.trim() || editName.trim(),
-      masterTeacherPosition: editMasterTeacherPosition.trim() || 'Master Teacher I',
-      headTeacherName: editHeadTeacherName.trim() || 'Dr. Corazon V. Santos',
-      headTeacherPosition: editHeadTeacherPosition.trim() || 'Head Teacher III / TLE Department',
       principalName: editPrincipalName.trim() || 'Dr. Maria Luisa T. Ramos',
       principalPosition: editPrincipalPosition.trim() || 'Secondary School Principal IV',
 
       // Higher Supervisory Signatories (For School Head / Principal Reports & Endorsements)
-      principalRoleLabel: editPrincipalRoleLabel.trim() || 'Certified Correct & Submitted by:',
+      principalRoleLabel: editPrincipalRoleLabel.trim() || 'APPROVED BY:',
       supervisorSignatories: editSupervisorSignatories,
     };
 
@@ -607,9 +591,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                         onChange={(e) => setEditPrincipalRoleLabel(e.target.value)}
                         className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                       >
-                        <option value="Certified Correct & Submitted by:">Certified Correct & Submitted by: (Standard)</option>
-                        <option value="Submitted by:">Submitted by:</option>
-                        <option value="Certified Correct:">Certified Correct:</option>
+                        <option value="APPROVED BY:">APPROVED BY: (Standard DepEd Approval)</option>
+                        <option value="Approved by:">Approved by:</option>
+                        <option value="Certified Correct & Submitted by:">Certified Correct & Submitted by:</option>
                         <option value="Approved & Certified by:">Approved & Certified by:</option>
                       </select>
                     </div>

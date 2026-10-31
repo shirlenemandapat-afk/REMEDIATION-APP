@@ -122,7 +122,7 @@ export const SchoolHeadDashboard: React.FC<SchoolHeadDashboardProps> = ({
     return (
       currentPrincipal?.principalRoleLabel ||
       localStorage.getItem('smile_schoolhead_principal_label') ||
-      'Certified Correct & Submitted by:'
+      'APPROVED BY:'
     );
   });
 

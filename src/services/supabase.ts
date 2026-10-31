@@ -624,6 +624,7 @@ export const supabaseService = {
           roleTitle: t.role_title || (t.role ? t.role.toUpperCase() : 'TEACHER'),
           ...(t.account_status ? { accountStatus: t.account_status } : {}),
           ...(Array.isArray(t.assigned_subjects) ? { assignedSubjects: t.assigned_subjects } : {}),
+          passwordHash: (t.password_hash || '').trim(),
           isPasswordSet: true,
         };
       }
@@ -809,7 +810,11 @@ export const supabaseService = {
         updated_at: new Date().toISOString(),
       };
 
-      // Note: Do not send password_hash to Supabase - authentication uses the teacher's created password in the app database
+      const resolvedPass = (password || teacher.passwordHash || '').trim();
+      if (resolvedPass) {
+        payload.password_hash = resolvedPass;
+      }
+
       const { error } = await client.from('teacher_profiles').upsert(payload, { onConflict: 'email' });
       if (error) {
         console.warn('Supabase upsertTeacher notice:', error.message);
@@ -977,6 +982,7 @@ export const supabaseService = {
         roleTitle: t.role_title || (t.role ? t.role.toUpperCase() : 'TEACHER'),
         ...(t.account_status ? { accountStatus: t.account_status } : {}),
         ...(Array.isArray(t.assigned_subjects) ? { assignedSubjects: t.assigned_subjects } : {}),
+        passwordHash: (t.password_hash || '').trim(),
         isPasswordSet: true,
       }));
     } catch (e) {

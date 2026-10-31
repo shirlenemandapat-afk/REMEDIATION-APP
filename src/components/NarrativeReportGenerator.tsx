@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Student, SessionRecord, TeacherProfile, interpretMasteryLevel } from '../types';
+import { Student, SessionRecord, TeacherProfile, AdditionalSignatory, interpretMasteryLevel } from '../types';
 import { SchoolLogo } from './SchoolLogo';
 import { DepEdDocHeader, DepEdDocFooter } from './DepEdDocHeaderFooter';
 import { safePrintDocument, downloadPDFDocument } from '../utils/printHelper';
@@ -101,8 +101,19 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
     teacher.principalName || 'JOSEPHINE M. MANINGAS, PhD'
   );
   const [principalPosition, setPrincipalPosition] = useState<string>(
-    teacher.principalPosition || 'Principal IV'
+    teacher.principalPosition || 'Secondary School Principal IV'
   );
+
+  const [supervisorSignatories, setSupervisorSignatories] = useState<AdditionalSignatory[]>(() => {
+    if (teacher.supervisorSignatories && Array.isArray(teacher.supervisorSignatories)) {
+      return teacher.supervisorSignatories;
+    }
+    try {
+      const saved = localStorage.getItem('smile_schoolhead_additional_signatories');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  });
 
   // General Report Metadata
   const [reportDates, setReportDates] = useState<string>('September 2 to September 3, 2025');
@@ -153,7 +164,99 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
     if (teacher.principalName) setPrincipalName(teacher.principalName);
     if (teacher.principalPosition) setPrincipalPosition(teacher.principalPosition);
     if (teacher.academicYear) setSchoolYear(teacher.academicYear);
+    if (teacher.supervisorSignatories) setSupervisorSignatories(teacher.supervisorSignatories);
   }, [teacher, isHTMode]);
+
+  // Event listener when signatories are modified in Teacher Profile & Signatories
+  useEffect(() => {
+    const handleSignatoriesUpdated = (e: any) => {
+      if (e?.detail?.supervisorSignatories !== undefined) {
+        setSupervisorSignatories(e.detail.supervisorSignatories);
+      }
+    };
+    window.addEventListener('smile:signatories-updated', handleSignatoriesUpdated);
+    return () => {
+      window.removeEventListener('smile:signatories-updated', handleSignatoriesUpdated);
+    };
+  }, []);
+
+  const renderOfficialSignatoriesBlock = (prepLabel = 'Prepared by:', customPrepName?: string, customPrepPos?: string) => {
+    const activePrepName = customPrepName || teacherName;
+    const activePrepPos = customPrepPos || teacherPosition;
+
+    // Collect "Noted by" / supervisory signatories
+    let notedSignatories: AdditionalSignatory[] =
+      supervisorSignatories && supervisorSignatories.length > 0 ? [...supervisorSignatories] : [];
+
+    // If supervisorSignatories is empty and headTeacherName is available and distinct from prepName, add a default Head Teacher "Noted by" entry
+    if (notedSignatories.length === 0 && headTeacherName && headTeacherName !== activePrepName) {
+      notedSignatories = [
+        {
+          id: 'default_ht_noted',
+          roleLabel: 'Noted by:',
+          name: headTeacherName,
+          title: headTeacherPosition,
+        },
+      ];
+    }
+
+    const totalCols = 1 + notedSignatories.length + 1; // Prepared by + Noted by entries + APPROVED BY
+    const gridColsClass =
+      totalCols === 2
+        ? 'grid-cols-1 sm:grid-cols-2'
+        : totalCols === 3
+        ? 'grid-cols-1 sm:grid-cols-3'
+        : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-4';
+
+    return (
+      <div className={`pt-8 grid ${gridColsClass} gap-6 font-serif`}>
+        {/* 1. Prepared by (Subject / Facilitating Teacher) */}
+        <div>
+          <p className="text-xs text-slate-800 font-medium mb-5">{prepLabel}</p>
+          <div>
+            <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
+              {activePrepName}
+            </p>
+            <p className="text-[11px] text-slate-700">{activePrepPos}</p>
+          </div>
+        </div>
+
+        {/* 2. Noted by (Head Teacher / Master Teacher / Supervisory Signatories) */}
+        {notedSignatories.map((sig) => {
+          // Omit "SDO Quezon City" below Head Teacher VI, TLE Department
+          const isHeadTeacherSig = (sig.title || '').toLowerCase().includes('head teacher');
+          const showOffice =
+            sig.office && (!isHeadTeacherSig || !sig.office.toLowerCase().includes('quezon city'));
+
+          return (
+            <div key={sig.id}>
+              <p className="text-xs text-slate-800 font-medium mb-5">{sig.roleLabel || 'Noted by:'}</p>
+              <div>
+                <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
+                  {sig.name || '[SIGNATORY NAME]'}
+                </p>
+                <p className="text-[11px] text-slate-700">{sig.title || '[Designation]'}</p>
+                {showOffice && <p className="text-[10px] text-slate-600">{sig.office}</p>}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* 3. APPROVED BY (School Principal) */}
+        <div>
+          <p className="text-xs text-slate-800 font-medium mb-5">
+            {teacher.principalRoleLabel || 'APPROVED BY:'}
+          </p>
+          <div>
+            <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
+              {principalName}
+            </p>
+            <p className="text-[11px] text-slate-700">{principalPosition}</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // Lookup map of supervised teachers by email
   const teacherByEmailMap = React.useMemo(() => {
@@ -1612,27 +1715,7 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
           )}
 
           {/* OFFICIAL SIGNATORIES SECTION */}
-          <div className="pt-10 grid grid-cols-1 sm:grid-cols-2 gap-8 font-serif">
-            <div>
-              <p className="text-xs text-slate-800 font-medium mb-5">Prepared by:</p>
-              <div>
-                <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                  {teacherName}
-                </p>
-                <p className="text-[11px] text-slate-700">{teacherPosition}</p>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-xs text-slate-800 font-medium mb-5">Noted & Approved by:</p>
-              <div>
-                <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                  {principalName}
-                </p>
-                <p className="text-[11px] text-slate-700">{principalPosition}</p>
-              </div>
-            </div>
-          </div>
+          {renderOfficialSignatoriesBlock('Prepared by:')}
 
           <DepEdDocFooter />
         </div>
@@ -1736,29 +1819,7 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
           </div>
 
           {/* SIGNATORIES */}
-          <div className="pt-10 grid grid-cols-1 sm:grid-cols-2 gap-8 font-serif">
-            <div>
-              <p className="text-xs text-slate-800 font-medium mb-5">
-                Prepared & Certified Correct by:
-              </p>
-              <div>
-                <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                  {teacherName}
-                </p>
-                <p className="text-[11px] text-slate-700">{teacherPosition}</p>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-xs text-slate-800 font-medium mb-5">Noted & Approved by:</p>
-              <div>
-                <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                  {principalName}
-                </p>
-                <p className="text-[11px] text-slate-700">{principalPosition}</p>
-              </div>
-            </div>
-          </div>
+          {renderOfficialSignatoriesBlock('Prepared & Certified Correct by:')}
 
           <DepEdDocFooter />
         </div>
@@ -1911,31 +1972,7 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
                   ? indivStat.conductingTeacherTitle
                   : teacherPosition;
 
-              return (
-                <div className="pt-10 grid grid-cols-1 sm:grid-cols-2 gap-8">
-                  <div>
-                    <p className="text-xs text-slate-800 font-medium mb-5">
-                      Prepared by (Subject Teacher):
-                    </p>
-                    <div>
-                      <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                        {prepName}
-                      </p>
-                      <p className="text-[11px] text-slate-700">{prepPos}</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-slate-800 font-medium mb-5">Noted & Approved by:</p>
-                    <div>
-                      <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                        {principalName}
-                      </p>
-                      <p className="text-[11px] text-slate-700">{principalPosition}</p>
-                    </div>
-                  </div>
-                </div>
-              );
+              return renderOfficialSignatoriesBlock('Prepared by (Subject Teacher):', prepName, prepPos);
             })()}
 
             <DepEdDocFooter />
@@ -2418,27 +2455,7 @@ export const NarrativeReportGenerator: React.FC<NarrativeReportGeneratorProps> =
             </table>
           </div>
 
-          <div className="pt-8 grid grid-cols-1 sm:grid-cols-2 gap-8 font-serif">
-            <div>
-              <p className="text-xs text-slate-800 font-medium mb-5">Prepared by:</p>
-              <div>
-                <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                  {teacherName}
-                </p>
-                <p className="text-[11px] text-slate-700">{teacherPosition}</p>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-xs text-slate-800 font-medium mb-5">Noted & Approved by:</p>
-              <div>
-                <p className="font-bold text-xs uppercase tracking-wide text-slate-950">
-                  {principalName}
-                </p>
-                <p className="text-[11px] text-slate-700">{principalPosition}</p>
-              </div>
-            </div>
-          </div>
+          {renderOfficialSignatoriesBlock('Prepared by:')}
 
           <DepEdDocFooter />
         </div>

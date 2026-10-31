@@ -633,7 +633,7 @@ export const ParentCommunicationLetterModal: React.FC<ParentCommunicationLetterM
             </div>
 
             <div>
-              <p className="font-bold">Noted & Approved by:</p>
+              <p className="font-bold uppercase">APPROVED BY:</p>
               <div className="mt-4">
                 {isFilledTemplate ? (
                   <p className="font-bold uppercase tracking-wide text-xs">

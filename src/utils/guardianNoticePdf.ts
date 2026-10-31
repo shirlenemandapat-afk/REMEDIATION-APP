@@ -14,8 +14,10 @@ export interface GuardianNoticeData {
   endDate?: string;
   teacherInCharge?: string;
   departmentHead?: string;
+  principalName?: string;
   teacherTitle?: string;
   headTeacherTitle?: string;
+  principalTitle?: string;
   schoolName?: string;
   division?: string;
   department?: string;
@@ -225,7 +227,7 @@ export function generateGuardianNoticePDF(data: GuardianNoticeData): jsPDF {
   doc.text('Sincerely,', col1X, currentY);
 
   doc.setFont('times', 'bold');
-  doc.text('Noted & Approved by:', col2X, currentY);
+  doc.text('APPROVED BY:', col2X, currentY);
   currentY += 10.5;
 
   // TLE Teacher Signature Line (Col 1)
