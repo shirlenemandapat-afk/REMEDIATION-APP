@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { TeacherProfile, UserRole, formatRoleTitle, getRoleDefinition, AdditionalSignatory } from '../types';
 import { storage } from '../services/storage';
 import { isSupabaseConfigured } from '../services/supabase';
@@ -28,6 +29,9 @@ import {
   Trash2,
   UserPlus,
   PenLine,
+  Menu,
+  Filter,
+  ChevronDown,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -40,6 +44,7 @@ interface NavbarProps {
   onOpenSupabaseModal?: () => void;
   onManualSync?: () => void;
   isSyncing?: boolean;
+  onToggleMobileSidebar?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -52,8 +57,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSupabaseModal,
   onManualSync,
   isSyncing,
+  onToggleMobileSidebar,
 }) => {
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [activeTab, setActiveTab] = useState<'signatories' | 'teacher' | 'school'>('signatories');
   const isAdmin = teacher.role === 'admin' || (teacher.email || '').toLowerCase().trim() === 'admin@projectsmile';
   const isHeadTeacher = teacher.role === 'head_teacher';
@@ -278,59 +285,68 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="bg-emerald-950 text-white sticky top-0 z-30 shadow-xl border-b border-emerald-900">
+    <header className="bg-emerald-950/95 backdrop-blur-md text-white sticky top-0 z-40 shadow-xl border-b border-emerald-900 transition-all">
       {/* Top Gold Institutional Accent Stripe */}
       <div className="h-1 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 w-full" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between py-2.5 sm:py-3">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between py-1.5 sm:py-2">
           
           {/* Official RMCHS TLE Department Logo & Header Title */}
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-            <div className="relative">
-              <SchoolLogo size="sm" className="sm:hidden" />
-              <SchoolLogo size="md" className="hidden sm:block" />
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            {/* Mobile Sidebar Toggle Button */}
+            {onToggleMobileSidebar && (
+              <button
+                type="button"
+                onClick={onToggleMobileSidebar}
+                title="Toggle Dashboard Navigation Menu"
+                className="md:hidden p-1.5 rounded-lg bg-emerald-900/90 text-amber-300 hover:text-white border border-emerald-700/80 transition cursor-pointer shrink-0"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+            )}
+
+            <div className="relative shrink-0">
+              <SchoolLogo size="xs" className="sm:hidden" />
+              <SchoolLogo size="sm" className="hidden sm:block" />
             </div>
 
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="font-extrabold text-xs sm:text-base md:text-lg tracking-wide uppercase text-yellow-300 drop-shadow-xs font-serif truncate">
+                <h1 className="font-extrabold text-xs sm:text-sm md:text-base tracking-wide uppercase text-yellow-300 drop-shadow-xs font-serif truncate">
                   RAMON MAGSAYSAY (CUBAO) HIGH SCHOOL
                 </h1>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400/25 text-amber-300 border border-amber-400/50 shadow-xs">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400/20 text-amber-300 border border-amber-400/40 shadow-xs shrink-0">
                   PROJECT S.M.I.L.E.
                 </span>
               </div>
 
               {/* SMILE title */}
-              <div className="mt-0.5">
-                <p className="text-[11px] sm:text-xs text-amber-200 font-medium tracking-wide">
-                  Student Monitoring and Intervention for Learning Enhancement
-                </p>
-              </div>
+              <p className="text-[10px] sm:text-[11px] text-amber-200/90 font-medium tracking-wide truncate hidden sm:block leading-tight">
+                Student Monitoring and Intervention for Learning Enhancement
+              </p>
             </div>
           </div>
 
           {/* Section Selector & Profile Controls */}
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            {/* Filter by Grade & Section (For Classroom Teachers) */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Filter by Grade & Section (Compact Pill Selector) */}
             {!isAdmin && !isHeadTeacher && !isSchoolHead && (
-              <div className="hidden md:flex items-center gap-2 bg-emerald-900/80 px-3 py-1.5 rounded-xl border border-emerald-700/80 shadow-xs">
-                <label htmlFor="navbar-section-select" className="text-xs text-amber-200 font-semibold whitespace-nowrap">
-                  Section:
-                </label>
+              <div className="flex items-center gap-1 bg-emerald-900/90 px-2 py-1 rounded-xl border border-emerald-700/80 shadow-xs hover:border-amber-400/50 transition">
+                <Filter className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="text-[11px] text-amber-200 font-bold whitespace-nowrap hidden sm:inline">Section:</span>
                 <select
                   id="navbar-section-select"
                   aria-label="Filter by Class or Section"
                   value={selectedSection}
                   onChange={(e) => onSelectSection(e.target.value)}
-                  className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer pr-1"
+                  className="bg-transparent text-xs font-extrabold text-white focus:outline-none cursor-pointer pr-1 py-0.5 truncate max-w-[110px] sm:max-w-[140px]"
                 >
-                  <option value="ALL" className="bg-emerald-950 text-white">
-                    All Sections
+                  <option value="ALL" className="bg-emerald-950 text-white font-bold">
+                    All Sections ({sectionsList.length})
                   </option>
                   {sectionsList.map((sec) => (
-                    <option key={sec} value={sec} className="bg-emerald-950 text-white">
+                    <option key={sec} value={sec} className="bg-emerald-950 text-white font-bold">
                       {sec}
                     </option>
                   ))}
@@ -338,95 +354,157 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
 
-            {/* Supabase Live Cloud Status & Manual Sync Button (Admin, Head Teacher & School Head Portal) */}
+            {/* Supabase Live Cloud Sync Button (Supervisory / Executive / Admin) */}
             {(isAdmin || isHeadTeacher || isSchoolHead) && onManualSync && (
               <button
                 type="button"
                 onClick={onManualSync}
                 disabled={isSyncing}
                 title="Synchronize records across devices with Supabase"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-900/90 hover:bg-emerald-800 text-emerald-200 hover:text-yellow-300 border border-emerald-700/80 transition shadow-xs cursor-pointer text-xs font-bold"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-900/90 hover:bg-emerald-800 text-emerald-200 hover:text-yellow-300 border border-emerald-700/80 transition shadow-xs cursor-pointer text-xs font-bold"
               >
                 <RefreshCw className={`w-3.5 h-3.5 text-amber-400 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">{isSyncing ? 'Syncing...' : 'Sync Cloud'}</span>
+                <span className="hidden md:inline">{isSyncing ? 'Syncing...' : 'Sync Cloud'}</span>
               </button>
             )}
 
-            {/* Supabase Database Hub Button (Admin Portal Only) */}
-            {isAdmin && onOpenSupabaseModal && (
+            {/* Teacher Profile Avatar Button with Cleaner Popover Dropdown */}
+            <div className="relative">
               <button
                 type="button"
-                onClick={onOpenSupabaseModal}
-                title="Supabase Centralized Database Settings"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-900/90 hover:bg-emerald-800 text-emerald-200 hover:text-yellow-300 border border-emerald-700/80 transition shadow-xs cursor-pointer text-xs font-bold"
+                onClick={() => setShowProfileDropdown((prev) => !prev)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-white text-xs font-semibold border transition shadow-xs cursor-pointer ${
+                  teacher.role === 'admin' || teacher.email === 'admin@projectsmile'
+                    ? 'bg-purple-950/90 hover:bg-purple-900 border-purple-500/70 hover:border-amber-400'
+                    : teacher.role === 'school_head'
+                    ? 'bg-blue-950/90 hover:bg-blue-900 border-blue-500/70 hover:border-amber-400'
+                    : 'bg-emerald-900/90 hover:bg-emerald-800 border-emerald-700/80 hover:border-amber-400/60'
+                }`}
+                title="Teacher Account Menu & Settings"
               >
-                <Database className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="hidden md:inline">Database Hub</span>
-              </button>
-            )}
-
-            {/* Teacher / Admin Profile & Signatories Button */}
-            <button
-              onClick={handleOpenModal}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-white text-xs font-semibold border transition shadow-xs cursor-pointer ${
-                teacher.role === 'admin' || teacher.email === 'admin@projectsmile'
-                  ? 'bg-purple-950/90 hover:bg-purple-900 border-purple-500/70 hover:border-amber-400'
-                  : teacher.role === 'school_head'
-                  ? 'bg-blue-950/90 hover:bg-blue-900 border-blue-500/70 hover:border-amber-400'
-                  : 'bg-emerald-900/90 hover:bg-emerald-800 border-emerald-700/80 hover:border-amber-400/60'
-              }`}
-              title={teacher.role === 'admin' ? "System Administrator Profile & Console" : teacher.role === 'school_head' ? "School Head Profile & Official Signatories" : "Edit Teacher Profile & Official Signatories"}
-            >
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-xs shadow-xs ${
-                teacher.role === 'admin' || teacher.email === 'admin@projectsmile'
-                  ? 'bg-amber-400 text-purple-950'
-                  : teacher.role === 'school_head'
-                  ? 'bg-yellow-300 text-blue-950'
-                  : 'bg-amber-500 text-emerald-950'
-              }`}>
-                {teacher.name ? teacher.name.charAt(0) : 'A'}
-              </div>
-              <div className="text-left hidden lg:block max-w-[140px] truncate">
-                <div className="flex items-center gap-1">
-                  <p className="font-bold text-xs truncate leading-tight">{teacher.name}</p>
-                  <span className={`px-1.5 py-0.2 text-[9px] font-black rounded uppercase ${
-                    teacher.role === 'admin'
-                      ? 'bg-amber-400 text-purple-950'
-                      : teacher.role === 'head_teacher'
-                      ? 'bg-indigo-300 text-indigo-950'
-                      : teacher.role === 'school_head'
-                      ? 'bg-blue-300 text-blue-950'
-                      : teacher.role === 'coordinator'
-                      ? 'bg-amber-300 text-amber-950'
-                      : 'bg-emerald-300 text-emerald-950'
-                  }`}>
-                    {formatRoleTitle(teacher.role)}
-                  </span>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-xs shadow-xs ${
+                  teacher.role === 'admin' || teacher.email === 'admin@projectsmile'
+                    ? 'bg-amber-400 text-purple-950'
+                    : teacher.role === 'school_head'
+                    ? 'bg-yellow-300 text-blue-950'
+                    : 'bg-amber-500 text-emerald-950'
+                }`}>
+                  {teacher.name ? teacher.name.charAt(0) : 'T'}
                 </div>
-                <p className="text-[10px] text-amber-200 truncate leading-tight">{teacher.title}</p>
-              </div>
-              <Edit3 className="w-3.5 h-3.5 text-amber-300 ml-0.5" />
-            </button>
+                <div className="text-left hidden lg:block max-w-[130px] truncate leading-tight">
+                  <p className="font-bold text-xs truncate">{teacher.name}</p>
+                  <p className="text-[10px] text-amber-200/90 truncate">{formatRoleTitle(teacher.role)}</p>
+                </div>
+                <ChevronDown className={`w-3.5 h-3.5 text-amber-300 transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} />
+              </button>
 
-            {/* Logout Button */}
-            <button
-              onClick={onLogout}
-              className="p-2 rounded-xl bg-emerald-900/90 hover:bg-rose-950/80 text-emerald-200 hover:text-rose-300 border border-emerald-700/80 hover:border-rose-800 transition shadow-xs cursor-pointer"
-              title="Sign Out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+              {/* Cleaner Teacher Profile Dropdown Menu */}
+              {showProfileDropdown && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowProfileDropdown(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-2 w-72 bg-white text-slate-800 rounded-2xl shadow-2xl border border-emerald-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150 p-2.5 space-y-2">
+                    {/* Header Banner inside Dropdown */}
+                    <div className="p-3 bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-950 text-white rounded-xl space-y-1.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-full bg-amber-400 text-emerald-950 font-black flex items-center justify-center text-sm shadow-md shrink-0">
+                          {teacher.name ? teacher.name.charAt(0) : 'T'}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-extrabold text-xs text-white truncate">{teacher.name}</p>
+                          <p className="text-[10px] text-amber-200/90 truncate">{teacher.title}</p>
+                        </div>
+                      </div>
+                      <div className="pt-1.5 flex items-center justify-between gap-1 border-t border-emerald-800/80 text-[10px]">
+                        <span className="font-mono text-emerald-200/90 truncate">{teacher.email}</span>
+                        <span className={`px-1.5 py-0.2 rounded font-black uppercase text-[9px] shrink-0 ${
+                          teacher.role === 'admin'
+                            ? 'bg-amber-400 text-purple-950'
+                            : teacher.role === 'head_teacher'
+                            ? 'bg-indigo-300 text-indigo-950'
+                            : teacher.role === 'school_head'
+                            ? 'bg-blue-300 text-blue-950'
+                            : 'bg-emerald-300 text-emerald-950'
+                        }`}>
+                          {formatRoleTitle(teacher.role)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Menu Options List */}
+                    <div className="space-y-1 text-xs font-bold text-slate-700">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowProfileDropdown(false);
+                          handleOpenModal();
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-emerald-50 text-slate-700 hover:text-emerald-950 flex items-center gap-2.5 transition cursor-pointer"
+                      >
+                        <PenLine className="w-4 h-4 text-emerald-700 shrink-0" />
+                        <span>Edit Profile & Official Signatories</span>
+                      </button>
+
+                      {onManualSync && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowProfileDropdown(false);
+                            onManualSync();
+                          }}
+                          disabled={isSyncing}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-emerald-50 text-slate-700 hover:text-emerald-950 flex items-center gap-2.5 transition cursor-pointer"
+                        >
+                          <RefreshCw className={`w-4 h-4 text-amber-600 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
+                          <span>{isSyncing ? 'Syncing Records...' : 'Manual Cloud Sync'}</span>
+                        </button>
+                      )}
+
+                      {isAdmin && onOpenSupabaseModal && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowProfileDropdown(false);
+                            onOpenSupabaseModal();
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-emerald-50 text-slate-700 hover:text-emerald-950 flex items-center gap-2.5 transition cursor-pointer"
+                        >
+                          <Database className="w-4 h-4 text-purple-700 shrink-0" />
+                          <span>Supabase Database Hub</span>
+                        </button>
+                      )}
+
+                      <div className="pt-1 border-t border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowProfileDropdown(false);
+                            onLogout();
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-rose-50 text-rose-700 flex items-center gap-2.5 transition cursor-pointer font-bold"
+                        >
+                          <LogOut className="w-4 h-4 text-rose-600 shrink-0" />
+                          <span>Sign Out</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Edit Teacher Profile & Official Signatories Modal */}
-      {showProfileModal && (
-        <div className="fixed inset-0 bg-emerald-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white text-slate-800 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden border border-emerald-100 animate-in fade-in zoom-in-95 duration-150 my-6">
+      {showProfileModal && createPortal(
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[9999] flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white text-slate-800 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden border border-emerald-100 animate-in fade-in zoom-in-95 duration-150 my-auto max-h-[90vh] flex flex-col">
             
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-emerald-950 p-4 sm:p-5 text-white flex items-center justify-between border-b-2 border-amber-400">
+            <div className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-emerald-950 p-4 sm:p-5 text-white flex items-center justify-between border-b-2 border-amber-400 shrink-0">
               <div className="flex items-center gap-3">
                 <SchoolLogo size="sm" showShadow={false} />
                 <div>
@@ -453,7 +531,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             {/* Navigation Tabs */}
-            <div className="flex border-b border-slate-200 bg-slate-50 px-4 pt-2 gap-2 text-xs font-bold overflow-x-auto">
+            <div className="flex border-b border-slate-200 bg-slate-50 px-4 pt-2 gap-2 text-xs font-bold overflow-x-auto shrink-0">
               <button
                 type="button"
                 onClick={() => setActiveTab('signatories')}
@@ -497,7 +575,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSaveProfile} className="p-5 sm:p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+            <form onSubmit={handleSaveProfile} className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1">
               {saveSuccess && (
                 <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-xl text-xs font-semibold flex items-center gap-2 animate-in fade-in">
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -974,7 +1052,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </header>
   );

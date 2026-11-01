@@ -53,6 +53,8 @@ interface AdminDashboardProps {
   onSelectStudent?: (student: Student) => void;
   onOpenSupabaseModal?: () => void;
   onNavigateSchoolHead?: () => void;
+  activeSubTab?: AdminActiveTab;
+  onSelectSubTab?: (tab: AdminActiveTab) => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -63,8 +65,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onSelectStudent,
   onOpenSupabaseModal,
   onNavigateSchoolHead,
+  activeSubTab,
+  onSelectSubTab,
 }) => {
-  const [activeTab, setActiveTab] = useState<AdminActiveTab>('overview');
+  const [internalActiveTab, setInternalActiveTab] = useState<AdminActiveTab>('overview');
+  const activeTab = activeSubTab !== undefined ? activeSubTab : internalActiveTab;
+  const setActiveTab = (tab: AdminActiveTab) => {
+    setInternalActiveTab(tab);
+    if (onSelectSubTab) onSelectSubTab(tab);
+  };
 
   // Local state for loaded entities
   const [teachers, setTeachers] = useState<TeacherProfile[]>(() => storage.getAllTeachers());
@@ -237,52 +246,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <Printer className="w-4 h-4 text-emerald-950" />
               PRINT DOSSIER
             </button>
+            {onNavigateSchoolHead && (
+              <button
+                type="button"
+                onClick={onNavigateSchoolHead}
+                className="px-4 py-2.5 rounded-xl bg-blue-900/90 hover:bg-blue-800 text-yellow-300 font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs border border-blue-700 whitespace-nowrap shrink-0"
+                title="Inspect School Head / Principal Executive Analytics Portal"
+              >
+                <Building2 className="w-4 h-4 text-amber-300" />
+                <span>School Head Portal</span>
+              </button>
+            )}
           </div>
         </div>
-      </div>
-
-      {/* Primary Navigation Tabs */}
-      <div className="bg-white rounded-2xl p-1.5 border border-slate-200 shadow-sm flex items-center gap-1.5 overflow-x-auto">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setActiveTab(item.id)}
-              className={`px-3.5 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-2 whitespace-nowrap cursor-pointer shrink-0 ${
-                isActive
-                  ? 'bg-emerald-900 text-yellow-300 shadow-md border border-emerald-800 ring-1 ring-emerald-700'
-                  : 'text-slate-600 hover:bg-emerald-50/80 hover:text-emerald-900'
-              }`}
-            >
-              <Icon className={`w-4 h-4 ${isActive ? 'text-yellow-300' : 'text-slate-400'}`} />
-              <span>{item.label}</span>
-              {item.badge !== null && (
-                <span
-                  className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full font-bold ${
-                    isActive ? 'bg-emerald-800 text-yellow-200' : 'bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-
-        {onNavigateSchoolHead && (
-          <button
-            type="button"
-            onClick={onNavigateSchoolHead}
-            className="ml-auto px-3.5 py-2.5 rounded-xl bg-blue-900/90 hover:bg-blue-800 text-yellow-300 font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs border border-blue-700 whitespace-nowrap shrink-0"
-            title="Inspect School Head / Principal Executive Analytics Portal"
-          >
-            <Building2 className="w-4 h-4 text-amber-300" />
-            <span>School Head Portal</span>
-          </button>
-        )}
       </div>
 
       {/* Tab Content Panels */}

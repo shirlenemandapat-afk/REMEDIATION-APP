@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 interface AdminAnalyticsReportsProps {
+  currentAdmin?: TeacherProfile;
   students: Student[];
   sessions: SessionRecord[];
   programs: RemediationProgram[];
@@ -25,6 +26,7 @@ interface AdminAnalyticsReportsProps {
 }
 
 export const AdminAnalyticsReports: React.FC<AdminAnalyticsReportsProps> = ({
+  currentAdmin,
   students,
   sessions,
   programs,
@@ -339,28 +341,40 @@ export const AdminAnalyticsReports: React.FC<AdminAnalyticsReportsProps> = ({
       </div>
 
       {/* Sign-off for printable DepEd Compliance */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-6">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Official DepEd Department Sign-off</h4>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-4 text-xs">
+      <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-6 font-serif">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 font-sans">Official DepEd Department Sign-off</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-4 text-xs text-center">
           <div className="space-y-1">
-            <p className="text-[10px] text-slate-400 uppercase">Prepared by:</p>
-            <div className="pt-8 border-b border-slate-300" />
-            <p className="font-extrabold text-slate-900 mt-1">LEOPOLDO F. ESTABILLO JR.</p>
-            <p className="text-[11px] text-slate-500">Remediation Coordinator / Teacher I</p>
+            <p className="text-[11px] text-slate-600 font-sans font-medium mb-8 text-left">Prepared by:</p>
+            <div className="border-b border-slate-900 mx-2 pb-0.5 mb-1">
+              <p className="font-extrabold text-xs sm:text-sm text-slate-950 uppercase tracking-wide">
+                {currentAdmin?.name || teachers?.find((t) => t.role === 'admin' || t.role === 'super_admin')?.name || 'LEOPOLDO F. ESTABILLO JR.'}
+              </p>
+            </div>
+            <p className="text-[11px] font-bold text-slate-800">Remediation Coordinator / Teacher I</p>
+            <p className="text-[10px] text-slate-600">Technology and Livelihood Education (TLE)</p>
           </div>
 
           <div className="space-y-1">
-            <p className="text-[10px] text-slate-400 uppercase">Reviewed by:</p>
-            <div className="pt-8 border-b border-slate-300" />
-            <p className="font-extrabold text-slate-900 mt-1">DEPARTMENT HEAD, TLE</p>
-            <p className="text-[11px] text-slate-500">Technology and Livelihood Education</p>
+            <p className="text-[11px] text-slate-600 font-sans font-medium mb-8 text-left">Noted by:</p>
+            <div className="border-b border-slate-900 mx-2 pb-0.5 mb-1">
+              <p className="font-extrabold text-xs sm:text-sm text-slate-950 uppercase tracking-wide">
+                MELANI R. SANTOS
+              </p>
+            </div>
+            <p className="text-[11px] font-bold text-slate-800">Head Teacher VI, TLE Department</p>
+            <p className="text-[10px] text-slate-600">Ramon Magsaysay (Cubao) High School</p>
           </div>
 
           <div className="space-y-1">
-            <p className="text-[10px] text-slate-400 uppercase">Noted & Approved by:</p>
-            <div className="pt-8 border-b border-slate-300" />
-            <p className="font-extrabold text-slate-900 mt-1">PRINCIPAL IV / SCHOOL HEAD</p>
-            <p className="text-[11px] text-slate-500">Ramon Magsaysay (Cubao) High School</p>
+            <p className="text-[11px] text-slate-600 font-sans font-medium mb-8 text-left">APPROVED BY:</p>
+            <div className="border-b border-slate-900 mx-2 pb-0.5 mb-1">
+              <p className="font-extrabold text-xs sm:text-sm text-slate-950 uppercase tracking-wide">
+                JOSEPHINE M. MANINGAS, PhD
+              </p>
+            </div>
+            <p className="text-[11px] font-bold text-slate-800">Secondary School Principal IV</p>
+            <p className="text-[10px] text-slate-600">Ramon Magsaysay (Cubao) High School</p>
           </div>
         </div>
       </div>

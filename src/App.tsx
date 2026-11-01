@@ -23,6 +23,10 @@ import { IndividualAnecdotalReportModal } from './components/IndividualAnecdotal
 import { SupabaseDatabaseModal } from './components/SupabaseDatabaseModal';
 import { ConfirmModal, ConfirmActionType } from './components/ConfirmModal';
 import { SchoolLogo } from './components/SchoolLogo';
+import { Sidebar, NavTabType } from './components/Sidebar';
+import { AdminActiveTab } from './components/AdminDashboard';
+import { HeadTeacherTab } from './components/HeadTeacherDashboard';
+import { SchoolHeadTab } from './components/SchoolHeadDashboard';
 import {
   Users,
   Calendar,
@@ -86,6 +90,20 @@ export default function App() {
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
+
+  // Sidebar Layout & Executive Sub-Tab State
+  const [adminSubTab, setAdminSubTab] = useState<AdminActiveTab>('overview');
+  const [headTeacherSubTab, setHeadTeacherSubTab] = useState<HeadTeacherTab>('overview');
+  const [schoolHeadSubTab, setSchoolHeadSubTab] = useState<SchoolHeadTab>('overview');
+
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('smile_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
   // Toast Notification State
   const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'info' | 'warning' } | null>(null);
@@ -272,10 +290,6 @@ export default function App() {
     const isPrivileged = storage.isAdministrativeOrSupervisoryRole(teacher?.email);
     if (!isPrivileged && (activeTab === 'admin-portal' || activeTab === 'head-teacher-portal' || activeTab === 'school-head-portal')) {
       setActiveTab('students');
-    } else if (teacher?.role === 'head_teacher' && activeTab !== 'head-teacher-portal') {
-      setActiveTab('head-teacher-portal');
-    } else if (teacher?.role === 'school_head' && activeTab !== 'school-head-portal') {
-      setActiveTab('school-head-portal');
     }
   }, [teacher?.role, teacher?.email, activeTab]);
 
@@ -576,38 +590,68 @@ export default function App() {
         onManualSync={handleManualSync}
         isSyncing={isSyncing}
         onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+        onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
       />
 
-      {/* Main Dashboard Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Department Welcome & Action Banner with RMCHS Green & Gold Theme (For Classroom Teacher views) */}
-        {teacher.role !== 'admin' && teacher.role !== 'head_teacher' && teacher.role !== 'school_head' && teacher.email !== 'admin@projectsmile' && (
-          <div className="relative overflow-hidden bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-950 rounded-2xl p-6 text-white shadow-xl border border-emerald-800/80">
-            <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
-              <div className="space-y-2 max-w-2xl">
-                {/* Project S.M.I.L.E. Institutional Tag with acronym meaning placed directly under */}
-                <div className="flex flex-col items-start gap-1">
-                  <div className="inline-flex items-center px-3.5 py-1 rounded-full text-xs font-black text-amber-300 uppercase tracking-widest bg-amber-400/25 border border-amber-400/40 shadow-xs">
-                    PROJECT S.M.I.L.E.
-                  </div>
-                  <div className="text-xs text-amber-200/90 font-semibold tracking-wide">
-                    Student Monitoring and Intervention for Learning Enhancement
-                  </div>
-                </div>
+      {/* Main Dashboard Layout with Left Collapsible Sidebar */}
+      <div className="flex-1 flex w-full relative min-h-0">
+        <Sidebar
+          activeTab={activeTab as NavTabType}
+          onSelectTab={(tab) => setActiveTab(tab as any)}
+          adminSubTab={adminSubTab}
+          onSelectAdminSubTab={setAdminSubTab}
+          headTeacherSubTab={headTeacherSubTab}
+          onSelectHeadTeacherSubTab={setHeadTeacherSubTab}
+          schoolHeadSubTab={schoolHeadSubTab}
+          onSelectSchoolHeadSubTab={setSchoolHeadSubTab}
+          teacher={teacher}
+          activeStudentsCount={activeStudents.length}
+          sessionsCount={sessions.length}
+          archivedCount={archivedStudents.length}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => {
+            setIsSidebarCollapsed((prev) => {
+              const next = !prev;
+              try {
+                localStorage.setItem('smile_sidebar_collapsed', String(next));
+              } catch (e) {}
+              return next;
+            });
+          }}
+          isMobileOpen={isMobileSidebarOpen}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        />
 
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
-                  <span>Welcome,</span>
-                  <span className="text-yellow-300 underline decoration-amber-400/60 decoration-2 underline-offset-4">
-                    {teacher.name}
-                  </span>
-                </h1>
+        {/* Main Content Area */}
+        <main className="flex-1 min-w-0 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 space-y-6">
+          {/* Department Welcome & Action Banner with RMCHS Green & Gold Theme (For Classroom Teacher views) */}
+          {activeTab !== 'admin-portal' && activeTab !== 'head-teacher-portal' && activeTab !== 'school-head-portal' && (
+            <div className="relative overflow-hidden bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-950 rounded-2xl p-5 sm:p-6 text-white shadow-xl border border-emerald-800/80">
+              <div className="relative z-10 flex flex-wrap items-center justify-between gap-5">
+                <div className="space-y-2 max-w-2xl">
+                  {/* Project S.M.I.L.E. Institutional Tag with acronym meaning placed directly under */}
+                  <div className="flex flex-col items-start gap-1">
+                    <div className="inline-flex items-center px-3.5 py-1 rounded-full text-xs font-black text-amber-300 uppercase tracking-widest bg-amber-400/25 border border-amber-400/40 shadow-xs">
+                      PROJECT S.M.I.L.E.
+                    </div>
+                    <div className="text-xs text-amber-200/90 font-semibold tracking-wide">
+                      Student Monitoring and Intervention for Learning Enhancement
+                    </div>
+                  </div>
+
+                  <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2">
+                    <span>Welcome,</span>
+                    <span className="text-yellow-300 underline decoration-amber-400/60 decoration-2 underline-offset-4">
+                      {teacher.name}
+                    </span>
+                  </h1>
 
                   <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
                     Project S.M.I.L.E. provides daily anecdotal logs, quarterly remediation tracking, and learning enhancement monitoring across all learning areas, grade levels, and academic subjects.
                   </p>
 
                   {/* Quick status pill counters */}
-                  <div className="pt-2 flex items-center gap-2.5 flex-wrap text-xs font-semibold">
+                  <div className="pt-2 flex items-center gap-2 flex-wrap text-xs font-semibold">
                     <span className="px-2.5 py-1 rounded-lg bg-emerald-900/90 border border-emerald-700/80 text-emerald-200">
                       Active Roster: <strong className="text-white ml-1">{activeStudents.length}</strong>
                     </span>
@@ -625,126 +669,35 @@ export default function App() {
                   </div>
                 </div>
 
-              {/* Quick Actions */}
-              <div className="flex items-center gap-2.5 flex-wrap shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setIsEnrollModalOpen(true)}
-                  className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-emerald-950 font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-lg shadow-amber-900/40 border border-amber-300/60 active:scale-95 cursor-pointer"
-                >
-                  <UserPlus className="w-4 h-4 text-emerald-950" />
-                  ENROLL STUDENT
-                </button>
+                {/* Quick Actions */}
+                <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsEnrollModalOpen(true)}
+                    className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-emerald-950 font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-lg shadow-amber-900/40 border border-amber-300/60 active:scale-95 cursor-pointer"
+                  >
+                    <UserPlus className="w-4 h-4 text-emerald-950" />
+                    ENROLL STUDENT
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAddSessionStudentId(undefined);
-                    setIsAddSessionModalOpen(true);
-                  }}
-                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-lg shadow-emerald-950/40 border border-emerald-400/40 active:scale-95 cursor-pointer"
-                >
-                  <PlusCircle className="w-4 h-4 text-yellow-300" />
-                  ADD SESSION LOG
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddSessionStudentId(undefined);
+                      setIsAddSessionModalOpen(true);
+                    }}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-xs transition flex items-center gap-2 shadow-lg shadow-emerald-950/40 border border-emerald-400/40 active:scale-95 cursor-pointer"
+                  >
+                    <PlusCircle className="w-4 h-4 text-yellow-300" />
+                    ADD SESSION LOG
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Navigation Tabs Styled with Green & Gold Accents */}
-        {teacher.role !== 'admin' && teacher.role !== 'head_teacher' && teacher.role !== 'school_head' && teacher.email !== 'admin@projectsmile' && (
-          <div className="bg-white rounded-2xl p-1.5 border border-emerald-100 shadow-sm flex items-center gap-1.5 overflow-x-auto">
-            <button
-              type="button"
-              onClick={() => setActiveTab('students')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'students'
-                  ? 'bg-emerald-800 text-yellow-300 shadow-md border border-emerald-700'
-                  : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900'
-              }`}
-            >
-              <Users className="w-4 h-4 text-amber-400" />
-              STUDENT ROSTER ({activeStudents.length})
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('sessions')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'sessions'
-                  ? 'bg-emerald-800 text-yellow-300 shadow-md border border-emerald-700'
-                  : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900'
-              }`}
-            >
-              <Calendar className="w-4 h-4 text-amber-400" />
-              DAILY ANECDOTAL LOGS ({sessions.length})
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('class-progress')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'class-progress'
-                  ? 'bg-emerald-800 text-yellow-300 shadow-md border border-emerald-700'
-                  : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4 text-amber-400" />
-              CLASS PROGRESS GRAPH
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('report')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'report'
-                  ? 'bg-emerald-900 text-amber-300 shadow-md border border-amber-400/50'
-                  : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900'
-              }`}
-            >
-              <FileCheck2 className="w-4 h-4 text-amber-400" />
-              NARRATIVE REPORT GENERATOR
-            </button>
-
-            {/* Dedicated Archive Section Tab */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('archive')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'archive'
-                  ? 'bg-amber-600 text-white shadow-md border border-amber-700'
-                  : 'text-amber-900 bg-amber-50/70 hover:bg-amber-100'
-              }`}
-            >
-              <FolderArchive className="w-4 h-4 text-amber-600" />
-              ARCHIVED RECORDS & SECTIONS
-              {archivedStudents.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-amber-700 text-white font-black">
-                  {archivedStudents.length}
-                </span>
-              )}
-            </button>
-
-            {['school_head', 'coordinator'].includes(teacher.role || '') && (
-              <button
-                type="button"
-                onClick={() => setActiveTab('admin-portal')}
-                className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                  activeTab === 'admin-portal'
-                    ? 'bg-purple-900 text-yellow-300 shadow-md border border-purple-800'
-                    : 'text-purple-900 bg-purple-50/80 hover:bg-purple-100'
-                }`}
-              >
-                <Sparkles className="w-4 h-4 text-purple-600" />
-                {teacher.role === 'school_head' ? 'EXECUTIVE OVERSIGHT' : 'COORDINATOR CONSOLE'}
-              </button>
-            )}
-          </div>
-        )}
+          )}
 
         {/* Tab Content Views */}
-        {(activeTab === 'head-teacher-portal' || teacher.role === 'head_teacher') && (
+        {activeTab === 'head-teacher-portal' && (
           <HeadTeacherDashboard
             headTeacher={teacher}
             students={students}
@@ -753,10 +706,12 @@ export default function App() {
             onSelectStudent={(stud) => setViewStudent(stud)}
             onViewMOV={(url, title) => setViewMovUrl({ url, title })}
             onShowToast={showToast}
+            activeSubTab={headTeacherSubTab}
+            onSelectSubTab={setHeadTeacherSubTab}
           />
         )}
 
-        {(activeTab === 'school-head-portal' || teacher.role === 'school_head') && teacher.role !== 'head_teacher' && (
+        {activeTab === 'school-head-portal' && (
           <SchoolHeadDashboard
             currentPrincipal={teacher}
             students={students}
@@ -765,10 +720,12 @@ export default function App() {
             onSelectStudent={(stud) => setViewStudent(stud)}
             onShowToast={showToast}
             onBackToAdmin={teacher.role === 'admin' || teacher.email === 'admin@projectsmile' ? () => setActiveTab('admin-portal') : undefined}
+            activeSubTab={schoolHeadSubTab}
+            onSelectSubTab={setSchoolHeadSubTab}
           />
         )}
 
-        {activeTab === 'admin-portal' && teacher.role !== 'head_teacher' && teacher.role !== 'school_head' && (teacher.role === 'admin' || teacher.role === 'coordinator' || teacher.email === 'admin@projectsmile') && (
+        {activeTab === 'admin-portal' && (
           <AdminDashboard
             currentAdmin={teacher}
             students={students}
@@ -776,7 +733,12 @@ export default function App() {
             onRefreshData={refreshData}
             onSelectStudent={(stud) => setViewStudent(stud)}
             onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
-            onNavigateSchoolHead={() => setActiveTab('school-head-portal')}
+            onNavigateSchoolHead={() => {
+              setActiveTab('school-head-portal');
+              setSchoolHeadSubTab('overview');
+            }}
+            activeSubTab={adminSubTab}
+            onSelectSubTab={setAdminSubTab}
           />
         )}
 
@@ -866,7 +828,8 @@ export default function App() {
             }}
           />
         )}
-      </main>
+        </main>
+      </div>
 
       {/* Institutional Footer */}
       <footer className="bg-emerald-950 text-emerald-200 border-t-2 border-amber-500 py-6 mt-12 print:hidden">

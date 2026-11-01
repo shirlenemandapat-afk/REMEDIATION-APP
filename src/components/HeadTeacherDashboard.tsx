@@ -56,6 +56,8 @@ interface HeadTeacherDashboardProps {
   onSelectStudent?: (student: Student) => void;
   onViewMOV?: (url: string, title: string) => void;
   onShowToast?: (message: string, type?: 'success' | 'info' | 'warning') => void;
+  activeSubTab?: HeadTeacherTab;
+  onSelectSubTab?: (tab: HeadTeacherTab) => void;
 }
 
 interface FlattenedMOVItem {
@@ -107,8 +109,15 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
   onSelectStudent,
   onViewMOV,
   onShowToast,
+  activeSubTab,
+  onSelectSubTab,
 }) => {
-  const [activeTab, setActiveTab] = useState<HeadTeacherTab>('overview');
+  const [internalActiveTab, setInternalActiveTab] = useState<HeadTeacherTab>('overview');
+  const activeTab = activeSubTab !== undefined ? activeSubTab : internalActiveTab;
+  const setActiveTab = (tab: HeadTeacherTab) => {
+    setInternalActiveTab(tab);
+    if (onSelectSubTab) onSelectSubTab(tab);
+  };
   const [teachers, setTeachers] = useState<TeacherProfile[]>(() => storage.getAllTeachers());
   const [liveStudents, setLiveStudents] = useState<Student[]>(() => storage.getAllStudents());
   const [liveSessions, setLiveSessions] = useState<SessionRecord[]>(() => storage.getAllSessions());
@@ -1115,40 +1124,6 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
           </div>
         </div>
       )}
-
-      {/* ================================================================= */}
-      {/* PRIMARY NAVIGATION BAR FOR HEAD TEACHER                           */}
-      {/* ================================================================= */}
-      <div className="bg-white rounded-2xl p-1.5 border border-slate-200 shadow-xs flex items-center gap-1.5 overflow-x-auto">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setActiveTab(item.id)}
-              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${
-                isActive
-                  ? 'bg-emerald-900 text-yellow-300 shadow-xs border border-emerald-800'
-                  : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900'
-              }`}
-            >
-              <Icon className={`w-4 h-4 ${isActive ? 'text-yellow-300' : 'text-emerald-700'}`} />
-              <span>{item.label}</span>
-              {item.count !== null && (
-                <span
-                  className={`text-[11px] font-mono tabular-nums px-1.5 py-0.2 rounded font-bold ${
-                    isActive ? 'bg-emerald-800 text-amber-200' : 'bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  {item.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
 
       {/* ================================================================= */}
       {/* TAB 1: SUPERVISORY OVERVIEW                                       */}

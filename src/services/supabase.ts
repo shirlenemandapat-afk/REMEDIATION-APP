@@ -516,8 +516,18 @@ export const supabaseService = {
         };
       }
 
-      const storedHash = (data.pin || data.password_hash || '').trim();
+      const pinPass = (data.pin || '').trim();
+      const hashPass = (data.password_hash || '').trim();
+      const genericDefaultPasswords = new Set(['deped2025', 'teacher123', 'head2025', 'admin2026']);
+      const storedHash = (hashPass && !genericDefaultPasswords.has(hashPass))
+        ? hashPass
+        : (pinPass && !genericDefaultPasswords.has(pinPass))
+        ? pinPass
+        : (pinPass || hashPass || '').trim();
+
       const isValid =
+        (pinPass && cleanPass === pinPass) ||
+        (hashPass && cleanPass === hashPass) ||
         (storedHash && storedHash === cleanPass) ||
         (cleanEmail === 'admin@projectsmile' && (cleanPass === 'admin2025' || cleanPass === storedHash)) ||
         (cleanEmail.includes('shirlene') && (cleanPass === 'teacher123' || cleanPass === '111204' || cleanPass === storedHash)) ||
@@ -624,7 +634,12 @@ export const supabaseService = {
           roleTitle: t.role_title || (t.role ? t.role.toUpperCase() : 'TEACHER'),
           ...(t.account_status ? { accountStatus: t.account_status } : {}),
           ...(Array.isArray(t.assigned_subjects) ? { assignedSubjects: t.assigned_subjects } : {}),
-          passwordHash: (t.pin || t.password_hash || '').trim(),
+          passwordHash:
+            t.password_hash && t.password_hash.trim() !== 'deped2025'
+              ? t.password_hash.trim()
+              : t.pin && t.pin.trim() !== 'deped2025'
+              ? t.pin.trim()
+              : (t.password_hash || t.pin || '').trim(),
           isPasswordSet: true,
         };
       }
@@ -813,6 +828,7 @@ export const supabaseService = {
       const resolvedPass = (password || teacher.passwordHash || '').trim();
       if (resolvedPass) {
         payload.pin = resolvedPass;
+        payload.password_hash = resolvedPass;
       }
 
       const { error } = await client.from('teacher_profiles').upsert(payload, { onConflict: 'email' });
@@ -982,7 +998,12 @@ export const supabaseService = {
         roleTitle: t.role_title || (t.role ? t.role.toUpperCase() : 'TEACHER'),
         ...(t.account_status ? { accountStatus: t.account_status } : {}),
         ...(Array.isArray(t.assigned_subjects) ? { assignedSubjects: t.assigned_subjects } : {}),
-        passwordHash: (t.pin || t.password_hash || '').trim(),
+        passwordHash:
+          t.password_hash && t.password_hash.trim() !== 'deped2025'
+            ? t.password_hash.trim()
+            : t.pin && t.pin.trim() !== 'deped2025'
+            ? t.pin.trim()
+            : (t.password_hash || t.pin || '').trim(),
         isPasswordSet: true,
       }));
     } catch (e) {

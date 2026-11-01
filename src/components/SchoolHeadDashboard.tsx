@@ -84,6 +84,8 @@ interface SchoolHeadDashboardProps {
   onSelectStudent?: (student: Student) => void;
   onShowToast?: (message: string, type?: 'success' | 'info' | 'warning') => void;
   onBackToAdmin?: () => void;
+  activeSubTab?: SchoolHeadTab;
+  onSelectSubTab?: (tab: SchoolHeadTab) => void;
 }
 
 export const SchoolHeadDashboard: React.FC<SchoolHeadDashboardProps> = ({
@@ -94,6 +96,8 @@ export const SchoolHeadDashboard: React.FC<SchoolHeadDashboardProps> = ({
   onSelectStudent,
   onShowToast,
   onBackToAdmin,
+  activeSubTab,
+  onSelectSubTab,
 }) => {
   // Live local state updated in real-time
   const [liveStudents, setLiveStudents] = useState<Student[]>(() =>
@@ -104,7 +108,12 @@ export const SchoolHeadDashboard: React.FC<SchoolHeadDashboardProps> = ({
   );
   const [teachers, setTeachers] = useState<TeacherProfile[]>(() => storage.getAllTeachers());
 
-  const [activeTab, setActiveTab] = useState<SchoolHeadTab>('overview');
+  const [internalActiveTab, setInternalActiveTab] = useState<SchoolHeadTab>('overview');
+  const activeTab = activeSubTab !== undefined ? activeSubTab : internalActiveTab;
+  const setActiveTab = (tab: SchoolHeadTab) => {
+    setInternalActiveTab(tab);
+    if (onSelectSubTab) onSelectSubTab(tab);
+  };
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
   const [showPrintModal, setShowPrintModal] = useState<boolean>(false);
@@ -950,102 +959,6 @@ export const SchoolHeadDashboard: React.FC<SchoolHeadDashboardProps> = ({
             className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600"
           />
         </div>
-      </div>
-
-      {/* ============================================================== */}
-      {/* 4. EXECUTIVE NAVIGATION TABS                                   */}
-      {/* ============================================================== */}
-      <div className="flex items-center gap-1.5 border-b border-slate-200 overflow-x-auto pb-1 text-xs">
-        <button
-          type="button"
-          onClick={() => setActiveTab('overview')}
-          className={`px-4 py-2.5 font-bold transition-all border-b-2 whitespace-nowrap flex items-center gap-2 cursor-pointer ${
-            activeTab === 'overview'
-              ? 'border-blue-700 text-blue-900 font-extrabold'
-              : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
-          }`}
-        >
-          <BarChart3 className="w-4 h-4 text-blue-700" />
-          <span>School-Wide Analytics</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('enrollment')}
-          className={`px-4 py-2.5 font-bold transition-all border-b-2 whitespace-nowrap flex items-center gap-2 cursor-pointer ${
-            activeTab === 'enrollment'
-              ? 'border-blue-700 text-blue-900 font-extrabold'
-              : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
-          }`}
-        >
-          <Users className="w-4 h-4 text-blue-700" />
-          <span>Student Enrollment ({filteredStudents.length})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('subjects')}
-          className={`px-4 py-2.5 font-bold transition-all border-b-2 whitespace-nowrap flex items-center gap-2 cursor-pointer ${
-            activeTab === 'subjects'
-              ? 'border-blue-700 text-blue-900 font-extrabold'
-              : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
-          }`}
-        >
-          <BookOpen className="w-4 h-4 text-blue-700" />
-          <span>Subject-Area Performance ({subjectPerformanceList.length})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('teachers')}
-          className={`px-4 py-2.5 font-bold transition-all border-b-2 whitespace-nowrap flex items-center gap-2 cursor-pointer ${
-            activeTab === 'teachers'
-              ? 'border-blue-700 text-blue-900 font-extrabold'
-              : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
-          }`}
-        >
-          <UserCheck className="w-4 h-4 text-blue-700" />
-          <span>Teacher Participation ({facultyParticipationList.length})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('sessions')}
-          className={`px-4 py-2.5 font-bold transition-all border-b-2 whitespace-nowrap flex items-center gap-2 cursor-pointer ${
-            activeTab === 'sessions'
-              ? 'border-blue-700 text-blue-900 font-extrabold'
-              : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
-          }`}
-        >
-          <Calendar className="w-4 h-4 text-blue-700" />
-          <span>Session Logs & Frequency ({filteredSessions.length})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('progress')}
-          className={`px-4 py-2.5 font-bold transition-all border-b-2 whitespace-nowrap flex items-center gap-2 cursor-pointer ${
-            activeTab === 'progress'
-              ? 'border-blue-700 text-blue-900 font-extrabold'
-              : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
-          }`}
-        >
-          <GraduationCap className="w-4 h-4 text-blue-700" />
-          <span>Learner Progress Roster ({filteredStudents.length})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('interventions')}
-          className={`px-4 py-2.5 font-bold transition-all border-b-2 whitespace-nowrap flex items-center gap-2 cursor-pointer ${
-            activeTab === 'interventions'
-              ? 'border-blue-700 text-blue-900 font-extrabold'
-              : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
-          }`}
-        >
-          <Activity className="w-4 h-4 text-blue-700" />
-          <span>Intervention Effectiveness</span>
-        </button>
       </div>
 
       {/* ============================================================== */}

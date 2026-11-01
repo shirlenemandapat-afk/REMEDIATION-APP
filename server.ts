@@ -494,11 +494,12 @@ async function relayTeacherProfileToSupabase(profile: any) {
   const client = getServerSupabaseClient();
   if (!client || !profile || !profile.email) return;
   try {
+    const cleanEmail = profile.email.trim().toLowerCase();
     const resolvedPassword = (profile.passwordHash || profile.password_hash || profile.password || profile.pin || '').trim();
     const payload: Record<string, any> = {
       email: cleanEmail,
       name: profile.name || 'Teacher',
-      ...(resolvedPassword ? { pin: resolvedPassword } : {}),
+      ...(resolvedPassword ? { pin: resolvedPassword, password_hash: resolvedPassword } : {}),
       title: profile.title || 'Teacher I / TLE Faculty',
       school_name: profile.schoolName || profile.school_name || 'Ramon Magsaysay (Cubao) High School',
       division: profile.division || 'SDO Quezon City • TLE Department',
@@ -580,9 +581,15 @@ async function pullLatestFromSupabase(db: AppDbState): Promise<boolean> {
           const existingLocal = db.accounts[norm] || {};
           const { role, roleTitle } = normalizeUserRole(existingLocal.role || t.role);
           // Preserve the teacher's registered password from local database or Supabase
-          const cloudPass = (t.pin || t.password_hash || '').trim();
+          const cloudPin = (t.pin || '').trim();
+          const cloudHash = (t.password_hash || '').trim();
+          const cloudPass = (cloudHash && !genericDefaultPasswords.has(cloudHash))
+            ? cloudHash
+            : (cloudPin && !genericDefaultPasswords.has(cloudPin))
+            ? cloudPin
+            : (cloudHash || cloudPin || '').trim();
           const localPass = (existingLocal.passwordHash || '').trim();
-          const resolvedPass = localPass && localPass !== 'deped2025' ? localPass : (cloudPass || localPass || 'deped2025');
+          const resolvedPass = localPass && !genericDefaultPasswords.has(localPass) ? localPass : (cloudPass || localPass || 'deped2025');
 
           db.accounts[norm] = {
             ...existingLocal,
